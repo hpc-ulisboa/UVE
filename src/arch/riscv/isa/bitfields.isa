@@ -110,3 +110,9 @@ def bitfield CIMM5 <6:2>;
 def bitfield CIMM3 <12:10>;
 def bitfield CIMM2 <6:5>;
 def bitfield CIMM1 <12>;
+
+//JMTODO: Add Bitfields for StreamSet
+//Bitfields:StreamSet
+
+//JMTODO: Add Bitfields for StreamOps
+//Bitfields:StreamOps

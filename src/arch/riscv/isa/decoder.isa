@@ -408,6 +408,12 @@ decode QUADRANT default Unknown::unknown() {
             }
         }
 
+        //JMTODO: Space reserved for StreamSet opcode decoding
+        //Decoder:StreamSet
+        0x02: {
+            
+        }
+
         0x03: decode FUNCT3 {
             format IOp {
                 0x0: fence({{
@@ -500,6 +506,12 @@ decode QUADRANT default Unknown::unknown() {
                     Mem_ud = Fs2_bits;
                 }}, inst_flags=FloatMemWriteOp);
             }
+        }
+
+        //JMTODO: Space reserved for StreamOps opcode decoding
+        //Decoder:StreamOps
+        0x03: {
+            
         }
 
         0x0b: decode FUNCT3 {
