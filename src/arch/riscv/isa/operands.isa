@@ -30,6 +30,7 @@
 // Authors: Maxwell Walter
 //          Alec Roelke
 
+//JMTODO: Define new operand types: half-float, byte-float
 def operand_types {{
     'sb' : 'int8_t',
     'ub' : 'uint8_t',
@@ -42,6 +43,8 @@ def operand_types {{
     'sf' : 'float',
     'df' : 'double'
 }};
+
+//JMTODO: Define new vectorial registers
 
 def operands {{
 #General Purpose Integer Reg Operands
