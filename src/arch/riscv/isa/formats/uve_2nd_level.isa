@@ -1,6 +1,14 @@
+/////////////////////////////////
+//
+// Uve 2nd level decoder
+// -----------------
+// João Domingos
+//
+
 output decoder {{
 namespace Uve
 {
+
     // JMNOTE: TO change
     StaticInstPtr
     decodeVectorLoad(ExtMachInst machInst)
@@ -21,5 +29,6 @@ namespace Uve
         
     }  // decodeSveContigLoadSS
 
-} 
+} // namespace Uve
+
 }};

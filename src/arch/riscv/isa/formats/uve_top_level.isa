@@ -1,3 +1,10 @@
+/////////////////////////////////
+//
+// Uve Top level decoder
+// -----------------
+// João Domingos
+//
+
 output header {{
 namespace Uve
 {
@@ -52,3 +59,4 @@ namespace Uve
         }
     }
 }
+}};

@@ -1,3 +1,10 @@
+/////////////////////////////////
+//
+// Uve vector memory operations templates definition
+// -----------------
+// João Domingos
+//
+
 //JMNOTE: Load/Store Header Declaration Templates
 
 def template UveMemDeclare {{
