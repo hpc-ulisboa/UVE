@@ -1,0 +1,53 @@
+output header {{
+namespace Uve
+{
+    StaticInstPtr decodeUveSSStream(ExtMachInst machInst);
+    StaticInstPtr decodeUveSOLoop(ExtMachInst machInst);    
+    StaticInstPtr decodeUveSOPred(ExtMachInst machInst);
+    StaticInstPtr decodeUveSOArithLogicMisc(ExtMachInst machInst);
+    StaticInstPtr decodeUveSOVectorMemControl(ExtMachInst machInst);
+}
+}};
+
+def format Uve() {{
+    decode_block = '''
+    {
+        using namespace Uve;
+        switch(bits(machInst, 6, 2)){
+            case 0x2: //Stream Set
+                return decodeUveSSStream(machInst);
+                break;
+            case 0xa: { //Stream Ops
+                switch(bits(machInst, 31, 29)){
+                    case 0x0:
+                    case 0x1:
+                    case 0x2:
+                    case 0x6:
+                        return decodeUveSOArithLogicMisc(machInst);
+                        break;
+                    
+                    case 0x4:
+                        return decodeUveSOPred(machInst);
+                        break;
+
+                    case 0x5:
+                        return decodeUveSOVectorMemControl(machInst);
+                        break;
+
+                    case 0x7:
+                        return decodeUveSOLoop(machInst);
+
+                    default:
+                        return new Unknown(machInst);
+                        break;
+                }
+                break;
+            }
+
+            default:
+                return new Unknown(machInst);
+                break;
+        }
+    }
+'''
+}};

@@ -39,6 +39,8 @@
  *          Rekai Gonzalez
  */
 
+// JMNOTE: See vecRegContainer info bellow
+
 /** \file arch/generic/vec_reg.hh
  * Vector Registers layout specification.
  *

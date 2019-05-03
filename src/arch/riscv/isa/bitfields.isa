@@ -113,6 +113,57 @@ def bitfield CIMM1 <12>;
 
 //JMTODO: Add Bitfields for StreamSet
 //Bitfields:StreamSet
+def bitfield SSTYPE <26:25>;
+def bitfield SSWIDTH <13:12>;
+def bitfield SSLDST <14>;
+def bitfield SSIND <13>;
+def bitfield SSINDTYPE <14>;
+def bitfield SSMODIF <12>;
+def bitfield SSMODIFTARGET <21:20>;
+def bitfield SSMODIFBEHAV <24:22>;
+def bitfield RS3 <31:27>;
+
 
 //JMTODO: Add Bitfields for StreamOps
 //Bitfields:StreamOps
+def bitfield MAP <31:29>;
+
+def bitfield DECODEHIGH <28>;
+def bitfield DECODELOW <14>;
+def bitfield SBIT <13>;
+def bitfield FPBIT <12>;
+
+def bitfield SOWIDTH <13:12>;
+def bitfield CWIDTH <14>;
+def bitfield UPDATE <14>;
+
+def bitfield VECTORDECODER <28:26>;
+def bitfield DECODELOW2 <14:12>;
+def bitfield VECTORMVCONV <25>;
+def bitfield VECTORMV <24:23>;
+
+//Predicate
+def bitfield PRD <10:7>;
+def bitfield PRS1 <18:15>;
+def bitfield PCONVWIDTH <21:20>;
+def bitfield PREG <27:25>;
+def bitfield PMVREV <11>;
+def bitfield PRDVEC <11>;
+
+//Vector LoadStore
+def bitfield LDSTBIT <26>;
+
+//Move
+def bitfield VMVPREG <22:20>;
+def bitfield VMVSBIT <25>;
+
+//Arithmetic
+def bitfield ADDEACCUM <20>;
+
+//Loop Control
+def bitfield LCBIMM12BIT11 <7>;
+def bitfield LCBIMM12BITS10TO5 <27:22>;
+def bitfield LCBIMM12BITS4TO1<11:8>;
+def bitfield LCIMMSIGN <28>;
+def bitfield LCPREG <21:19>;
+def bitfield LCPRS1 <18:15>;

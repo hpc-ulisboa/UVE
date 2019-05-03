@@ -45,10 +45,13 @@
 
 using namespace LittleEndianGuest;
 
+// JMNOTE:uveVl Added uveVl as parameter
+
 RiscvSystem::RiscvSystem(Params *p)
     : System(p),
       _isBareMetal(p->bare_metal),
-      _resetVect(p->reset_vect)
+      _resetVect(p->reset_vect),
+      _uveVl(p->uve_vl)
 {
 }
 

@@ -60,34 +60,40 @@
 
 namespace RiscvISA {
 
+// JMTODO: ADD information on new registers
+
 using RiscvISAInst::MaxInstSrcRegs;
 using RiscvISAInst::MaxInstDestRegs;
 const int MaxMiscDestRegs = 1;
 
 // Not applicable to RISC-V
-using VecElem = ::DummyVecElem;
-using VecReg = ::DummyVecReg;
-using ConstVecReg = ::DummyConstVecReg;
-using VecRegContainer = ::DummyVecRegContainer;
-constexpr unsigned NumVecElemPerVecReg = ::DummyNumVecElemPerVecReg;
-constexpr size_t VecRegSizeBytes = ::DummyVecRegSizeBytes;
+//JMNOTE: Now applicable for Uve
+constexpr unsigned NumVecElemPerVecReg = MaxUveVecLenInWords;
+using VecElem = uint32_t;
+using VecReg = ::VecRegT<VecElem,NumVecElemPerVecReg, false>;
+using ConstVecReg = ::VecRegT<VecElem,NumVecElemPerVecReg, true>;
+using VecRegContainer = VecReg::Container;
 
 // Not applicable to RISC-V
-using VecPredReg = ::DummyVecPredReg;
-using ConstVecPredReg = ::DummyConstVecPredReg;
-using VecPredRegContainer = ::DummyVecPredRegContainer;
-constexpr size_t VecPredRegSizeBits = ::DummyVecPredRegSizeBits;
-constexpr bool VecPredRegHasPackedRepr = ::DummyVecPredRegHasPackedRepr;
+//JMNOTE: Now applicable for Uve
+using PredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg, false, false>;
+using ConstVecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg, false, true>;
+using VecPredRegContainer = PredReg::Container;
+
 
 const int NumIntArchRegs = 32;
 const int NumMicroIntRegs = 1;
 const int NumIntRegs = NumIntArchRegs + NumMicroIntRegs;
 const int NumFloatRegs = 32;
 
-const unsigned NumVecRegs = 1;  // Not applicable to RISC-V
+//JMNOTE: Now applicable for Uve
+const unsigned NumVecRegs = 32;  // Not applicable to RISC-V
                                 // (1 to prevent warnings)
-const int NumVecPredRegs = 1;  // Not applicable to RISC-V
+                                //JMTODO: Update this
+//JMNOTE: Now applicable for Uve
+const int NumVecPredRegs = 16;  // Not applicable to RISC-V
                                // (1 to prevent warnings)
+                               //JMTODO: Update this
 
 const int NumCCRegs = 0;
 
@@ -127,6 +133,8 @@ const std::vector<std::string> FloatRegNames = {
     "fs8", "fs9", "fs10", "fs11",
     "ft8", "ft9", "ft10", "ft11"
 };
+
+//JMTODO: Add vector registers names and vector predicates
 
 enum MiscRegIndex {
     MISCREG_PRV = 0,
@@ -253,6 +261,9 @@ enum MiscRegIndex {
     MISCREG_UTVAL,
     MISCREG_FFLAGS,
     MISCREG_FRM,
+
+    //JMNOTE:uveVl UVE CSRs index enum
+    MISCREG_UVEVS,
 
     NUM_MISCREGS
 };
@@ -419,7 +430,10 @@ enum CSRIndex {
     CSR_TDATA3 = 0x7A3,
     CSR_DCSR = 0x7B0,
     CSR_DPC = 0x7B1,
-    CSR_DSCRATCH = 0x7B2
+    CSR_DSCRATCH = 0x7B2,
+
+    //JMNOTE:uveVl UVE CSRs index - Used 0x8 as main index. As a result of the analysis of the previous registers
+    CSR_UVEVS = 0x800
 };
 
 struct CSRMetadata
@@ -587,7 +601,10 @@ const std::map<int, CSRMetadata> CSRData = {
     {CSR_TDATA3, {"tdata3", MISCREG_TDATA3}},
     {CSR_DCSR, {"dcsr", MISCREG_DCSR}},
     {CSR_DPC, {"dpc", MISCREG_DPC}},
-    {CSR_DSCRATCH, {"dscratch", MISCREG_DSCRATCH}}
+    {CSR_DSCRATCH, {"dscratch", MISCREG_DSCRATCH}},
+
+    //JMNOTE:uveVl UVE CSRs
+    {CSR_UVEVS, {"uvevs", MISCREG_UVEVS}}
 };
 
 /**

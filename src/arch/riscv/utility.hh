@@ -133,6 +133,7 @@ copyRegs(ThreadContext *src, ThreadContext *dest)
     dest->pcState(src->pcState());
 }
 
+//JMTODO: Update this function to use the new vector/predicate registers. Add  vector register names to the register.hh
 inline std::string
 registerName(RegId reg)
 {
@@ -152,13 +153,19 @@ registerName(RegId reg)
             return str.str();
         }
         return IntRegNames[reg.index()];
-    } else {
+    } else if (reg.isFloatReg()) {
         if (reg.index() >= NumFloatRegs) {
             std::stringstream str;
             str << "?? (f" << reg.index() << ')';
             return str.str();
         }
         return FloatRegNames[reg.index()];
+    } else {
+        //JMNOTE: Here we are getting the name for the Uve registers
+        std::stringstream str;
+        std::string type_str = reg.isVecReg() ? "v" : "p";
+        str << type_str << reg.index();
+        return str.str();
     }
 }
 

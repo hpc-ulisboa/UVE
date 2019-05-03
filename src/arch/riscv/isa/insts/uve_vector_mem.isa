@@ -1,0 +1,126 @@
+output header {{
+     // Decodes SVE contiguous load instructions, scalar plus scalar form.
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeVectorLoadTemplated(  uint8_t load_width,
+                                bool    s_bit,
+                                ExtMachInst machInst,
+                                IntRegIndex rd, 
+                                IntRegIndex rs1,
+                                IntRegIndex rs2)
+    {
+        const char* mn = "so.v.ld";
+        switch (load_width) {
+            case 0x0:
+                return new Base<uint8_t>(mn, machInst, rd, rs1, rs2);
+                break;
+            case 0x1:
+                return new Base<uint16_t>(mn, machInst, rd, rs1, rs2);
+                break;
+            case 0x2:
+                return new Base<uint32_t>(mn, machInst, rd, rs1, rs2);
+                break;
+            case 0x3:
+                return new Base<uint64_t>(mn, machInst, rd, rs1, rs2);
+                break;
+        }
+
+    }
+
+}};
+
+output decoder {{
+
+}};
+
+// global let blocks 'let {{...}}' (Python code blocks) are
+// executed directly when seen.  Note that these execute in a
+// special variable context 'exportContext' to prevent the code
+// from polluting this script's namespace. This allows for code 
+// generation
+
+let {{
+    header_output = ''
+    exec_output = ''
+    decoders = { 'Generic': {} }
+
+    VectorStoreTemplateArgs = VectorLoadTemplateArgs = (
+        ('uint8_t',),
+        ('uint16_t',),
+        ('uint32_t',),
+        ('uint64_t',),
+    )
+
+    # Generates definitions for UVE vector loads and stores
+    def emitUveVectorMemInsts():
+        global header_output, exec_output, decoders
+        tplHeader = 'template <class RegElemType>'
+        tplArgs = '<RegElemType>'
+
+        # JMNOTE: Here the memAccessSize comes from the value of rs2 -> If its zero: memAccessSize = eCount * sizeOf(RegElemType);
+        eaCode = '''
+        int memAccessSize = eCount * sizeof(RegElemType);
+        EA = XBase;'''
+        
+        loadRdEnableCode = '''
+        auto rdEn = std::vector<bool>(sizeof(MemElemType) * eCount, true);
+        '''
+        loadMemAccCode = '''
+        for (int i = 0; i < eCount; i++) {
+            Vd_x[i] = memDataView[i];
+        }
+        '''
+        
+        storeMemAccCode = '''
+        for (int i = 0; i < eCount; i++) {
+            memDataView[i] = Vd_x[i];
+        }
+        '''
+        storeWrEnableCode = '''
+        auto wrEn = std::vector<bool>(sizeof(MemElemType) * eCount, true);
+        '''
+        
+
+        loadIop = InstObjParams('so.v.ld',
+            'UveLoad',
+            'UveMem',
+            {'tpl_header': tplHeader,
+             'tpl_args': tplArgs,
+             'rden_code' : loadRdEnableCode,
+             'memacc_code': loadMemAccCode,
+             'ea_code' : eaCode},
+            ['IsMemRef', 'IsLoad'])
+        storeIop = InstObjParams('so.v.st',
+            'UveStore',
+            'UveMem',
+            {'tpl_header': tplHeader,
+             'tpl_args': tplArgs,
+             'wren_code': storeWrEnableCode,
+             'memacc_code': storeMemAccCode,
+             'ea_code' : eaCode},
+            ['IsMemRef', 'IsStore'])
+       
+       
+        header_output += UveMemDeclare.subst(loadIop)
+        header_output += UveMemDeclare.subst(storeIop)
+
+        exec_output += (
+            UveLoadExecute.subst(loadIop) +
+            UveLoadInitiateAcc.subst(loadIop) +
+            UveCompleteAcc.subst(loadIop) +
+
+            UveStoreExecute.subst(storeIop) +
+            UveStoreInitiateAcc.subst(storeIop) +
+            UveStoreCompleteAcc.subst(storeIop) +
+        )
+
+        for args in loadTplArgs:
+            substDict = {'tpl_args': '<%s>' % ', '.join(args),
+                         'class_name': 'UveLoad'}
+            exec_output += UveMemExecDeclare.subst(substDict)
+
+        for args in storeTplArgs:
+            substDict = {'tpl_args': '<%s>' % ', '.join(args),
+                         'class_name': 'UveStore'}
+            exec_output += UveMemExecDeclare.subst(substDict)
+}};

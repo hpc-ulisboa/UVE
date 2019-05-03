@@ -48,3 +48,6 @@ class RiscvISA(SimObject):
     type = 'RiscvISA'
     cxx_class = 'RiscvISA::ISA'
     cxx_header = "arch/riscv/isa.hh"
+
+    # JMNOTE:uveVl System param added
+    system = Param.System(Parent.any, "System this ISA object belongs to")

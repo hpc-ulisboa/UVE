@@ -90,6 +90,23 @@ class ISA : public SimObject
 
     void startup(ThreadContext *tc) {}
 
+    //JMNOTE:uveVl Get Uve vector length
+    //Usage: ArmStaticInst::getCurSveVecLen(xc->tcBase());
+    //Refer to static_inst.hh
+    int getCurUveVecLen() const;
+
+    //JMNOTE:uveVl Serialization functions for uveVl state save
+    void
+    serialize(CheckpointOut &cp) const
+    {
+      SERIALIZE_SCALAR(uveVl);
+    }
+
+    void
+    unserialize(CheckpointIn &cp) const {
+      UNSERIALIZE_SCALAR(uveVl)
+    }
+
     /// Explicitly import the otherwise hidden startup
     using SimObject::startup;
 

@@ -1,0 +1,54 @@
+output header {{
+namespace Uve
+{
+    StaticInstPtr decodeVectorLoad(ExtMachInst machInst);
+    StaticInstPtr decodeVectorStore(ExtMachInst machInst);
+    // StaticInstPtr decodeSveIntArithBinPred(ExtMachInst machInst);
+    // StaticInstPtr decodeSveIntReduc(ExtMachInst machInst);
+    // StaticInstPtr decodeSveShiftByImmPred(ExtMachInst machInst);
+    // StaticInstPtr decodeSveIntArithUnaryPred(ExtMachInst machInst);
+    // StaticInstPtr decodeSveIntMulAdd(ExtMachInst machInst);
+    // StaticInstPtr decodeSveIntArithUnpred(ExtMachInst machInst);
+}
+}};
+
+
+output decoder {{
+namespace Uve
+{
+    StaticInstPtr
+    decodeUveSSStream(ExtMachInst machInst){
+        return new Unknown(machInst);
+    }
+
+    StaticInstPtr
+    decodeUveSOLoop(ExtMachInst machInst){
+        return new Unknown(machInst);
+    }
+
+    StaticInstPtr
+    decodeUveSOPred(ExtMachInst machInst){
+        return new Unknown(machInst);
+    }
+
+    StaticInstPtr
+    decodeUveSOArithLogicMisc(ExtMachInst machInst){
+        return new Unknown(machInst);
+    }
+
+    StaticInstPtr
+    decodeUveSOVectorMemControl(ExtMachInst machInst){
+        switch (bits(machInst, 28, 26))
+        {
+            case 0x0: //Vector Load
+                return decodeVectorLoad(machInst);
+                break;
+            case 0x1: //Vector Store
+                return decodeVectorStore(machInst);
+                break;
+            default:
+                return new Unknown(machInst);
+                break;
+        }
+    }
+}

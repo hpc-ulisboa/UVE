@@ -59,6 +59,17 @@ class RiscvStaticInst : public StaticInst
     {
         return simpleAsBytes(buf, size, machInst);
     }
+
+    //JMNOTE: Functions for generating dissassembly
+    std::string getWidthRepr() const;
+
+    //JMNOTE: Get current Uve vector length
+    //Usage: ArmStaticInst::getCurSveVecLen(xc->tcBase());
+    static int
+    getCurUveVecLen(ThreadContext *tc)
+    {
+        return tc->getIsaPtr()->getCurUveVecLen();;
+    }
 };
 
 /**

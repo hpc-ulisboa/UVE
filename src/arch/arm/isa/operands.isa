@@ -112,7 +112,7 @@ let {{
     #PCState operands need to have a sorting index (the number at the end)
     #less than all the integer registers which might update the PC. That way
     #if the flag bits of the pc state are updated and a branch happens through
-    #R15, the updates are layered properly and the R15 update isn't lost.
+    #R15, the updates are layered properly and the R15 update isnt lost.
     srtNormal = 5
     srtCpsr = 4
     srtBase = 3
