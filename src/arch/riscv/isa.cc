@@ -48,6 +48,14 @@ namespace RiscvISA
 ISA::ISA(Params *p) : SimObject(p)
 {
     miscRegFile.resize(NumMiscRegs);
+
+    //JMNOTE:uveVl Added system cast to grab the value of uveVl
+    system = dynamic_cast<RiscvSystem *>(p->system);
+
+    if(system) {
+        uveVl = system->uveVl();
+    }
+
     clear();
 }
 
@@ -70,6 +78,9 @@ void ISA::clear()
                                   (1ULL << FS_OFFSET);
     miscRegFile[MISCREG_MCOUNTEREN] = 0x7;
     miscRegFile[MISCREG_SCOUNTEREN] = 0x7;
+
+    //JMNOTE:uveVl Added UVE CSR to here. It's value comes from the parameters of the simulation
+    miscRegFile[MISCREG_UVEVS] = uveVl;
 }
 
 bool
@@ -196,7 +207,15 @@ ISA::setMiscReg(int misc_reg, RegVal val, ThreadContext *tc)
     }
 }
 
+int
+ISA::getCurUveVecLen() const
+{
+    uint64_t len = miscRegs[MISCREG_UVEVS];
+    return len;
 }
+
+
+} //JMNOTE: End namespace Riscv
 
 RiscvISA::ISA *
 RiscvISAParams::create()

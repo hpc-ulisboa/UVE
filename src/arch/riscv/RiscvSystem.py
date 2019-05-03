@@ -34,12 +34,18 @@ from m5.params import *
 
 from m5.objects.System import System
 
+# JMNOTE:uveVl Define limits for vector length
+class UveVectorLength(UInt32) :  min = 0; max = 1024 
+
 class RiscvSystem(System):
     type = 'RiscvSystem'
     cxx_header = 'arch/riscv/system.hh'
     bare_metal = Param.Bool(False, "Using Bare Metal Application?")
     reset_vect = Param.Addr(0x0, 'Reset vector')
     load_addr_mask = 0xFFFFFFFFFFFFFFFF
+    
+    # JMNOTE:uveVl added uve_vl simobject parameter
+    uve_vl = Param.UveVectorLength(0, "UVE vector length")
 
 
 class BareMetalRiscvSystem(RiscvSystem):

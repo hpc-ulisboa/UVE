@@ -660,6 +660,9 @@ class FloatRegOperand(Operand):
         }''' % (self.ctype, self.base_name, wp)
         return wb
 
+
+#JMNOTE: This class can be copied to origin a uve vector class. The same for the following VecRegElements and VecPredReg
+#JMTODO: Create a UVE VecReg class
 class VecRegOperand(Operand):
     reg_class = 'VecRegClass'
 
@@ -2048,6 +2051,7 @@ del wrap
 
     # Define the mapping from operand type extensions to C++ types and
     # bit widths (stored in operandTypeMap).
+    # JMNOTE: self.operandTypeMap contains the mapping between C++ types and register bit widths
     def p_def_operand_types(self, t):
         'def_operand_types : DEF OPERAND_TYPES CODELIT SEMI'
         try:
@@ -2060,6 +2064,7 @@ del wrap
 
     # Define the mapping from operand names to operand classes and
     # other traits.  Stored in operandNameMap.
+    # JMTODO: Print out the operandNameMap variable, so to check for the correct inclusion of vector and predicate registers.
     def p_def_operands(self, t):
         'def_operands : DEF OPERANDS CODELIT SEMI'
         if not hasattr(self, 'operandTypeMap'):

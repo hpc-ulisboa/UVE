@@ -30,7 +30,7 @@
 // Authors: Maxwell Walter
 //          Alec Roelke
 
-//JMTODO: Define new operand types: half-float, byte-float
+//JMFIXME: Define new operand types: half-float, byte-float. Prior to being defined, it is necessary to specify the c++ class, in this case it is possible to create a new class for float_8 and float_16, see arm/isa/operands.isa  Also it is possible to define them as float and put the calculation logic inside the operations.
 def operand_types {{
     'sb' : 'int8_t',
     'ub' : 'uint8_t',
@@ -40,14 +40,34 @@ def operand_types {{
     'uw' : 'uint32_t',
     'sd' : 'int64_t',
     'ud' : 'uint64_t',
+    'tud' : 'std::array<uint64_t, 2>',
+    'bf' : 'float'
+    'hf' : 'float',
     'sf' : 'float',
-    'df' : 'double'
+    'df' : 'double',
+    'vc' : 'TheISA::VecRegContainer',
+     # For operations that are implemented as a template
+    'x' : 'TPElem',
+    'xs' : 'TPSElem',
+    'xd' : 'TPDElem',
+    'pc' : 'TheISA::PredRegContainer',
+    'pb' : 'uint8_t'
+}};
+
+let {{
+    def vectorReg(idx, elems = None):
+        return ('VecReg', 'vc', (idx, elems) , 'IsVector', srtNormal)
+
+    def vectorRegElem(elem, ext = 'sf', zeroing = False):
+        return (elem, ext, zeroing)
+
 }};
 
 //JMTODO: Define new vectorial registers
 
 def operands {{
 #General Purpose Integer Reg Operands
+#JMNOTE: "Reg_name" : ('base_class', 'c_operand_type', 'reg_spec','flags', 'sort_pri')
     'Rd': ('IntReg', 'ud', 'RD', 'IsInteger', 1),
     'Rs1': ('IntReg', 'ud', 'RS1', 'IsInteger', 2),
     'Rs2': ('IntReg', 'ud', 'RS2', 'IsInteger', 3),
@@ -73,6 +93,50 @@ def operands {{
     'Fc2_bits': ('FloatReg', 'ud', 'FC2', 'IsFloating', 2),
     'Fp2': ('FloatReg', 'df', 'FP2 + 8', 'IsFloating', 2),
     'Fp2_bits': ('FloatReg', 'ud', 'FP2 + 8', 'IsFloating', 2),
+    
+#Vector Reg Operands
+    'Vd': vectorReg('VD',
+    {
+        'VdP0': vectorRegElem('0'),
+        'VdP1': vectorRegElem('1'),
+        'VdP2': vectorRegElem('2'),
+        'VdP3': vectorRegElem('3'),
+        'VdS':  vectorRegElem('0', 'sf', zeroing = True),
+        'VdD':  vectorRegElem('0', 'df', zeroing = True),
+        'VdQ':  vectorRegElem('0', 'tud', zeroing = True)
+
+    }),
+
+    'Vs1': vectorReg('VS',
+    {
+        'Vs1P0': vectorRegElem('0'),
+        'Vs1P1': vectorRegElem('1'),
+        'Vs1P2': vectorRegElem('2'),
+        'Vs1P3': vectorRegElem('3'),
+        'Vs1S':  vectorRegElem('0', 'sf', zeroing = True),
+        'Vs1D':  vectorRegElem('0', 'df', zeroing = True),
+        'Vs1Q':  vectorRegElem('0', 'tud', zeroing = True)
+
+    }),
+
+    'Vs2': vectorReg('VS',
+    {
+        'Vs2P0': vectorRegElem('0'),
+        'Vs2P1': vectorRegElem('1'),
+        'Vs2P2': vectorRegElem('2'),
+        'Vs2P3': vectorRegElem('3'),
+        'Vs2S':  vectorRegElem('0', 'sf', zeroing = True),
+        'Vs2D':  vectorRegElem('0', 'df', zeroing = True),
+        'Vs2Q':  vectorRegElem('0', 'tud', zeroing = True)
+
+    }),
+
+# Predicate Register operands
+    'GpOp': predReg('gp'),
+    'POp1': predReg('op1'),
+    'POp2': predReg('op2'),
+    'PDest': predReg('dest'),
+    'PDestMerge': predReg('dest'),
 
 #Memory Operand
     'Mem': ('Mem', 'ud', None, ('IsMemRef', 'IsLoad', 'IsStore'), 5),

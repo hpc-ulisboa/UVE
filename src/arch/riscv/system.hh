@@ -53,6 +53,9 @@ class RiscvSystem : public System
     bool _isBareMetal;
     // entry point for simulation
     Addr _resetVect;
+    
+    // JMNOTE:uveVl UVE vector length
+    int _uveVl;
 
   public:
     typedef RiscvSystemParams Params;
@@ -64,6 +67,9 @@ class RiscvSystem : public System
 
     // return bare metal checker
     bool isBareMetal() const { return _isBareMetal; }
+
+    //JMNOTE:uveVl return uve vector length
+    int uveVl() const { return _uveVl; }
 
     virtual bool breakpoint();
 

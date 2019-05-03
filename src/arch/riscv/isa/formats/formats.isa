@@ -46,4 +46,5 @@
 ##include "unknown.isa"
 
 // Include formats for the StreamSet and StreamOps instructions (UVE)
-// JMTODO: Include formats file
+// JMNOTE: Include formats files here
+##include "uvemem.isa"

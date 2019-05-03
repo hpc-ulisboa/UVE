@@ -1,0 +1,25 @@
+output decoder {{
+namespace Uve
+{
+    // JMNOTE: TO change
+    StaticInstPtr
+    decodeVectorLoad(ExtMachInst machInst)
+    {
+        IntRegIndex rd = (IntRegIndex) (uint8_t) bits(machInst, 11, 7);
+        IntRegIndex rs1 = (IntRegIndex) (uint8_t) bits(machInst, 19, 15);
+        IntRegIndex rs2 = (IntRegIndex) (uint8_t) bits(machInst, 24, 20);
+        bool s_bit = bits(machInst,25) ? true : false;
+
+        if(!s_bit) {
+            return decodeVectorLoadTemplated<UveLoad>(
+            bits(machInst, 24, 21), machInst, rd, rs1, rs2);
+        }
+        else { //Produce the version without the address updater (s_bit)
+            return decodeVectorLoadTemplated<UveContigLoadSS>(
+            bits(machInst, 24, 21), machInst, rd, rs1, rs2);
+        }
+        
+    }  // decodeSveContigLoadSS
+
+} 
+}};

@@ -48,4 +48,27 @@ RiscvMicroInst::advancePC(PCState &pcState) const
     }
 }
 
+//JMNOTE: Functions for generating dissassembly
+std::string
+RiscvStaticInst::getWidthRepr() const {
+    int8_t width = bits(machInst,13,12);
+    std::string width_repr = "";
+    switch(width){
+        case 0:
+            width_repr = "b";
+            break;
+        case 1:
+            width_repr = "h";
+            break;
+        case 2:
+            width_repr = "w";
+            break;
+        case 3:
+            width_repr = "d";
+            break;
+    }
+    return width_repr;
+}
+}
+
 } // namespace RiscvISA
