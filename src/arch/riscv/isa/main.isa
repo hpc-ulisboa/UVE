@@ -53,8 +53,15 @@ namespace RiscvISA;
 //Include the operand_types and operand definitions
 ##include "operands.isa"
 
+//Templates for the C++ versions of the instructions
+##include "templates/templates.isa"
+
+//Include manually defined instructions
+##include "insts/insts.isa"
+
 //Include the definitions for the instruction formats
 ##include "formats/formats.isa"
 
 //Include the decoder definition
 ##include "decoder.isa"
+

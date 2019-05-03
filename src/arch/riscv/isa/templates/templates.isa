@@ -1,0 +1,4 @@
+// -*- mode:c++ -*-
+
+// Templates for UVE instructions
+##include "uve_vector_mem.isa"

@@ -43,6 +43,9 @@
 #          Alec Roelke
 
 from m5.SimObject import SimObject
+from m5.params import *
+from m5.proxy import *
+
 
 class RiscvISA(SimObject):
     type = 'RiscvISA'

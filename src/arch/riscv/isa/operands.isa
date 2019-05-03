@@ -31,6 +31,7 @@
 //          Alec Roelke
 
 //JMFIXME: Define new operand types: half-float, byte-float. Prior to being defined, it is necessary to specify the c++ class, in this case it is possible to create a new class for float_8 and float_16, see arm/isa/operands.isa  Also it is possible to define them as float and put the calculation logic inside the operations.
+
 def operand_types {{
     'sb' : 'int8_t',
     'ub' : 'uint8_t',
@@ -41,12 +42,12 @@ def operand_types {{
     'sd' : 'int64_t',
     'ud' : 'uint64_t',
     'tud' : 'std::array<uint64_t, 2>',
-    'bf' : 'float'
+    'bf' : 'float',
     'hf' : 'float',
     'sf' : 'float',
     'df' : 'double',
     'vc' : 'TheISA::VecRegContainer',
-     # For operations that are implemented as a template
+    # For operations that are implemented as a template
     'x' : 'TPElem',
     'xs' : 'TPSElem',
     'xd' : 'TPDElem',
@@ -56,18 +57,22 @@ def operand_types {{
 
 let {{
     def vectorReg(idx, elems = None):
-        return ('VecReg', 'vc', (idx, elems) , 'IsVector', srtNormal)
+        return ('VecReg', 'vc', (idx, elems) , 'IsVector', 3)
 
     def vectorRegElem(elem, ext = 'sf', zeroing = False):
         return (elem, ext, zeroing)
 
+    def predReg(idx):
+        return ('PredReg', 'pc', idx, None, 3)
+
+
 }};
 
 //JMTODO: Define new vectorial registers
-
+//JMNOTE: "Reg_name" : ('base_class', 'c_operand_type', 'reg_spec'
+//,'flags', 'sort_pri')
 def operands {{
 #General Purpose Integer Reg Operands
-#JMNOTE: "Reg_name" : ('base_class', 'c_operand_type', 'reg_spec','flags', 'sort_pri')
     'Rd': ('IntReg', 'ud', 'RD', 'IsInteger', 1),
     'Rs1': ('IntReg', 'ud', 'RS1', 'IsInteger', 2),
     'Rs2': ('IntReg', 'ud', 'RS2', 'IsInteger', 3),
@@ -119,7 +124,7 @@ def operands {{
 
     }),
 
-    'Vs2': vectorReg('VS',
+    'Vs2': vectorReg('VS2',
     {
         'Vs2P0': vectorRegElem('0'),
         'Vs2P1': vectorRegElem('1'),
@@ -132,11 +137,11 @@ def operands {{
     }),
 
 # Predicate Register operands
-    'GpOp': predReg('gp'),
-    'POp1': predReg('op1'),
-    'POp2': predReg('op2'),
-    'PDest': predReg('dest'),
-    'PDestMerge': predReg('dest'),
+    #'GpOp': predReg('gp'),
+    #'POp1': predReg('op1'),
+    #'POp2': predReg('op2'),
+    #'PDest': predReg('dest'),
+    #'PDestMerge': predReg('dest'),
 
 #Memory Operand
     'Mem': ('Mem', 'ud', None, ('IsMemRef', 'IsLoad', 'IsStore'), 5),

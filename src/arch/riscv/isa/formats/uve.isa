@@ -1,3 +1,10 @@
+/////////////////////////////////
+//
+// Uve decoder format
+// -----------------
+// João Domingos
+//
+
 output header {{
 namespace Uve
 {

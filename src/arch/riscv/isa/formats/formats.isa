@@ -47,4 +47,6 @@
 
 // Include formats for the StreamSet and StreamOps instructions (UVE)
 // JMNOTE: Include formats files here
-##include "uvemem.isa"
+##include "uve.isa"
+##include "uve_top_level.isa"
+##include "uve_2nd_level.isa"

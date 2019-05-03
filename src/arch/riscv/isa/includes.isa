@@ -35,8 +35,11 @@
 // Output include file directives.
 //
 
+//JMNOTE: Added uve_vector_mem header
+
 output header {{
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -48,6 +51,7 @@ output header {{
 #include "arch/riscv/insts/standard.hh"
 #include "arch/riscv/insts/static_inst.hh"
 #include "arch/riscv/insts/unknown.hh"
+#include "arch/riscv/insts/uve_vector_mem.hh"
 #include "cpu/static_inst.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
