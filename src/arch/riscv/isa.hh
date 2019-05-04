@@ -66,6 +66,8 @@ class ISA : public SimObject
 {
   protected:
     std::vector<RegVal> miscRegFile;
+    
+    uint8_t uveVl;
 
     bool hpmCounterEnabled(int counter) const;
 
