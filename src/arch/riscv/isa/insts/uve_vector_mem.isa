@@ -150,12 +150,12 @@ let {{
 
         for args in VectorLoadTemplateArgs:
             substDict = {'tpl_args': '<%s>' % ', '.join(args),
-                         'class_name': 'UveLoad'}
+                         'class_name': 'UveLoad' if not has_set_bit else 'UveLoadSet'}
             exec_output += UveMemExecDeclare.subst(substDict)
 
         for args in VectorLoadTemplateArgs:
             substDict = {'tpl_args': '<%s>' % ', '.join(args),
-                         'class_name': 'UveStore'}
+                         'class_name': 'UveStore' if not has_set_bit else 'UveStoreSet'}
             exec_output += UveMemExecDeclare.subst(substDict)
 
     emitUveVectorMemInsts(has_set_bit = False)
