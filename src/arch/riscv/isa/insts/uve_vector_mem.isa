@@ -158,7 +158,7 @@ let {{
                          'class_name': 'UveStore'}
             exec_output += UveMemExecDeclare.subst(substDict)
 
-    emitUveVectorMemInsts(has_set_bit = false)
-    emitUveVectorMemInsts(has_set_bit = true)
+    emitUveVectorMemInsts(has_set_bit = False)
+    emitUveVectorMemInsts(has_set_bit = True)
     # JMTODO: emitUveVectorMemInsts with set_bit as true
 }};
