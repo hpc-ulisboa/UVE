@@ -50,7 +50,7 @@ from types import *
 
 from m5.util.grammar import Grammar
 
-# JMFIXME: Turn flag after
+# JMFIXME: Turn flag to False in the end
 debug=False
 
 ###################
