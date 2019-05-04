@@ -7,12 +7,12 @@
 namespace RiscvISA
 {
 
-class UveMem : public RiscvStaticInst
+class UveMemLoad : public RiscvStaticInst
 {
   protected:
-    IntRegIndex dest;
-    IntRegIndex base;
-    IntRegIndex size;
+    IntRegIndex VDest;
+    IntRegIndex RS1;
+    IntRegIndex RS2;
 
     Request::Flags memAccessFlags;
 
@@ -24,6 +24,25 @@ class UveMem : public RiscvStaticInst
 
     std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
 };
+
+class UveMemStore : public RiscvStaticInst
+{
+  protected:
+    IntRegIndex VSrc1;
+    IntRegIndex RS1;
+    IntRegIndex RS2;
+
+    Request::Flags memAccessFlags;
+
+    UveMem(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+                   IntRegIndex _VSrc1, IntRegIndex _RS1, IntRegIndex _RS2)
+        : RiscvStaticInst(mnem, _machInst, __opClass),
+          VSrc1(_VSrc1), RS1(_RS1), RS2(_RS2)
+    {}
+
+    std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
+};
+
 
 }  // namespace RiscvISA
 

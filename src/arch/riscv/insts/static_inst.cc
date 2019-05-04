@@ -55,20 +55,35 @@ RiscvStaticInst::getWidthRepr() const {
     std::string width_repr = "";
     switch(width){
         case 0:
-            width_repr = "b";
+            width_repr = ".b";
             break;
         case 1:
-            width_repr = "h";
+            width_repr = ".h";
             break;
         case 2:
-            width_repr = "w";
+            width_repr = ".w";
             break;
         case 3:
-            width_repr = "d";
+            width_repr = ".d";
             break;
     }
     return width_repr;
 }
+
+std::string
+RiscvStaticInst::getSbitRepr() const {
+    int8_t s_bit = bits(machInst,25);
+    std::string s_bit_repr = "";
+    switch(s_bit){
+        case 0:
+            width_repr = "";
+            break;
+        case 1:
+            width_repr = ".s";
+            break;
+    }
+    return s_bit_repr;
 }
+
 
 } // namespace RiscvISA

@@ -5,11 +5,20 @@ namespace RiscvISA
 {
 
 std::string
-UveMem::generateDisassembly(Addr pc, const SymbolTable *symtab) const
+UveMemLoad::generateDisassembly(Addr pc, const SymbolTable *symtab) const
 {
     stringstream ss;
-    //JMTODO: Update with the s bit
-    ss << mnemonic << '.' << getWidthRepr() << " " <<
+    ss << mnemonic << getWidthRepr() << getSbitRepr() << " " <<
+    registerName(_destRegIdx[0]) << ", " << registerName(_srcRegIdx[0]) << 
+    ", " << registerName(_srcRegIdx[1]);
+    return ss.str();
+}
+
+std::string
+UveMemStore::generateDisassembly(Addr pc, const SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << mnemonic << getWidthRepr() << getSbitRepr() << " " <<
     registerName(_destRegIdx[0]) << ", " << registerName(_srcRegIdx[0]) << 
     ", " << registerName(_srcRegIdx[1]);
     return ss.str();
