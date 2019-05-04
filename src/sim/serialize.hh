@@ -331,6 +331,15 @@ showParam(CheckpointOut &os, const unsigned char &value)
     os << (unsigned int)value;
 }
 
+//JMNOTE: Added to try and correct bad type parsing( as const )
+template <>
+inline bool
+parseParam(const std::string &s, unsigned char &value)
+{
+    return to_number(s, value);
+}
+
+
 template <>
 inline bool
 parseParam(const std::string &s, float &value)
