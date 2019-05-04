@@ -6,11 +6,9 @@
 //
 
 output header {{
-     // Decodes SVE contiguous load instructions, scalar plus scalar form.
     template <template<typename Width> class Base>
     StaticInstPtr
     decodeVectorLoadTemplated(  uint8_t load_width,
-                                bool    s_bit,
                                 ExtMachInst machInst,
                                 IntRegIndex rd, 
                                 IntRegIndex rs1,
@@ -31,9 +29,32 @@ output header {{
                 return new Base<uint64_t>(mn, machInst, rd, rs1, rs2);
                 break;
         }
-
     }
-
+    
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeVectorStoreTemplated( uint8_t store_width,
+                                ExtMachInst machInst,
+                                IntRegIndex rd, 
+                                IntRegIndex rs1,
+                                IntRegIndex rs2)
+    {
+        const char* mn = "so.v.st";
+        switch (store_width) {
+            case 0x0:
+                return new Base<uint8_t>(mn, machInst, rd, rs1, rs2);
+                break;
+            case 0x1:
+                return new Base<uint16_t>(mn, machInst, rd, rs1, rs2);
+                break;
+            case 0x2:
+                return new Base<uint32_t>(mn, machInst, rd, rs1, rs2);
+                break;
+            case 0x3:
+                return new Base<uint64_t>(mn, machInst, rd, rs1, rs2);
+                break;
+        }
+    }
 }};
 
 
@@ -56,15 +77,19 @@ let {{
     )
 
     # Generates definitions for UVE vector loads and stores
-    def emitUveVectorMemInsts():
+    def emitUveVectorMemInsts(has_set_bit):
         global header_output, exec_output, decoders
         tplHeader = 'template <class RegElemType>'
         tplArgs = '<RegElemType>'
 
         # JMNOTE: Here the memAccessSize comes from the value of rs2 -> If its zero: memAccessSize = eCount * sizeOf(RegElemType);
         eaCode = '''
+        if(Rs2_ud != 0){
+            eCount = Rs2_ud;
+        }
+        
         int memAccessSize = eCount * sizeof(RegElemType);
-        EA = XBase;'''
+        EA = Rs1_ud;'''
         
         loadRdEnableCode = '''
         auto rdEn = std::vector<bool>(sizeof(RegElemType) * eCount, true);
@@ -77,36 +102,42 @@ let {{
         
         storeMemAccCode = '''
         for (int i = 0; i < eCount; i++) {
-            memDataView[i] = Vd_x[i];
+            memDataView[i] = Vs1_x[i];
         }
         '''
         storeWrEnableCode = '''
         auto wrEn = std::vector<bool>(sizeof(RegElemType) * eCount, true);
         '''
-        
+
+        set_update_base_address = '''
+        Rs1_merge_ud += eCount * sizeof(RegElemType);
+        ''' if has_set_bit else ""
+
 
         loadIop = InstObjParams('so.v.ld',
-            'UveLoad',
+            'UveLoad' if has_set_bit else 'UveLoadSet',
             'UveMem',
             {'tpl_header': tplHeader,
              'tpl_args': tplArgs,
              'rden_code' : loadRdEnableCode,
              'memacc_code': loadMemAccCode,
-             'ea_code' : eaCode},
+             'ea_code' : eaCode,
+             'set_update_base_address' : set_update_base_address},
             ['IsMemRef', 'IsLoad'])
         storeIop = InstObjParams('so.v.st',
-            'UveStore',
+            'UveStore' if has_set_bit else 'UveStoreSet',
             'UveMem',
             {'tpl_header': tplHeader,
              'tpl_args': tplArgs,
              'wren_code': storeWrEnableCode,
              'memacc_code': storeMemAccCode,
-             'ea_code' : eaCode},
+             'ea_code' : eaCode,
+             'set_update_base_address' : set_update_base_address},
             ['IsMemRef', 'IsStore'])
        
        
-        header_output += UveMemDeclare.subst(loadIop)
-        header_output += UveMemDeclare.subst(storeIop)
+        header_output += UveMemLoadDeclare.subst(loadIop)
+        header_output += UveMemStoreDeclare.subst(storeIop)
 
         exec_output += (
             UveLoadExecute.subst(loadIop) +
@@ -127,5 +158,7 @@ let {{
                          'class_name': 'UveStore'}
             exec_output += UveMemExecDeclare.subst(substDict)
 
-    emitUveVectorMemInsts()
+    emitUveVectorMemInsts(has_set_bit = false)
+    emitUveVectorMemInsts(has_set_bit = true)
+    # JMTODO: emitUveVectorMemInsts with set_bit as true
 }};

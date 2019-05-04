@@ -17,10 +17,9 @@ class UveMem : public RiscvStaticInst
     Request::Flags memAccessFlags;
 
     UveMem(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
-                   IntRegIndex _dest, IntRegIndex _gp, IntRegIndex _base,
-                   IntRegIndex _size)
+                   IntRegIndex _VDest, IntRegIndex _RS1, IntRegIndex _RS2)
         : RiscvStaticInst(mnem, _machInst, __opClass),
-          dest(_dest), base(_base), size(_size)
+          VDest(_VDest), RS1(_RS1), RS2(_RS2)
     {}
 
     std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
