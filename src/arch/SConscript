@@ -231,3 +231,7 @@ DebugFlag('CCRegs')
 DebugFlag('MiscRegs')
 CompoundFlag('Registers', [ 'IntRegs', 'FloatRegs', 'VecRegs', 'VecPredRegs',
                             'CCRegs', 'MiscRegs' ])
+# JMNOTE: Added debug flag for instruction debugging:
+# Usage: #include "debug/Hello.hh"
+# DPRINTF(JMInsts, "<string>")
+DebugFlag('JMInsts')
