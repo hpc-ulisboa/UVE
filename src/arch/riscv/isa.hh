@@ -106,7 +106,7 @@ class ISA : public SimObject
 
     void
     unserialize(CheckpointIn &cp) const {
-      UNSERIALIZE_SCALAR(uveVl)
+      UNSERIALIZE_SCALAR(uveVl);
     }
 
     /// Explicitly import the otherwise hidden startup
