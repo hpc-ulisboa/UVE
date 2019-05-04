@@ -13,21 +13,42 @@ namespace Uve
     StaticInstPtr
     decodeVectorLoad(ExtMachInst machInst)
     {
-        IntRegIndex rd = (IntRegIndex) (uint8_t) bits(machInst, 11, 7);
-        IntRegIndex rs1 = (IntRegIndex) (uint8_t) bits(machInst, 19, 15);
-        IntRegIndex rs2 = (IntRegIndex) (uint8_t) bits(machInst, 24, 20);
+        IntRegIndex vector_dest = (IntRegIndex) (uint8_t) bits(machInst, 11, 7);
+        IntRegIndex base_addr = (IntRegIndex) (uint8_t) bits(machInst, 19, 15);
+        IntRegIndex size = (IntRegIndex) (uint8_t) bits(machInst, 24, 20);
         bool s_bit = bits(machInst,25) ? true : false;
+
+        //Args are: IntRegIndex _VDest, IntRegIndex _RS1, IntRegIndex _RS2
 
         if(!s_bit) {
             return decodeVectorLoadTemplated<UveLoad>(
-            bits(machInst, 24, 21), machInst, rd, rs1, rs2);
+            bits(machInst, 24, 21), machInst, dest, base_addr, size);
         }
-        else { //Produce the version without the address updater (s_bit)
-            return decodeVectorLoadTemplated<UveContigLoadSS>(
-            bits(machInst, 24, 21), machInst, rd, rs1, rs2);
+        else { 
+            return decodeVectorLoadTemplated<UveLoadSet>(
+            bits(machInst, 24, 21), machInst, dest, base_addr, size);
         }
         
-    }  // decodeSveContigLoadSS
+    }  // decodeVectorLoad
+
+    StaticInstPtr
+    decodeVectorStore(ExtMachInst machInst){
+        IntRegIndex vector_src = (IntRegIndex) (uint8_t) bits(machInst, 11, 7);
+        IntRegIndex base_addr = (IntRegIndex) (uint8_t) bits(machInst, 19, 15);
+        IntRegIndex size = (IntRegIndex) (uint8_t) bits(machInst, 24, 20);
+        bool s_bit = bits(machInst,25) ? true : false;
+
+        //Args are: IntRegIndex _VSrc1, IntRegIndex _RS1, IntRegIndex _RS2
+
+        if(!s_bit) {
+            return decodeVectorStoreTemplated<UveStore>(
+            bits(machInst, 24, 21), machInst, vector_src, base_addr, size);
+        }
+        else { 
+            return decodeVectorStoreTemplated<UveStoreSet>(
+            bits(machInst, 24, 21), machInst, vector_src, base_addr, size);
+        }
+    }
 
 } // namespace Uve
 

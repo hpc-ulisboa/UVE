@@ -99,8 +99,10 @@ def operands {{
     'Fp2': ('FloatReg', 'df', 'FP2 + 8', 'IsFloating', 2),
     'Fp2_bits': ('FloatReg', 'ud', 'FP2 + 8', 'IsFloating', 2),
     
+    'Rs1_merge': ('IntReg', 'ud', 'RS1', 'IsInteger', 2),
+
 #Vector Reg Operands
-    'Vd': vectorReg('VD',
+    'Vd': vectorReg('VDest',
     {
         'VdP0': vectorRegElem('0'),
         'VdP1': vectorRegElem('1'),
@@ -112,7 +114,20 @@ def operands {{
 
     }),
 
-    'Vs1': vectorReg('VS',
+#JMNOTE: The *_merge operand is used for operations with the destination register as source
+    'Vd_merge': vectorReg('VDest',
+    {
+        'VdP0': vectorRegElem('0'),
+        'VdP1': vectorRegElem('1'),
+        'VdP2': vectorRegElem('2'),
+        'VdP3': vectorRegElem('3'),
+        'VdS':  vectorRegElem('0', 'sf', zeroing = True),
+        'VdD':  vectorRegElem('0', 'df', zeroing = True),
+        'VdQ':  vectorRegElem('0', 'tud', zeroing = True)
+
+    }),
+
+    'Vs1': vectorReg('VSrc1',
     {
         'Vs1P0': vectorRegElem('0'),
         'Vs1P1': vectorRegElem('1'),
@@ -124,7 +139,7 @@ def operands {{
 
     }),
 
-    'Vs2': vectorReg('VS2',
+    'Vs2': vectorReg('VSrc2',
     {
         'Vs2P0': vectorRegElem('0'),
         'Vs2P1': vectorRegElem('1'),
