@@ -41,6 +41,7 @@
 #include <map>
 #include <string>
 
+#include "arch/riscv/system.hh"
 #include "arch/riscv/registers.hh"
 #include "arch/riscv/types.hh"
 #include "base/bitfield.hh"
@@ -66,6 +67,8 @@ class ISA : public SimObject
 {
   protected:
     std::vector<RegVal> miscRegFile;
+
+    RiscvSystem *system;
     
     uint8_t uveVl;
 
