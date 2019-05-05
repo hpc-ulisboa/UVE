@@ -165,8 +165,7 @@ inline bool
 to_number(const std::string &value, T &retval)
 {
     try {
-        //JMNOTE: Added pointer derefernce
-        *retval = __to_number<T>(value);
+        retval = __to_number<T>(value);
         return true;
     } catch (const std::out_of_range&) {
         return false;
