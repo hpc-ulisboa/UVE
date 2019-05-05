@@ -54,6 +54,8 @@ ISA::ISA(Params *p) : SimObject(p)
 
     if(system) {
         uveVl = system->uveVl();
+    } else {
+        uveVl = 0;
     }
 
     clear();
