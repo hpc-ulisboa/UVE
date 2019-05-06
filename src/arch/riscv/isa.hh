@@ -70,7 +70,7 @@ class ISA : public SimObject
 
     RiscvSystem *system;
     
-    uint8_t uveVl;
+    unsigned uveVl;
 
     bool hpmCounterEnabled(int counter) const;
 

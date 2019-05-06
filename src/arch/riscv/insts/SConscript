@@ -33,5 +33,6 @@ if env['TARGET_ISA'] == 'riscv':
     Source('amo.cc')
     Source('compressed.cc')
     Source('mem.cc')
+    Source('uve_vector_mem.cc')
     Source('standard.cc')
     Source('static_inst.cc')
