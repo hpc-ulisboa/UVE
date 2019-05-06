@@ -116,7 +116,7 @@ let {{
 
         loadIop = InstObjParams('so.v.ld',
             'UveLoad' if not has_set_bit else 'UveLoadSet',
-            'UveMem',
+            'UveMemLoad',
             {'tpl_header': tplHeader,
              'tpl_args': tplArgs,
              'rden_code' : loadRdEnableCode,
@@ -126,7 +126,7 @@ let {{
             ['IsMemRef', 'IsLoad'])
         storeIop = InstObjParams('so.v.st',
             'UveStore' if not has_set_bit else 'UveStoreSet',
-            'UveMem',
+            'UveMemStore',
             {'tpl_header': tplHeader,
              'tpl_args': tplArgs,
              'wren_code': storeWrEnableCode,

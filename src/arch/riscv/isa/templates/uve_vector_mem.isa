@@ -16,8 +16,8 @@ def template UveMemLoadDeclare {{
 
       public:
         %(class_name)s(const char* mnem, ExtMachInst machInst,
-            IntRegIndex _VDest, IntRegIndex _RS1,
-            IntRegIndex _RS2)
+            uint8_t _VDest, uint8_t _RS1,
+            uint8_t _RS2)
             : %(base_class)s(mnem, machInst, %(op_class)s,
                 _VDest, _RS1, _RS2)
         {
@@ -40,8 +40,8 @@ def template UveMemStoreDeclare {{
 
       public:
         %(class_name)s(const char* mnem, ExtMachInst machInst,
-            IntRegIndex _VSrc1, IntRegIndex _RS1,
-            IntRegIndex _RS2)
+            uint8_t _VSrc1, uint8_t _RS1,
+            uint8_t _RS2)
             : %(base_class)s(mnem, machInst, %(op_class)s,
                 _VSrc1, _RS1, _RS2)
         {
