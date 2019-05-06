@@ -55,7 +55,7 @@ class RiscvSystem : public System
     Addr _resetVect;
     
     // JMNOTE:uveVl UVE vector length
-    int _uveVl;
+    const unsigned _uveVl;
 
   public:
     typedef RiscvSystemParams Params;
@@ -69,7 +69,7 @@ class RiscvSystem : public System
     bool isBareMetal() const { return _isBareMetal; }
 
     //JMNOTE:uveVl return uve vector length
-    int uveVl() const { return _uveVl; }
+    unsigned uveVl() const { return _uveVl; }
 
     virtual bool breakpoint();
 
