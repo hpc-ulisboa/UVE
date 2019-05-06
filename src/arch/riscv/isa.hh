@@ -108,7 +108,7 @@ class ISA : public SimObject
     }
 
     void
-    unserialize(CheckpointIn &cp) const {
+    unserialize(CheckpointIn &cp) {
       UNSERIALIZE_SCALAR(uveVl);
     }
 
