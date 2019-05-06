@@ -16,9 +16,9 @@ class UveMemLoad : public RiscvStaticInst
 
     Request::Flags memAccessFlags;
 
-    UveMem(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
-                   uint8_t _VDest, uint8_t _RS1, uint8_t _RS2)
-        : RiscvStaticInst(mnem, _machInst, __opClass),
+    UveMemLoad(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+                   uint8_t _VDest, uint8_t _RS1, uint8_t _RS2) : 
+          RiscvStaticInst(mnem, _machInst, __opClass),
           VDest(_VDest), RS1(_RS1), RS2(_RS2)
     {}
 
@@ -34,9 +34,9 @@ class UveMemStore : public RiscvStaticInst
 
     Request::Flags memAccessFlags;
 
-    UveMem(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
-                   uint8_t _VSrc1, uint8_t _RS1, uint8_t _RS2)
-        : RiscvStaticInst(mnem, _machInst, __opClass),
+    UveMemStore(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+                   uint8_t _VSrc1, uint8_t _RS1, uint8_t _RS2) :
+          RiscvStaticInst(mnem, _machInst, __opClass),
           VSrc1(_VSrc1), RS1(_RS1), RS2(_RS2)
     {}
 
