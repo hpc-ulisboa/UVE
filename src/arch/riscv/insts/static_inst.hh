@@ -65,7 +65,8 @@ class RiscvStaticInst : public StaticInst
     std::string getSbitRepr() const;
 
     //JMNOTE: Get current Uve vector length
-    //Usage: ArmStaticInst::getCurSveVecLen(xc->tcBase());
+    //Usage: RiscvStaticInst::getCurUveVecLen(xc->tcBase());
+
     static int
     getCurUveVecLen(ThreadContext *tc)
     {

@@ -113,7 +113,7 @@ def template UveLoadInitiateAcc {{
     {
         Addr EA;
         Fault fault = NoFault;
-        unsigned eCount = ArmStaticInst::getCurSveVecLen<RegElemType>(
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase());
 
         %(op_src_decl)s;

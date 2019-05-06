@@ -96,7 +96,7 @@ class ISA : public SimObject
     void startup(ThreadContext *tc) {}
 
     //JMNOTE:uveVl Get Uve vector length
-    //Usage: ArmStaticInst::getCurSveVecLen(xc->tcBase());
+    //Usage: RiscvStaticInst::getCurUveVecLen(xc->tcBase());
     //Refer to static_inst.hh
     int getCurUveVecLen() const;
 
