@@ -13,12 +13,12 @@ namespace Uve
     StaticInstPtr
     decodeVectorLoad(ExtMachInst machInst)
     {
-        IntRegIndex vector_dest = (IntRegIndex) (uint8_t) bits(machInst, 11, 7);
-        IntRegIndex base_addr = (IntRegIndex) (uint8_t) bits(machInst, 19, 15);
-        IntRegIndex size = (IntRegIndex) (uint8_t) bits(machInst, 24, 20);
+        uint8_t vector_dest = (uint8_t) (uint8_t) bits(machInst, 11, 7);
+        uint8_t base_addr = (uint8_t) (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) (uint8_t) bits(machInst, 24, 20);
         bool s_bit = bits(machInst,25) ? true : false;
 
-        //Args are: IntRegIndex _VDest, IntRegIndex _RS1, IntRegIndex _RS2
+        //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
 
         if(!s_bit) {
             return decodeVectorLoadTemplated<UveLoad>(
@@ -33,12 +33,12 @@ namespace Uve
 
     StaticInstPtr
     decodeVectorStore(ExtMachInst machInst){
-        IntRegIndex vector_src = (IntRegIndex) (uint8_t) bits(machInst, 11, 7);
-        IntRegIndex base_addr = (IntRegIndex) (uint8_t) bits(machInst, 19, 15);
-        IntRegIndex size = (IntRegIndex) (uint8_t) bits(machInst, 24, 20);
+        uint8_t vector_src = (uint8_t) (uint8_t) bits(machInst, 11, 7);
+        uint8_t base_addr = (uint8_t) (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) (uint8_t) bits(machInst, 24, 20);
         bool s_bit = bits(machInst,25) ? true : false;
 
-        //Args are: IntRegIndex _VSrc1, IntRegIndex _RS1, IntRegIndex _RS2
+        //Args are: uint8_t _VSrc1, uint8_t _RS1, uint8_t _RS2
 
         if(!s_bit) {
             return decodeVectorStoreTemplated<UveStore>(

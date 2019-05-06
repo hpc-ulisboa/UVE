@@ -10,9 +10,9 @@ output header {{
     StaticInstPtr
     decodeVectorLoadTemplated(  uint8_t load_width,
                                 ExtMachInst machInst,
-                                IntRegIndex rd, 
-                                IntRegIndex rs1,
-                                IntRegIndex rs2)
+                                uint8_t rd, 
+                                uint8_t rs1,
+                                uint8_t rs2)
     {
         const char* mn = "so.v.ld";
         switch (load_width) {
@@ -35,9 +35,9 @@ output header {{
     StaticInstPtr
     decodeVectorStoreTemplated( uint8_t store_width,
                                 ExtMachInst machInst,
-                                IntRegIndex rd, 
-                                IntRegIndex rs1,
-                                IntRegIndex rs2)
+                                uint8_t rd, 
+                                uint8_t rs1,
+                                uint8_t rs2)
     {
         const char* mn = "so.v.st";
         switch (store_width) {
