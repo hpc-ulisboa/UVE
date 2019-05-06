@@ -45,6 +45,7 @@
 from m5.SimObject import SimObject
 from m5.params import *
 from m5.proxy import *
+from m5.objects.RiscvSystem import UveVectorLength
 
 
 class RiscvISA(SimObject):
@@ -54,3 +55,6 @@ class RiscvISA(SimObject):
 
     # JMNOTE:uveVl System param added
     system = Param.System(Parent.any, "System this ISA object belongs to")
+    
+    uve_vl_se = Param.UveVectorLength(0,
+        "UVE vector length, syscall emulation only")
