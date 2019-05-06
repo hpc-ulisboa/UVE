@@ -55,7 +55,7 @@ ISA::ISA(Params *p) : SimObject(p)
     if(system) {
         uveVl = system->uveVl();
     } else {
-        uveVL = p->uve_vl_se;
+        uveVl = p->uve_vl_se;
     }
 
     clear();
@@ -212,7 +212,7 @@ ISA::setMiscReg(int misc_reg, RegVal val, ThreadContext *tc)
 int
 ISA::getCurUveVecLen() const
 {
-    uint64_t len = miscRegs[MISCREG_UVEVS];
+    uint64_t len = miscRegFile[MISCREG_UVEVS];
     return len;
 }
 
