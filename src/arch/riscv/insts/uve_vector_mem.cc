@@ -4,10 +4,9 @@
 #include <sstream>
 #include <string>
 
-#include "arch/riscv/insts/bitfields.hh"
-#include "arch/riscv/insts/static_inst.hh"
 #include "arch/riscv/utility.hh"
-#include "cpu/static_inst.hh"
+
+using namespace std;
 
 namespace RiscvISA
 {
