@@ -92,12 +92,12 @@ def template UveLoadExecute {{
         auto memDataView = memData.as<RegElemType>();
 
         fault = xc->readMem(EA, memData.raw_ptr<uint8_t>(), memAccessSize,
-            this->memAccessFlags, rdEn);
+            this->memAccessFlags);
 
         if (fault == NoFault) {
             %(memacc_code)s;
-            %(op_wb)s;
             %(set_update_base_address)s;
+            %(op_wb)s;
         }
         
         return fault;
@@ -142,8 +142,8 @@ def template UveLoadCompleteAcc {{
                 pkt->getSize());
     
         %(memacc_code)s;
-        %(op_wb)s;
         %(set_update_base_address)s;
+        %(op_wb)s;
 
         return NoFault;
     }
@@ -180,8 +180,8 @@ def template UveStoreExecute {{
         }
 
         if (fault == NoFault) {
-            %(op_wb)s;
             %(set_update_base_address)s;
+            %(op_wb)s;
         }
 
         return fault;
@@ -216,8 +216,9 @@ def template UveStoreInitiateAcc {{
 
         if (fault == NoFault) {
             %(set_update_base_address)s;
+            %(op_wb)s;
         }
-        
+
         return fault;
     }
 }};
