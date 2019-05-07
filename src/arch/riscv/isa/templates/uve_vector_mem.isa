@@ -91,8 +91,6 @@ def template UveLoadExecute {{
         TheISA::VecRegContainer memData;
         auto memDataView = memData.as<RegElemType>();
 
-        %(rden_code)s;
-
         fault = xc->readMem(EA, memData.raw_ptr<uint8_t>(), memAccessSize,
             this->memAccessFlags, rdEn);
 
@@ -120,10 +118,7 @@ def template UveLoadInitiateAcc {{
         %(op_rd)s;
         %(ea_code)s;
 
-        %(rden_code)s;
-
-        fault = xc->initiateMemRead(EA, memAccessSize, this->memAccessFlags,
-            rdEn);
+        fault = xc->initiateMemRead(EA, memAccessSize, this->memAccessFlags);
 
         return fault;
     }
@@ -142,12 +137,10 @@ def template UveLoadCompleteAcc {{
 
         TheISA::VecRegContainer memData;
         auto memDataView = memData.as<RegElemType>();
-
-        if (xc->readMemAccPredicate()) {
-            memcpy(memData.raw_ptr<uint8_t>(), pkt->getPtr<uint8_t>(),
-                   pkt->getSize());
-        }
-
+        
+        memcpy(memData.raw_ptr<uint8_t>(), pkt->getPtr<uint8_t>(),
+                pkt->getSize());
+    
         %(memacc_code)s;
         %(op_wb)s;
         %(set_update_base_address)s;
@@ -175,15 +168,15 @@ def template UveStoreExecute {{
         TheISA::VecRegContainer memData;
         auto memDataView = memData.as<RegElemType>();
 
-        %(wren_code)s;
-
         if (fault == NoFault) {
             %(memacc_code)s;
         }
 
         if (fault == NoFault) {
+            
             fault = xc->writeMem(memData.raw_ptr<uint8_t>(), memAccessSize, EA,
-                this->memAccessFlags, NULL, wrEn);
+                this->memAccessFlags, NULL);
+
         }
 
         if (fault == NoFault) {
@@ -210,9 +203,7 @@ def template UveStoreInitiateAcc {{
         %(ea_code)s;
 
         TheISA::VecRegContainer memData;
-        auto memDataView = memData.as<MemElemType>();
-
-        %(wren_code)s;
+        auto memDataView = memData.as<RegElemType>();
 
         if (fault == NoFault) {
             %(memacc_code)s;
@@ -220,9 +211,13 @@ def template UveStoreInitiateAcc {{
 
         if (fault == NoFault) {
             fault = xc->writeMem(memData.raw_ptr<uint8_t>(), memAccessSize, EA,
-                this->memAccessFlags, NULL, wrEn);
+                this->memAccessFlags, NULL);
         }
 
+        if (fault == NoFault) {
+            %(set_update_base_address)s;
+        }
+        
         return fault;
     }
 }};
@@ -232,7 +227,6 @@ def template UveStoreCompleteAcc {{
     Fault %(class_name)s%(tpl_args)s::completeAcc(PacketPtr pkt,
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
-        %(set_update_base_address)s;
         return NoFault;
     }
 }};

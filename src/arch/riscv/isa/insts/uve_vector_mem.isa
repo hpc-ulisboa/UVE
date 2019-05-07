@@ -91,9 +91,6 @@ let {{
         int memAccessSize = eCount * sizeof(RegElemType);
         EA = Rs1_ud;'''
         
-        loadRdEnableCode = '''
-        auto rdEn = std::vector<bool>(sizeof(RegElemType) * eCount, true);
-        '''
         loadMemAccCode = '''
         for (int i = 0; i < eCount; i++) {
             Vd_x[i] = memDataView[i];
@@ -105,12 +102,9 @@ let {{
             memDataView[i] = Vs1_x[i];
         }
         '''
-        storeWrEnableCode = '''
-        auto wrEn = std::vector<bool>(sizeof(RegElemType) * eCount, true);
-        '''
 
         set_update_base_address = '''
-        Rs1_merge_ud += eCount * sizeof(RegElemType);
+        Rs1_merge_ud = Rs1_ud + (eCount * sizeof(RegElemType));
         ''' if has_set_bit else ""
 
 
@@ -119,7 +113,6 @@ let {{
             'UveMemLoad',
             {'tpl_header': tplHeader,
              'tpl_args': tplArgs,
-             'rden_code' : loadRdEnableCode,
              'memacc_code': loadMemAccCode,
              'ea_code' : eaCode,
              'set_update_base_address' : set_update_base_address},
@@ -129,7 +122,6 @@ let {{
             'UveMemStore',
             {'tpl_header': tplHeader,
              'tpl_args': tplArgs,
-             'wren_code': storeWrEnableCode,
              'memacc_code': storeMemAccCode,
              'ea_code' : eaCode,
              'set_update_base_address' : set_update_base_address},
