@@ -3,7 +3,7 @@
 #define __ARCH_RISCV_UVE_VECTOR_MEM_HH__
 
 #include "arch/riscv/insts/static_inst.hh"
-#include "debug/UVEMem"
+#include "debug/UVEMem.hh"
 
 namespace RiscvISA
 {
