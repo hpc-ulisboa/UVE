@@ -76,10 +76,10 @@ RiscvStaticInst::getSbitRepr() const {
     std::string s_bit_repr = "";
     switch(s_bit){
         case 0:
-            width_repr = "";
+            s_bit_repr = "";
             break;
         case 1:
-            width_repr = ".s";
+            s_bit_repr = ".s";
             break;
     }
     return s_bit_repr;

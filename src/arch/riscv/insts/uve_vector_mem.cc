@@ -1,6 +1,11 @@
 
 #include "arch/riscv/insts/uve_vector_mem.hh"
 
+#include <sstream>
+#include <string>
+
+#include "arch/riscv/utility.hh"
+
 namespace RiscvISA
 {
 
