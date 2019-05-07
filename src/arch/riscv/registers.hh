@@ -78,7 +78,7 @@ using VecRegContainer = VecReg::Container;
 //JMNOTE: Now applicable for Uve
 using VecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg, false, false>;
 using ConstVecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg, false, true>;
-using VecPredRegContainer = PredReg::Container;
+using VecPredRegContainer = VecPredReg::Container;
 
 
 const int NumIntArchRegs = 32;
