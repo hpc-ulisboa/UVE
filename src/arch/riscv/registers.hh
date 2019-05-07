@@ -76,7 +76,7 @@ using VecRegContainer = VecReg::Container;
 
 // Not applicable to RISC-V
 //JMNOTE: Now applicable for Uve
-using PredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg, false, false>;
+using VecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg, false, false>;
 using ConstVecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg, false, true>;
 using VecPredRegContainer = PredReg::Container;
 
