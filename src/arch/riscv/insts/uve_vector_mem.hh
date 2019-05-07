@@ -3,6 +3,7 @@
 #define __ARCH_RISCV_UVE_VECTOR_MEM_HH__
 
 #include "arch/riscv/insts/static_inst.hh"
+#include "debug/UVEMem"
 
 namespace RiscvISA
 {
@@ -20,7 +21,7 @@ class UveMemLoad : public RiscvStaticInst
                    uint8_t _VDest, uint8_t _RS1, uint8_t _RS2) : 
           RiscvStaticInst(mnem, _machInst, __opClass),
           VDest(_VDest), RS1(_RS1), RS2(_RS2)
-    {}
+    {DPRINTF(UVEMem, "UveMemLoad constructor executed: VDest(%d), RS1(%d), RS2(%d)",VDest, RS1, RS2)}
 
     std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
 };
