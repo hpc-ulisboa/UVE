@@ -10,7 +10,7 @@ output header {{
     StaticInstPtr
     decodeVectorLoadTemplated(  uint8_t load_width,
                                 ExtMachInst machInst,
-                                uint8_t rd, 
+                                uint8_t rd,
                                 uint8_t rs1,
                                 uint8_t rs2)
     {
@@ -30,12 +30,12 @@ output header {{
                 break;
         }
     }
-    
+
     template <template<typename Width> class Base>
     StaticInstPtr
     decodeVectorStoreTemplated( uint8_t store_width,
                                 ExtMachInst machInst,
-                                uint8_t rd, 
+                                uint8_t rd,
                                 uint8_t rs1,
                                 uint8_t rs2)
     {
@@ -61,7 +61,7 @@ output header {{
 // global let blocks 'let {{...}}' (Python code blocks) are
 // executed directly when seen.  Note that these execute in a
 // special variable context 'exportContext' to prevent the code
-// from polluting this script's namespace. This allows for code 
+// from polluting this script's namespace. This allows for code
 // generation
 
 let {{
@@ -82,21 +82,22 @@ let {{
         tplHeader = 'template <class RegElemType>'
         tplArgs = '<RegElemType>'
 
-        # JMNOTE: Here the memAccessSize comes from the value of rs2 -> If its zero: memAccessSize = eCount * sizeOf(RegElemType);
+        # JMNOTE: Here the memAccessSize comes from the value of rs2 ->
+    #If its zero: memAccessSize = eCount * sizeOf(RegElemType);
         eaCode = '''
         if(Rs2_ud != 0){
             eCount = Rs2_ud;
         }
-        
+
         int memAccessSize = eCount * sizeof(RegElemType);
         EA = Rs1_ud;'''
-        
+
         loadMemAccCode = '''
         for (int i = 0; i < eCount; i++) {
             Vd_x[i] = memDataView[i];
         }
         '''
-        
+
         storeMemAccCode = '''
         for (int i = 0; i < eCount; i++) {
             memDataView[i] = Vs1_x[i];
@@ -126,8 +127,8 @@ let {{
              'ea_code' : eaCode,
              'set_update_base_address' : set_update_base_address},
             ['IsMemRef', 'IsStore'])
-       
-       
+
+
         header_output += UveMemLoadDeclare.subst(loadIop)
         header_output += UveMemStoreDeclare.subst(storeIop)
 
@@ -142,12 +143,14 @@ let {{
 
         for args in VectorLoadTemplateArgs:
             substDict = {'tpl_args': '<%s>' % ', '.join(args),
-                         'class_name': 'UveLoad' if not has_set_bit else 'UveLoadSet'}
+                         'class_name': 'UveLoad' if not has_set_bit \
+                             else 'UveLoadSet'}
             exec_output += UveMemExecDeclare.subst(substDict)
 
         for args in VectorLoadTemplateArgs:
             substDict = {'tpl_args': '<%s>' % ', '.join(args),
-                         'class_name': 'UveStore' if not has_set_bit else 'UveStoreSet'}
+                         'class_name': 'UveStore' if not has_set_bit \
+                             else 'UveStoreSet'}
             exec_output += UveMemExecDeclare.subst(substDict)
 
     emitUveVectorMemInsts(has_set_bit = False)

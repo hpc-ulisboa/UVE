@@ -101,6 +101,9 @@ output exec {{
 #include "sim/sim_exit.hh"
 #include "sim/system.hh"
 
+/* JMNOTE:UVEMem Debug flag include */
+#include "debug/UVEMem.hh"
+
 using namespace RiscvISA;
 using namespace std;
 }};
