@@ -68,7 +68,8 @@ const int MaxMiscDestRegs = 1;
 
 // Not applicable to RISC-V
 //JMNOTE: Now applicable for Uve
-constexpr unsigned NumVecElemPerVecReg = MaxUveVecLenInWords;
+//JMFIXME: constexpr unsigned NumVecElemPerVecReg = MaxUveVecLenInWords;
+constexpr unsigned NumVecElemPerVecReg = 16;
 using VecElem = uint32_t;
 using VecReg = ::VecRegT<VecElem,NumVecElemPerVecReg, false>;
 using ConstVecReg = ::VecRegT<VecElem,NumVecElemPerVecReg, true>;

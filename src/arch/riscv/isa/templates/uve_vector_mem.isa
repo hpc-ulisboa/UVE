@@ -103,8 +103,10 @@ def template UveLoadExecute {{
         if (fault == NoFault) {
             %(memacc_code)s;
 
-            DPRINTF(UVEMem, "%(class_name)s->execute: memDataView:%s\n",
-                    memDataView.print());
+            for (int i = 0; i < eCount; i++) {
+            DPRINTF(UVEMem, "%(class_name)s->execute: memDataView:%d\n",
+                    memDataView[i]);
+            }
 
             %(set_update_base_address)s;
             %(op_wb)s;
