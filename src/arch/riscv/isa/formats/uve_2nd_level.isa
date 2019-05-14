@@ -22,11 +22,11 @@ namespace Uve
 
         if(!s_bit) {
             return decodeVectorLoadTemplated<UveLoad>(
-            bits(machInst, 24, 21), machInst, vector_dest, base_addr, size);
+            bits(machInst, 13, 12), machInst, vector_dest, base_addr, size);
         }
         else { 
             return decodeVectorLoadTemplated<UveLoadSet>(
-            bits(machInst, 24, 21), machInst, vector_dest, base_addr, size);
+            bits(machInst, 13, 12), machInst, vector_dest, base_addr, size);
         }
         
     }  // decodeVectorLoad

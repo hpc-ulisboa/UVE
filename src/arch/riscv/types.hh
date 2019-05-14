@@ -84,7 +84,7 @@ class PCState : public GenericISA::UPCState<MachInst>
   };
 
   // JMFIXME: Change in the future
-  constexpr unsigned MaxUveVecLenInBits = 2048;
+  constexpr unsigned MaxUveVecLenInBits = 512;
   static_assert(MaxUveVecLenInBits >= 128 &&
                   MaxUveVecLenInBits <= 2048 &&
                   MaxUveVecLenInBits % 128 == 0,

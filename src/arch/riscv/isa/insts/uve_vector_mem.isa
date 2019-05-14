@@ -15,6 +15,7 @@ output header {{
                                 uint8_t rs2)
     {
         const char* mn = "so.v.ld";
+        DPRINTF(UVEMem, "decodeVectorLoadTemplated: LoadWidth: %d\n", load_width);
         switch (load_width) {
             case 0x0:
                 return new Base<uint8_t>(mn, machInst, rd, rs1, rs2);
@@ -89,7 +90,6 @@ let {{
             eCount = Rs2_ud;
         }
 
-        int memAccessSize = eCount * sizeof(RegElemType);
         EA = Rs1_ud;'''
 
         loadMemAccCode = '''

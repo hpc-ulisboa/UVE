@@ -56,6 +56,9 @@ output header {{
 #include "mem/packet.hh"
 #include "mem/request.hh"
 
+/* JMNOTE:UVEMem Debug flag include */
+#include "debug/UVEMem.hh"
+
 }};
 
 output decoder {{
