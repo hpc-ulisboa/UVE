@@ -83,7 +83,10 @@ def template UveLoadExecute {{
         Fault fault = NoFault;
         unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase());
-        DPRINTF(UVEMem, "%(class_name)s->execute: eCount: %d\n",eCount);
+        DPRINTF(UVEMem, "%(class_name)s->execute: eCount: %d\n",
+            eCount);
+        DPRINTF(UVEMem, "%(class_name)s->execute: RegElemType: %d\n",
+            typeid(RegElemType).name());
         %(op_decl)s;
         %(op_rd)s;
         %(ea_code)s;
