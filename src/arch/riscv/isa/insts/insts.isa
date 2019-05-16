@@ -1,4 +1,26 @@
 // -*- mode:c++ -*-
 
+//JMNOTE: UVE Template Magic for width conversion with type_traits
+let {{
+    exec_output = '''
+    template <class WidthSize>
+    struct width_converter{
+        static const uint8_t width = 3;
+    };
+    template <>
+    struct width_converter<uint32_t>{
+        static const uint8_t width = 2;
+    };
+    template <>
+    struct width_converter<uint16_t>{
+        static const uint8_t width = 1;
+    };
+    template <>
+    struct width_converter<uint8_t>{
+        static const uint8_t width = 0;
+    };
+    '''
+}};
+
 //UVE
 ##include "uve_vector_mem.isa"

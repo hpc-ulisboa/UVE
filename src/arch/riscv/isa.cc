@@ -52,7 +52,7 @@ ISA::ISA(Params *p) : SimObject(p)
     //JMNOTE:uveVl Added system cast to grab the value of uveVl
     system = dynamic_cast<RiscvSystem *>(p->system);
 
-    if(system) {
+    if (system) {
         uveVl = system->uveVl();
     } else {
         uveVl = p->uve_vl_se;
@@ -81,8 +81,10 @@ void ISA::clear()
     miscRegFile[MISCREG_MCOUNTEREN] = 0x7;
     miscRegFile[MISCREG_SCOUNTEREN] = 0x7;
 
-    //JMNOTE:uveVl Added UVE CSR to here. It's value comes from the parameters of the simulation
+    //JMNOTE:uveVl Added UVE CSR to here. It's value comes
+    // from the parameters of the simulation
     miscRegFile[MISCREG_UVEVS] = uveVl;
+    miscRegFile[MISCREG_UVEVT] = 0;
 }
 
 bool
@@ -209,11 +211,41 @@ ISA::setMiscReg(int misc_reg, RegVal val, ThreadContext *tc)
     }
 }
 
+
+//JMNOTE: Set UVE Vector Type
+// template <class WidthSize>
+void
+ISA::setUveVecType(ThreadContext *tc, uint8_t vector_register_id,
+    uint8_t width)
+{
+    auto vector_type = tc->readMiscReg(MISCREG_UVEVT);
+    uint8_t shift_amt = vector_register_id * 2;
+
+    vector_type &= ~(0b11 << shift_amt);
+    vector_type |= width << shift_amt;
+    DPRINTF(UVEMem, "Set Uve Type: V(%d) Requested(%d) Final(%#x) \n",
+        vector_register_id, width,vector_type);
+
+    tc->setMiscReg(MISCREG_UVEVT,vector_type);
+}
+
+uint8_t
+ISA::getUveVecType(ThreadContext *tc, uint8_t vector_register_id)
+{
+    auto vector_type = tc->readMiscReg(MISCREG_UVEVT);
+    uint8_t shift_amt = vector_register_id * 2;
+
+    vector_type &= 0b11 << shift_amt;
+
+    return vector_type >> shift_amt;
+}
+
+// JMNOTE: Get UVE Vector Length in bytes
 int
 ISA::getCurUveVecLen() const
 {
     uint64_t len = miscRegFile[MISCREG_UVEVS];
-    return len;
+    return len >> 3;
 }
 
 

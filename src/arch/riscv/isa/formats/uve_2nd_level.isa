@@ -24,11 +24,11 @@ namespace Uve
             return decodeVectorLoadTemplated<UveLoad>(
             bits(machInst, 13, 12), machInst, vector_dest, base_addr, size);
         }
-        else { 
+        else {
             return decodeVectorLoadTemplated<UveLoadSet>(
             bits(machInst, 13, 12), machInst, vector_dest, base_addr, size);
         }
-        
+
     }  // decodeVectorLoad
 
     StaticInstPtr
@@ -42,11 +42,11 @@ namespace Uve
 
         if(!s_bit) {
             return decodeVectorStoreTemplated<UveStore>(
-            bits(machInst, 24, 21), machInst, vector_src, base_addr, size);
+            bits(machInst, 13, 12), machInst, vector_src, base_addr, size);
         }
-        else { 
+        else {
             return decodeVectorStoreTemplated<UveStoreSet>(
-            bits(machInst, 24, 21), machInst, vector_src, base_addr, size);
+            bits(machInst, 13, 12), machInst, vector_src, base_addr, size);
         }
     }
 

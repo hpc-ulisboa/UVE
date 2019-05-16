@@ -15,7 +15,8 @@ output header {{
                                 uint8_t rs2)
     {
         const char* mn = "so.v.ld";
-        DPRINTF(UVEMem, "decodeVectorLoadTemplated: LoadWidth: %d\n", load_width);
+        DPRINTF(UVEMem, "decodeVectorLoadTemplated: LoadWidth: %d\n",
+            load_width);
         switch (load_width) {
             case 0x0:
                 return new Base<uint8_t>(mn, machInst, rd, rs1, rs2);
@@ -41,20 +42,7 @@ output header {{
                                 uint8_t rs2)
     {
         const char* mn = "so.v.st";
-        switch (store_width) {
-            case 0x0:
-                return new Base<uint8_t>(mn, machInst, rd, rs1, rs2);
-                break;
-            case 0x1:
-                return new Base<uint16_t>(mn, machInst, rd, rs1, rs2);
-                break;
-            case 0x2:
-                return new Base<uint32_t>(mn, machInst, rd, rs1, rs2);
-                break;
-            default:
-                return new Base<uint64_t>(mn, machInst, rd, rs1, rs2);
-                break;
-        }
+        return new Base<uint8_t>(mn, machInst, rd, rs1, rs2);
     }
 }};
 
@@ -86,10 +74,7 @@ let {{
         # JMNOTE: Here the memAccessSize comes from the value of rs2 ->
     #If its zero: memAccessSize = eCount * sizeOf(RegElemType);
         eaCode = '''
-        if(Rs2_ud != 0){
-            eCount = Rs2_ud;
-        }
-
+        size = Rs2_ud;
         EA = Rs1_ud;'''
 
         loadMemAccCode = '''
@@ -105,7 +90,8 @@ let {{
         '''
 
         set_update_base_address = '''
-        Rs1_merge_ud = Rs1_ud + (eCount * sizeof(RegElemType));
+        int memAccessSize = memAccessSize_persistent;
+        Rs1_merge_ud = Rs1_ud + memAccessSize;
         ''' if has_set_bit else ""
 
 

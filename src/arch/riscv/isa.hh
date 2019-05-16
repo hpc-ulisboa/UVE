@@ -41,12 +41,13 @@
 #include <map>
 #include <string>
 
-#include "arch/riscv/system.hh"
 #include "arch/riscv/registers.hh"
+#include "arch/riscv/system.hh"
 #include "arch/riscv/types.hh"
 #include "base/bitfield.hh"
 #include "base/logging.hh"
 #include "cpu/reg_class.hh"
+#include "debug/UVEMem.hh"
 #include "sim/sim_object.hh"
 
 struct RiscvISAParams;
@@ -69,7 +70,7 @@ class ISA : public SimObject
     std::vector<RegVal> miscRegFile;
 
     RiscvSystem *system;
-    
+
     unsigned uveVl;
 
     bool hpmCounterEnabled(int counter) const;
@@ -94,6 +95,13 @@ class ISA : public SimObject
     int flattenMiscIndex(int reg) const { return reg; }
 
     void startup(ThreadContext *tc) {}
+
+    //JMNOTE: uveVs set Uve vector type
+    void setUveVecType(ThreadContext *tc, uint8_t vector_register_id,
+      uint8_t width);
+
+    //JMNOTE: uveVs get Uve vector type
+    uint8_t getUveVecType(ThreadContext *tc, uint8_t vector_register_id);
 
     //JMNOTE:uveVl Get Uve vector length
     //Usage: RiscvStaticInst::getCurUveVecLen(xc->tcBase());

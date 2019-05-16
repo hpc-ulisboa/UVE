@@ -55,6 +55,6 @@ class RiscvISA(SimObject):
 
     # JMNOTE:uveVl System param added
     system = Param.System(Parent.any, "System this ISA object belongs to")
-    
+
     uve_vl_se = Param.UveVectorLength(0,
         "UVE vector length, syscall emulation only")

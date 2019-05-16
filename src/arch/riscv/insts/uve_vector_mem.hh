@@ -5,7 +5,6 @@
 #include "arch/riscv/insts/static_inst.hh"
 #include "debug/UVEMem.hh"
 
-
 namespace RiscvISA
 {
 
@@ -19,7 +18,7 @@ class UveMemLoad : public RiscvStaticInst
     Request::Flags memAccessFlags;
 
     UveMemLoad(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
-                   uint8_t _VDest, uint8_t _RS1, uint8_t _RS2) : 
+                   uint8_t _VDest, uint8_t _RS1, uint8_t _RS2) :
           RiscvStaticInst(mnem, _machInst, __opClass),
           VDest(_VDest), RS1(_RS1), RS2(_RS2)
     {
@@ -46,7 +45,7 @@ class UveMemStore : public RiscvStaticInst
           VSrc1(_VSrc1), RS1(_RS1), RS2(_RS2)
     {
       DPRINTF(UVEMem,
-      "UveMemStore constructor executed: VSrc1(%d), RS1(%d), RS2(%d)",
+      "UveMemStore constructor executed: VSrc1(%d), RS1(%d), RS2(%d)\n",
       VSrc1, RS1, RS2);
     }
 

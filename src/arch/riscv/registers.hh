@@ -77,7 +77,8 @@ using VecRegContainer = VecReg::Container;
 // Not applicable to RISC-V
 //JMNOTE: Now applicable for Uve
 using VecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg, false, false>;
-using ConstVecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg, false, true>;
+using ConstVecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg,
+                            false, true>;
 using VecPredRegContainer = VecPredReg::Container;
 
 
@@ -264,6 +265,7 @@ enum MiscRegIndex {
 
     //JMNOTE:uveVl UVE CSRs index enum
     MISCREG_UVEVS,
+    MISCREG_UVEVT,
 
     NUM_MISCREGS
 };
@@ -432,8 +434,10 @@ enum CSRIndex {
     CSR_DPC = 0x7B1,
     CSR_DSCRATCH = 0x7B2,
 
-    //JMNOTE:uveVl UVE CSRs index - Used 0x8 as main index. As a result of the analysis of the previous registers
-    CSR_UVEVS = 0x800
+    //JMNOTE:uveVl UVE CSRs index - Used 0x8 as main index.
+    // As a result of the analysis of the previous registers
+    CSR_UVEVS = 0x800,
+    CSR_UVEVT = 0x801
 };
 
 struct CSRMetadata
@@ -604,7 +608,8 @@ const std::map<int, CSRMetadata> CSRData = {
     {CSR_DSCRATCH, {"dscratch", MISCREG_DSCRATCH}},
 
     //JMNOTE:uveVl UVE CSRs
-    {CSR_UVEVS, {"uvevs", MISCREG_UVEVS}}
+    {CSR_UVEVS, {"uvevs", MISCREG_UVEVS}},
+    {CSR_UVEVT, {"uvevt", MISCREG_UVEVT}},
 };
 
 /**
