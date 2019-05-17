@@ -239,13 +239,16 @@ class VecRegT
     }
 
     /** Output stream operator. */
+    template<bool cond= std::is_same<uint8_t, VecElem&>::value>
     friend std::ostream&
     operator<<(std::ostream& os, const MyClass& vr)
     {
+        typedef typename std::conditional<cond,uint16_t,
+            VecElem&>::type VecElem_t;
         /* 0-sized is not allowed */
-        os << "[" << std::hex << (uint32_t)vr[0];
-        for (uint32_t e = 1; e < vr.SIZE; e++)
-            os << " " << std::hex << (uint32_t)vr[e];
+        os << "[" << "0x" << std::hex << (VecElem_t)vr[0];
+        for (uint64_t e = 1; e < NumElems; e++)
+            os << " 0x" << std::hex << (VecElem_t)vr[e];
         os << ']';
         return os;
     }
@@ -258,6 +261,9 @@ class VecRegT
      */
     operator Container&() { return container; }
 };
+
+
+
 
 /* Forward declaration. */
 template <typename VecElem, bool Const>

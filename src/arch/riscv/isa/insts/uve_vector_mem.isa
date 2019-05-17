@@ -15,8 +15,6 @@ output header {{
                                 uint8_t rs2)
     {
         const char* mn = "so.v.ld";
-        DPRINTF(UVEMem, "decodeVectorLoadTemplated: LoadWidth: %d\n",
-            load_width);
         switch (load_width) {
             case 0x0:
                 return new Base<uint8_t>(mn, machInst, rd, rs1, rs2);
@@ -43,6 +41,31 @@ output header {{
     {
         const char* mn = "so.v.st";
         return new Base<uint8_t>(mn, machInst, rd, rs1, rs2);
+    }
+
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeVectorDupTemplated(  uint8_t load_width,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1,
+                                uint8_t ps2)
+    {
+        const char* mn = "so.v.dp";
+        switch (load_width) {
+            case 0x0:
+                return new Base<uint8_t>(mn, machInst, rd, rs1, ps2);
+                break;
+            case 0x1:
+                return new Base<uint16_t>(mn, machInst, rd, rs1, ps2);
+                break;
+            case 0x2:
+                return new Base<uint32_t>(mn, machInst, rd, rs1, ps2);
+                break;
+            default:
+                return new Base<uint64_t>(mn, machInst, rd, rs1, ps2);
+                break;
+        }
     }
 }};
 
@@ -90,14 +113,13 @@ let {{
         '''
 
         set_update_base_address = '''
-        int memAccessSize = memAccessSize_persistent;
-        Rs1_merge_ud = Rs1_ud + memAccessSize;
+        Rs1_merge_ud = Rs1_ud + memAccessSize_persistent;
         ''' if has_set_bit else ""
 
 
         loadIop = InstObjParams('so.v.ld',
-            'UveLoad' if not has_set_bit else 'UveLoadSet',
-            'UveMemLoad',
+            'UveMemLoad' if not has_set_bit else 'UveMemLoadSet',
+            'UveBaseMemLoad',
             {'tpl_header': tplHeader,
              'tpl_args': tplArgs,
              'memacc_code': loadMemAccCode,
@@ -105,8 +127,8 @@ let {{
              'set_update_base_address' : set_update_base_address},
             ['IsMemRef', 'IsLoad'])
         storeIop = InstObjParams('so.v.st',
-            'UveStore' if not has_set_bit else 'UveStoreSet',
-            'UveMemStore',
+            'UveMemStore' if not has_set_bit else 'UveMemStoreSet',
+            'UveBaseMemStore',
             {'tpl_header': tplHeader,
              'tpl_args': tplArgs,
              'memacc_code': storeMemAccCode,
@@ -115,31 +137,61 @@ let {{
             ['IsMemRef', 'IsStore'])
 
 
-        header_output += UveMemLoadDeclare.subst(loadIop)
-        header_output += UveMemStoreDeclare.subst(storeIop)
+        header_output += UveVectorLoadDeclare.subst(loadIop)
+        header_output += UveVectorStoreDeclare.subst(storeIop)
 
         exec_output += (
-            UveLoadExecute.subst(loadIop) +
-            UveLoadInitiateAcc.subst(loadIop) +
-            UveLoadCompleteAcc.subst(loadIop) +
-            UveStoreExecute.subst(storeIop) +
-            UveStoreInitiateAcc.subst(storeIop) +
-            UveStoreCompleteAcc.subst(storeIop)
+            UveVectorLoadExecute.subst(loadIop) +
+            UveVectorLoadInitiateAcc.subst(loadIop) +
+            UveVectorLoadCompleteAcc.subst(loadIop) +
+            UveVectorStoreExecute.subst(storeIop) +
+            UveVectorStoreInitiateAcc.subst(storeIop) +
+            UveVectorStoreCompleteAcc.subst(storeIop)
         )
 
         for args in VectorLoadTemplateArgs:
             substDict = {'tpl_args': '<%s>' % ', '.join(args),
-                         'class_name': 'UveLoad' if not has_set_bit \
-                             else 'UveLoadSet'}
-            exec_output += UveMemExecDeclare.subst(substDict)
+                         'class_name': 'UveMemLoad' if not has_set_bit \
+                             else 'UveMemLoadSet'}
+            exec_output += UveVectorMemExecDeclare.subst(substDict)
 
         for args in VectorLoadTemplateArgs:
             substDict = {'tpl_args': '<%s>' % ', '.join(args),
-                         'class_name': 'UveStore' if not has_set_bit \
-                             else 'UveStoreSet'}
-            exec_output += UveMemExecDeclare.subst(substDict)
+                         'class_name': 'UveMemStore' if not has_set_bit \
+                             else 'UveMemStoreSet'}
+            exec_output += UveVectorMemExecDeclare.subst(substDict)
 
     emitUveVectorMemInsts(has_set_bit = False)
     emitUveVectorMemInsts(has_set_bit = True)
-    # JMTODO: emitUveVectorMemInsts with set_bit as true
+
+    def emitUveVectorDup():
+        global header_output, exec_output, decoders
+        tplHeader = 'template <class RegElemType>'
+        tplArgs = '<RegElemType>'
+
+        dupCode = '''
+        for (int i = 0; i < eCount; i++) {
+            Vd_x[i] = Rs1_ud;
+        }
+        '''
+
+        Iop = InstObjParams('so.v.dup',
+            'UveVectorDup',
+            'UveBaseVectorDup',
+            {'tpl_header': tplHeader,
+             'tpl_args': tplArgs,
+             'ex_code' : dupCode,
+             'op_class': 'SimdAluOp'},
+            [])
+
+        header_output += UveVectorDupDeclare.subst(Iop)
+
+        exec_output += UveVectorDupExecute.subst(Iop)
+
+        for args in VectorLoadTemplateArgs:
+            substDict = {'tpl_args': '<%s>' % ', '.join(args),
+                         'class_name': 'UveVectorDup'}
+            exec_output += UveVectorExecDeclare.subst(substDict)
+
+    emitUveVectorDup()
 }};

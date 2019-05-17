@@ -12,21 +12,31 @@ namespace RiscvISA
 {
 
 std::string
-UveMemLoad::generateDisassembly(Addr pc, const SymbolTable *symtab) const
+UveBaseMemLoad::generateDisassembly(Addr pc, const SymbolTable *symtab) const
 {
     stringstream ss;
-    ss << mnemonic << getWidthRepr() << getSbitRepr() << " " <<
-    registerName(_destRegIdx[0]) << ", " << registerName(_srcRegIdx[0]) << 
+    ss << mnemonic << getWidthRepr() << getSbitRepr() << "\t" <<
+    registerName(_destRegIdx[0]) << ", " << registerName(_srcRegIdx[0]) <<
     ", " << registerName(_srcRegIdx[1]);
     return ss.str();
 }
 
 std::string
-UveMemStore::generateDisassembly(Addr pc, const SymbolTable *symtab) const
+UveBaseMemStore::generateDisassembly(Addr pc, const SymbolTable *symtab) const
 {
     stringstream ss;
-    ss << mnemonic << getWidthRepr() << getSbitRepr() << " " <<
-    registerName(_destRegIdx[0]) << ", " << registerName(_srcRegIdx[0]) << 
+    ss << mnemonic << getSbitRepr() << "\t" <<
+    registerName(_destRegIdx[0]) << ", " << registerName(_srcRegIdx[0]) <<
+    ", " << registerName(_srcRegIdx[1]);
+    return ss.str();
+}
+
+std::string
+UveBaseVectorDup::generateDisassembly(Addr pc, const SymbolTable *symtab) const
+{
+    stringstream ss;
+    ss << mnemonic << getWidthRepr() << "\t" <<
+    registerName(_destRegIdx[0]) << ", " << registerName(_srcRegIdx[0]) <<
     ", " << registerName(_srcRegIdx[1]);
     return ss.str();
 }

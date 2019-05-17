@@ -223,7 +223,7 @@ ISA::setUveVecType(ThreadContext *tc, uint8_t vector_register_id,
 
     vector_type &= ~(0b11 << shift_amt);
     vector_type |= width << shift_amt;
-    DPRINTF(UVEMem, "Set Uve Type: V(%d) Requested(%d) Final(%#x) \n",
+    DPRINTF(UVEMem, "Set Uve Type: V(%d) Requested(%d) Final(%#x)\n",
         vector_register_id, width,vector_type);
 
     tc->setMiscReg(MISCREG_UVEVT,vector_type);

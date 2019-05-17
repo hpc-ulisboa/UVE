@@ -59,7 +59,7 @@ let {{
     def vectorReg(idx, elems = None):
         return ('VecReg', 'vc', (idx, elems) , 'IsVector', 3)
 
-    def vectorRegElem(elem, ext = 'sf', zeroing = False):
+    def vectorRegElem(elem, ext = 'df', zeroing = False):
         return (elem, ext, zeroing)
 
     def predReg(idx):
@@ -98,7 +98,7 @@ def operands {{
     'Fc2_bits': ('FloatReg', 'ud', 'FC2', 'IsFloating', 2),
     'Fp2': ('FloatReg', 'df', 'FP2 + 8', 'IsFloating', 2),
     'Fp2_bits': ('FloatReg', 'ud', 'FP2 + 8', 'IsFloating', 2),
-    
+
     'Rs1_merge': ('IntReg', 'ud', 'RS1', 'IsInteger', 2),
 
 #Vector Reg Operands
@@ -136,7 +136,6 @@ def operands {{
         'Vs1S':  vectorRegElem('0', 'sf', zeroing = True),
         'Vs1D':  vectorRegElem('0', 'df', zeroing = True),
         'Vs1Q':  vectorRegElem('0', 'tud', zeroing = True)
-
     }),
 
     'Vs2': vectorReg('VSrc2',
@@ -148,7 +147,6 @@ def operands {{
         'Vs2S':  vectorRegElem('0', 'sf', zeroing = True),
         'Vs2D':  vectorRegElem('0', 'df', zeroing = True),
         'Vs2Q':  vectorRegElem('0', 'tud', zeroing = True)
-
     }),
 
 # Predicate Register operands

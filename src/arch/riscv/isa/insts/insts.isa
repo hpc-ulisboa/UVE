@@ -20,6 +20,20 @@ let {{
         static const uint8_t width = 0;
     };
     '''
+
+    header_output = '''
+    #define MEM_PRINTF(mem,dir,vec,count)  DPRINTF(UVEMem, "______________" \
+            "__________________\\n"); \
+            std::string ss; \
+            for (int i = 0; i < count; i++) { \
+                ss += "(" + std::to_string(i) + ") M[" + \
+                std::to_string(mem[i]) + "]" dir "V[" + \
+                std::to_string(vec[i]) + "] -"; \
+                if(i % 30 == 29) ss += "\\n"; \
+            } \
+            DPRINTF(UVEMem, (ss+="\\n").c_str() ); \
+            DPRINTF(UVEMem, "________________________________\\n"); \
+    '''
 }};
 
 //UVE

@@ -7,14 +7,14 @@
 
 //JMNOTE: Load/Store Header Declaration Templates
 
-def template UveMemLoadDeclare {{
+def template UveVectorLoadDeclare {{
     %(tpl_header)s
     class %(class_name)s : public %(base_class)s
     {
       protected:
         typedef RegElemType TPElem;
-        int memAccessSize_persistent;
-        int eCount_persistent;
+        mutable int memAccessSize_persistent;
+        mutable int eCount_persistent;
 
       public:
         %(class_name)s(const char* mnem, ExtMachInst machInst,
@@ -27,20 +27,20 @@ def template UveMemLoadDeclare {{
         }
 
         Fault execute(ExecContext *, Trace::InstRecord *) const;
-        Fault initiateAcc(ExecContext *, Trace::InstRecord *);
+        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const;
         Fault completeAcc(PacketPtr, ExecContext *, Trace::InstRecord *) const;
 
     };
 }};
 
-def template UveMemStoreDeclare {{
+def template UveVectorStoreDeclare {{
     %(tpl_header)s
     class %(class_name)s : public %(base_class)s
     {
       protected:
         typedef RegElemType TPElem;
-        int memAccessSize_persistent;
-        int eCount_persistent;
+        mutable int memAccessSize_persistent;
+        mutable int eCount_persistent;
 
       public:
         %(class_name)s(const char* mnem, ExtMachInst machInst,
@@ -53,7 +53,7 @@ def template UveMemStoreDeclare {{
         }
 
         Fault execute(ExecContext *, Trace::InstRecord *) const;
-        Fault initiateAcc(ExecContext *, Trace::InstRecord *);
+        Fault initiateAcc(ExecContext *, Trace::InstRecord *) const;
         Fault completeAcc(PacketPtr, ExecContext *, Trace::InstRecord *) const;
 
     };
@@ -62,14 +62,14 @@ def template UveMemStoreDeclare {{
 //JMNOTE: Load/Store Template Implementation Templates
 
 
-def template UveMemExecDeclare {{
+def template UveVectorMemExecDeclare {{
     template
     Fault %(class_name)s%(tpl_args)s::execute(ExecContext *,
         Trace::InstRecord *) const;
 
     template
     Fault %(class_name)s%(tpl_args)s::initiateAcc(ExecContext *,
-        Trace::InstRecord *);
+        Trace::InstRecord *) const;
 
     template
     Fault %(class_name)s%(tpl_args)s::completeAcc(PacketPtr,
@@ -78,7 +78,7 @@ def template UveMemExecDeclare {{
 
 //JMNOTE: Load Instruction Templates
 
-def template UveLoadExecute {{
+def template UveVectorLoadExecute {{
     %(tpl_header)s
     Fault %(class_name)s%(tpl_args)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
@@ -106,6 +106,7 @@ def template UveLoadExecute {{
             eCount = maxExecSize;
             memAccessSize = maxExecSize * sizeof(RegElemType);
         }
+        memAccessSize_persistent = memAccessSize;
 
         DPRINTF(UVEMem, "%(class_name)s->execute: eCount: %d | "
             "maxExecSize: %d\n", eCount, maxExecSize);
@@ -122,13 +123,7 @@ def template UveLoadExecute {{
         if (fault == NoFault) {
             %(memacc_code)s;
 
-            DPRINTF(UVEMem, "________________________________\n");
-            for (int i = 0; i < eCount; i++) {
-                DPRINTF(UVEMem, "i(%d) M(%d)>V(%d)\n",
-                    i, memDataView[i], Vd[i]);
-            }
-            DPRINTF(UVEMem, "________________________________\n");
-
+            MEM_PRINTF(memDataView,">",Vd,eCount)
             RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
                 width_converter<RegElemType>::width);
 
@@ -140,10 +135,10 @@ def template UveLoadExecute {{
     }
 }};
 
-def template UveLoadInitiateAcc {{
+def template UveVectorLoadInitiateAcc {{
     %(tpl_header)s
     Fault %(class_name)s%(tpl_args)s::initiateAcc(ExecContext *xc,
-        Trace::InstRecord *traceData)
+        Trace::InstRecord *traceData) const
     {
         Addr EA;
         Fault fault = NoFault;
@@ -178,7 +173,7 @@ def template UveLoadInitiateAcc {{
     }
 }};
 
-def template UveLoadCompleteAcc {{
+def template UveVectorLoadCompleteAcc {{
     %(tpl_header)s
     Fault %(class_name)s%(tpl_args)s::completeAcc(PacketPtr pkt,
         ExecContext *xc, Trace::InstRecord *traceData) const
@@ -194,6 +189,8 @@ def template UveLoadCompleteAcc {{
                 pkt->getSize());
 
         %(memacc_code)s;
+        RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
+                width_converter<RegElemType>::width);
         %(set_update_base_address)s;
         %(op_wb)s;
 
@@ -203,7 +200,7 @@ def template UveLoadCompleteAcc {{
 
 //JMNOTE: Store Instruction Templates
 
-def template UveStoreExecute {{
+def template UveVectorStoreExecute {{
     %(tpl_header)s
     Fault %(class_name)s%(tpl_args)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
@@ -236,6 +233,7 @@ def template UveStoreExecute {{
             eCount = maxExecSize * vec_elem_bytes;
             memAccessSize = maxExecSize * vec_elem_bytes;
         }
+        memAccessSize_persistent = memAccessSize;
 
         DPRINTF(UVEMem, "%(class_name)s->execute: eCount: %d\n",
                 eCount);
@@ -248,13 +246,7 @@ def template UveStoreExecute {{
 
         if (fault == NoFault) {
             %(memacc_code)s;
-
-            DPRINTF(UVEMem, "________________________________\n");
-            for (int i = 0; i < eCount; i++) {
-                DPRINTF(UVEMem, "i(%d) M(%d)<V(%d)\n",
-                    i, memDataView[i], Vs1[i]);
-            }
-            DPRINTF(UVEMem, "________________________________\n");
+            MEM_PRINTF(memDataView,"<",Vs1,eCount);
         }
 
         if (fault == NoFault) {
@@ -271,10 +263,10 @@ def template UveStoreExecute {{
     }
 }};
 
-def template UveStoreInitiateAcc {{
+def template UveVectorStoreInitiateAcc {{
     %(tpl_header)s
     Fault %(class_name)s%(tpl_args)s::initiateAcc(ExecContext *xc,
-        Trace::InstRecord *traceData)
+        Trace::InstRecord *traceData) const
     {
         Addr EA;
         Fault fault = NoFault;
@@ -305,6 +297,7 @@ def template UveStoreInitiateAcc {{
             memAccessSize = maxExecSize * vec_elem_bytes;
         }
 
+        memAccessSize_persistent = memAccessSize;
         TheISA::VecRegContainer memData;
         auto memDataView = memData.as<RegElemType>();
 
@@ -325,7 +318,7 @@ def template UveStoreInitiateAcc {{
     }
 }};
 
-def template UveStoreCompleteAcc {{
+def template UveVectorStoreCompleteAcc {{
     %(tpl_header)s
     Fault %(class_name)s%(tpl_args)s::completeAcc(PacketPtr pkt,
         ExecContext *xc, Trace::InstRecord *traceData) const
@@ -339,3 +332,66 @@ def template UveStoreCompleteAcc {{
         return NoFault;
     }
 }};
+
+//JMNOTE: Uve Dup Header Declaration Template
+
+def template UveVectorDupDeclare {{
+    %(tpl_header)s
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef RegElemType TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _VDest, uint8_t _RS1,
+            uint8_t _PS2)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _VDest, _RS1, _PS2)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+//JMNOTE: Dup Template Implementation Templates
+
+def template UveVectorExecDeclare {{
+    template
+    Fault %(class_name)s%(tpl_args)s::execute(ExecContext *,
+        Trace::InstRecord *) const;
+}};
+
+//JMNOTE: Dup Instruction Templates
+
+def template UveVectorDupExecute {{
+    %(tpl_header)s
+    Fault %(class_name)s%(tpl_args)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(RegElemType);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        DPRINTF(UVEMem, "%(class_name)s->execute: eCount: %d\n",
+            eCount);
+        DPRINTF(UVEMem, "%(class_name)s->execute: RS1: %d\n",
+            Rs1);
+        if (fault == NoFault) {
+            %(ex_code)s;
+            DPRINTF(UVEMem, "%(class_name)s->execute: Vd: %s\n",
+            Vd.print());
+            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
+                width_converter<RegElemType>::width);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+

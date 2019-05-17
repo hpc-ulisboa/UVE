@@ -13,19 +13,19 @@ namespace Uve
     StaticInstPtr
     decodeVectorLoad(ExtMachInst machInst)
     {
-        uint8_t vector_dest = (uint8_t) (uint8_t) bits(machInst, 11, 7);
-        uint8_t base_addr = (uint8_t) (uint8_t) bits(machInst, 19, 15);
-        uint8_t size = (uint8_t) (uint8_t) bits(machInst, 24, 20);
+        uint8_t vector_dest = (uint8_t) bits(machInst, 11, 7);
+        uint8_t base_addr = (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) bits(machInst, 24, 20);
         bool s_bit = bits(machInst,25) ? true : false;
 
         //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
 
         if(!s_bit) {
-            return decodeVectorLoadTemplated<UveLoad>(
+            return decodeVectorLoadTemplated<UveMemLoad>(
             bits(machInst, 13, 12), machInst, vector_dest, base_addr, size);
         }
         else {
-            return decodeVectorLoadTemplated<UveLoadSet>(
+            return decodeVectorLoadTemplated<UveMemLoadSet>(
             bits(machInst, 13, 12), machInst, vector_dest, base_addr, size);
         }
 
@@ -33,22 +33,33 @@ namespace Uve
 
     StaticInstPtr
     decodeVectorStore(ExtMachInst machInst){
-        uint8_t vector_src = (uint8_t) (uint8_t) bits(machInst, 11, 7);
-        uint8_t base_addr = (uint8_t) (uint8_t) bits(machInst, 19, 15);
-        uint8_t size = (uint8_t) (uint8_t) bits(machInst, 24, 20);
+        uint8_t vector_src = (uint8_t) bits(machInst, 11, 7);
+        uint8_t base_addr = (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) bits(machInst, 24, 20);
         bool s_bit = bits(machInst,25) ? true : false;
 
         //Args are: uint8_t _VSrc1, uint8_t _RS1, uint8_t _RS2
 
         if(!s_bit) {
-            return decodeVectorStoreTemplated<UveStore>(
+            return decodeVectorStoreTemplated<UveMemStore>(
             bits(machInst, 13, 12), machInst, vector_src, base_addr, size);
         }
         else {
-            return decodeVectorStoreTemplated<UveStoreSet>(
+            return decodeVectorStoreTemplated<UveMemStoreSet>(
             bits(machInst, 13, 12), machInst, vector_src, base_addr, size);
         }
     }
+
+    StaticInstPtr
+    decodeVectorDup(ExtMachInst machInst){
+        uint8_t vector_dest =(uint8_t) bits(machInst, 11, 7);
+        uint8_t reg_src = (uint8_t) bits(machInst, 19, 15);
+        uint8_t preg = (uint8_t) bits(machInst, 22, 20);
+
+        return decodeVectorDupTemplated<UveVectorDup>(
+        bits(machInst, 13, 12), machInst, vector_dest, reg_src, preg);
+    }
+
 
 } // namespace Uve
 
