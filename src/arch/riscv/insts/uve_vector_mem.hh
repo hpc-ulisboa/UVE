@@ -58,18 +58,18 @@ class UveBaseVectorDup : public RiscvStaticInst
   protected:
     uint8_t VDest;
     uint8_t RS1;
-    uint8_t PS2;
+    uint8_t PSrc2;
 
     Request::Flags memAccessFlags;
 
     UveBaseVectorDup(const char *mnem, ExtMachInst _machInst,
-      OpClass __opClass, uint8_t _VDest, uint8_t _RS1, uint8_t _PS2) :
+      OpClass __opClass, uint8_t _VDest, uint8_t _RS1, uint8_t _PSrc2) :
           RiscvStaticInst(mnem, _machInst, __opClass),
-          VDest(_VDest), RS1(_RS1), PS2(_PS2)
+          VDest(_VDest), RS1(_RS1), PSrc2(_PSrc2)
     {
     DPRINTF(UVEMem,
-    "UveBaseMemDup constructor (%s) executed: VDest(%d), RS1(%d), PS2(%d)\n",
-    mnem, VDest, RS1, PS2);
+    "UveBaseMemDup constructor (%s) executed: VDest(%d), RS1(%d), PSrc2(%d)\n",
+    mnem, VDest, RS1, PSrc2);
     }
 
     std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;

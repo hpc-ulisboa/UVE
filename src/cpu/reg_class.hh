@@ -128,6 +128,7 @@ class RegId {
     }
 
     /**
+     * JMNOTE: UVE register zero
      * Check if this is the zero register.
      * Returns true if this register is a zero register (needs to have a
      * constant zero value throughout the execution).
@@ -136,8 +137,23 @@ class RegId {
     inline bool isZeroReg() const
     {
         return ((regClass == IntRegClass && regIdx == TheISA::ZeroReg) ||
-               (THE_ISA == ALPHA_ISA && regClass == FloatRegClass &&
-                regIdx == TheISA::ZeroReg));
+                (THE_ISA == ALPHA_ISA && regClass == FloatRegClass &&
+                    regIdx == TheISA::ZeroReg) ||
+                (THE_ISA == RISCV_ISA && regClass == VecRegClass &&
+                    regIdx == TheISA::ZeroVecReg));
+    }
+
+    /**
+     * JMNOTE: UVE predicate register one
+     * Check if this is the one predicate register.
+     * Returns true if this register is a one register (needs to have a
+     * constant one value throughout the execution).
+     */
+
+    inline bool isOnePredReg() const
+    {
+        return (THE_ISA == RISCV_ISA &&
+            regClass == VecPredRegClass && regIdx == TheISA::OneVecPredReg);
     }
 
     /** @return true if it is an integer physical register. */
@@ -241,6 +257,7 @@ class PhysRegId : private RegId {
     using RegId::index;
     using RegId::classValue;
     using RegId::isZeroReg;
+    using RegId::isOnePredReg;
     using RegId::className;
     using RegId::elemIndex;
      /** @} */

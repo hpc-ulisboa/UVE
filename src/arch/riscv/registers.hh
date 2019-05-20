@@ -76,9 +76,10 @@ using VecRegContainer = VecReg::Container;
 
 // Not applicable to RISC-V
 //JMNOTE: Now applicable for Uve
-using VecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg, false, false>;
+using VecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg,
+                                VecPredRegHasPackedRepr, false>;
 using ConstVecPredReg = ::VecPredRegT<VecElem, NumVecElemPerVecReg,
-                            false, true>;
+                                    VecPredRegHasPackedRepr, true>;
 using VecPredRegContainer = VecPredReg::Container;
 
 
@@ -100,6 +101,8 @@ const int NumCCRegs = 0;
 
 // Semantically meaningful register indices
 const int ZeroReg = 0;
+const int ZeroVecReg = 0;
+const int OneVecPredReg = 0;
 const int ReturnAddrReg = 1;
 const int StackPointerReg = 2;
 const int GlobalPointerReg = 3;

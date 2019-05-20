@@ -63,8 +63,7 @@ let {{
         return (elem, ext, zeroing)
 
     def predReg(idx):
-        return ('PredReg', 'pc', idx, None, 3)
-
+        return ('VecPredReg', 'pc', idx, None, 3)
 
 }};
 
@@ -150,11 +149,11 @@ def operands {{
     }),
 
 # Predicate Register operands
-    #'GpOp': predReg('gp'),
-    #'POp1': predReg('op1'),
-    #'POp2': predReg('op2'),
-    #'PDest': predReg('dest'),
-    #'PDestMerge': predReg('dest'),
+    'Pd': predReg('PDest'),
+    'Pd_merge': predReg('PDest'),
+    'Ps1': predReg('PSrc1'),
+    'Ps2': predReg('PSrc2'),
+    'Ps3': predReg('PSrc3'),
 
 #Memory Operand
     'Mem': ('Mem', 'ud', None, ('IsMemRef', 'IsLoad', 'IsStore'), 5),

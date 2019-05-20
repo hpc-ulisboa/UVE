@@ -345,9 +345,9 @@ def template UveVectorDupDeclare {{
       public:
         %(class_name)s(const char* mnem, ExtMachInst machInst,
             uint8_t _VDest, uint8_t _RS1,
-            uint8_t _PS2)
+            uint8_t _PSrc2)
             : %(base_class)s(mnem, machInst, %(op_class)s,
-                _VDest, _RS1, _PS2)
+                _VDest, _RS1, _PSrc2)
         {
             %(constructor)s;
         }

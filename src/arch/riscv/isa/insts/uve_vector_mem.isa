@@ -171,7 +171,8 @@ let {{
 
         dupCode = '''
         for (int i = 0; i < eCount; i++) {
-            Vd_x[i] = Rs1_ud;
+            if(Ps2_x[i])
+                Vd_x[i] = Rs1_ud;
         }
         '''
 

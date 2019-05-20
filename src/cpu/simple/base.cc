@@ -494,6 +494,14 @@ BaseSimpleCPU::preExecute()
     thread->setFloatReg(ZeroReg, 0);
 #endif // ALPHA_ISA
 
+#if THE_ISA == RISCV_ISA
+    //JMNOTE: UVE Vector Register to zero
+    (thread->getWritableVecRegFlat(ZeroVecReg)).zero();
+
+    //JMNOTE: UVE Vector Predicate Register to one
+    (thread->getWritableVecPredRegFlat(OneVecPredReg)).set();
+#endif // RISCV_ISA
+
     // check for instruction-count-based events
     comInstEventQueue[curThread]->serviceEvents(t_info.numInst);
     system->instEventQueue.serviceEvents(system->totalNumInsts);

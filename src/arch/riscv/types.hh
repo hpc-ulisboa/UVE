@@ -95,6 +95,7 @@ class PCState : public GenericISA::UPCState<MachInst>
   constexpr unsigned MaxUveVecLenInDWords = MaxUveVecLenInBits >> 6;
 
   constexpr unsigned VecRegSizeBytes = MaxUveVecLenInBytes;
+
   constexpr unsigned VecPredRegSizeBits = MaxUveVecLenInBytes;
   constexpr unsigned VecPredRegHasPackedRepr = false;
 }
