@@ -239,18 +239,28 @@ class VecRegT
     }
 
     /** Output stream operator. */
-    template<bool cond= std::is_same<uint8_t, VecElem&>::value>
     friend std::ostream&
     operator<<(std::ostream& os, const MyClass& vr)
     {
-        typedef typename std::conditional<cond,uint16_t,
-            VecElem&>::type VecElem_t;
-        /* 0-sized is not allowed */
-        os << "[" << "0x" << std::hex << (VecElem_t)vr[0];
-        for (uint64_t e = 1; e < NumElems; e++)
-            os << " 0x" << std::hex << (VecElem_t)vr[e];
-        os << ']';
-        return os;
+        if (sizeof(VecElem)==1){
+            char * val = (char *) malloc(sizeof(char)* 20);
+            sprintf(val, "%x", (uint8_t)vr[0]);
+            os << "[" << "0x" << std::hex << val;
+            for (uint64_t e = 1; e < NumElems; e++){
+                sprintf(val, "%x", (uint8_t)vr[e]);
+                os << " 0x" << std::hex << val;
+            }
+            os << ']';
+            return os;
+        }
+        else {
+            /* 0-sized is not allowed */
+            os << "[" << "0x" << std::hex << (VecElem)vr[0];
+            for (uint64_t e = 1; e < NumElems; e++)
+                os << " 0x" << std::hex << (VecElem)vr[e];
+            os << ']';
+            return os;
+        }
     }
 
     const std::string print() const { return csprintf("%s", *this); }

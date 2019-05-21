@@ -356,7 +356,7 @@ def template UveVectorDupDeclare {{
     };
 }};
 
-//JMNOTE: Dup Template Implementation Templates
+//JMNOTE: Generic Exec Declare Template Implementation Templates
 
 def template UveVectorExecDeclare {{
     template
@@ -395,3 +395,109 @@ def template UveVectorDupExecute {{
     }
 }};
 
+
+//JMNOTE: Uve Move Header Declaration Template
+
+def template UveVectorMoveDeclare {{
+    %(tpl_header)s
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef RegElemType TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _VDest, uint8_t _VSrc1,
+            uint8_t _PSrc2)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _VDest, _VSrc1, _PSrc2)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+//JMNOTE: Move Instruction Templates
+
+def template UveVectorMoveExecute {{
+    %(tpl_header)s
+    Fault %(class_name)s%(tpl_args)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        uint8_t vector_width = RiscvStaticInst::getUveVecType(xc->tcBase(),
+            VSrc1);
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(RegElemType);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        DPRINTF(UVEMem, "%(class_name)s->execute: eCount: %d\n",
+            eCount);
+        if (fault == NoFault) {
+            %(ex_code)s;
+            DPRINTF(UVEMem, "%(class_name)s->execute: Vd: %s\n",
+            Vd.print());
+            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
+                vector_width);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+
+
+//JMNOTE: Uve Move Vector to Scalar Header Declaration Template
+
+def template UveVectorMoveVSDeclare {{
+    %(tpl_header)s
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef RegElemType TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _RD, uint8_t _VSrc1,
+            uint8_t _PSrc2)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _RD, _VSrc1, _PSrc2)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+//JMNOTE: Move Vector to Scalar Instruction Templates
+
+def template UveVectorMoveVSExecute {{
+    %(tpl_header)s
+    Fault %(class_name)s%(tpl_args)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        uint8_t vector_width = RiscvStaticInst::getUveVecType(xc->tcBase(),
+            VSrc1);
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            DPRINTF(UVEMem, "%(class_name)s->execute: before Rd: %s\n",
+            Rd);
+            DPRINTF(UVEMem, "%(class_name)s->execute: Vect Width: %d\n",
+            vector_width);
+            %(ex_code)s;
+            DPRINTF(UVEMem, "%(class_name)s->execute: Rd: %s\n",
+            Rd);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};

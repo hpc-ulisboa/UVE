@@ -33,8 +33,7 @@ output header {{
 
     template <template<typename Width> class Base>
     StaticInstPtr
-    decodeVectorStoreTemplated( uint8_t store_width,
-                                ExtMachInst machInst,
+    decodeVectorStoreTemplated(ExtMachInst machInst,
                                 uint8_t rd,
                                 uint8_t rs1,
                                 uint8_t rs2)
@@ -66,6 +65,53 @@ output header {{
                 return new Base<uint64_t>(mn, machInst, rd, rs1, ps2);
                 break;
         }
+    }
+
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeVectorMoveSVTemplated(  uint8_t load_width,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1,
+                                uint8_t ps2 = 0)
+    {
+        const char* mn = "so.v.mvsv";
+        switch (load_width) {
+            case 0x0:
+                return new Base<uint8_t>(mn, machInst, rd, rs1, ps2);
+                break;
+            case 0x1:
+                return new Base<uint16_t>(mn, machInst, rd, rs1, ps2);
+                break;
+            case 0x2:
+                return new Base<uint32_t>(mn, machInst, rd, rs1, ps2);
+                break;
+            default:
+                return new Base<uint64_t>(mn, machInst, rd, rs1, ps2);
+                break;
+        }
+    }
+
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeVectorMoveTemplated(ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1,
+                                uint8_t ps2)
+    {
+        const char* mn = "so.v.mv";
+        return new Base<uint8_t>(mn, machInst, rd, rs1, ps2);
+    }
+
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeVectorMoveVSTemplated(ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1,
+                                uint8_t ps2 = 0)
+    {
+        const char* mn = "so.v.mvvs";
+        return new Base<uint8_t>(mn, machInst, rd, rs1, ps2);
     }
 }};
 
@@ -117,7 +163,7 @@ let {{
         ''' if has_set_bit else ""
 
 
-        loadIop = InstObjParams('so.v.ld',
+        loadDupIop = InstObjParams('so.v.ld',
             'UveMemLoad' if not has_set_bit else 'UveMemLoadSet',
             'UveBaseMemLoad',
             {'tpl_header': tplHeader,
@@ -126,7 +172,7 @@ let {{
              'ea_code' : eaCode,
              'set_update_base_address' : set_update_base_address},
             ['IsMemRef', 'IsLoad'])
-        storeIop = InstObjParams('so.v.st',
+        storeDupIop = InstObjParams('so.v.st',
             'UveMemStore' if not has_set_bit else 'UveMemStoreSet',
             'UveBaseMemStore',
             {'tpl_header': tplHeader,
@@ -137,16 +183,16 @@ let {{
             ['IsMemRef', 'IsStore'])
 
 
-        header_output += UveVectorLoadDeclare.subst(loadIop)
-        header_output += UveVectorStoreDeclare.subst(storeIop)
+        header_output += UveVectorLoadDeclare.subst(loadDupIop)
+        header_output += UveVectorStoreDeclare.subst(storeDupIop)
 
         exec_output += (
-            UveVectorLoadExecute.subst(loadIop) +
-            UveVectorLoadInitiateAcc.subst(loadIop) +
-            UveVectorLoadCompleteAcc.subst(loadIop) +
-            UveVectorStoreExecute.subst(storeIop) +
-            UveVectorStoreInitiateAcc.subst(storeIop) +
-            UveVectorStoreCompleteAcc.subst(storeIop)
+            UveVectorLoadExecute.subst(loadDupIop) +
+            UveVectorLoadInitiateAcc.subst(loadDupIop) +
+            UveVectorLoadCompleteAcc.subst(loadDupIop) +
+            UveVectorStoreExecute.subst(storeDupIop) +
+            UveVectorStoreInitiateAcc.subst(storeDupIop) +
+            UveVectorStoreCompleteAcc.subst(storeDupIop)
         )
 
         for args in VectorLoadTemplateArgs:
@@ -155,11 +201,10 @@ let {{
                              else 'UveMemLoadSet'}
             exec_output += UveVectorMemExecDeclare.subst(substDict)
 
-        for args in VectorLoadTemplateArgs:
-            substDict = {'tpl_args': '<%s>' % ', '.join(args),
-                         'class_name': 'UveMemStore' if not has_set_bit \
-                             else 'UveMemStoreSet'}
-            exec_output += UveVectorMemExecDeclare.subst(substDict)
+        substDict = {'tpl_args': '<%s>' % 'uint8_t',
+                        'class_name': 'UveMemStore' if not has_set_bit \
+                            else 'UveMemStoreSet'}
+        exec_output += UveVectorMemExecDeclare.subst(substDict)
 
     emitUveVectorMemInsts(has_set_bit = False)
     emitUveVectorMemInsts(has_set_bit = True)
@@ -176,7 +221,11 @@ let {{
         }
         '''
 
-        Iop = InstObjParams('so.v.dup',
+        mvsvCode = '''
+            Vd_x[0] = Rs1_ud;
+        '''
+
+        DupIop = InstObjParams('so.v.dup',
             'UveVectorDup',
             'UveBaseVectorDup',
             {'tpl_header': tplHeader,
@@ -185,14 +234,130 @@ let {{
              'op_class': 'SimdAluOp'},
             [])
 
-        header_output += UveVectorDupDeclare.subst(Iop)
+        MvsvIop = InstObjParams('so.v.mvsv',
+            'UveVectorMoveSV',
+            'UveBaseVectorDup',
+            {'tpl_header': tplHeader,
+             'tpl_args': tplArgs,
+             'ex_code' : mvsvCode,
+             'op_class': 'SimdAluOp'},
+            [])
 
-        exec_output += UveVectorDupExecute.subst(Iop)
+        header_output += UveVectorDupDeclare.subst(DupIop)
+        header_output += UveVectorDupDeclare.subst(MvsvIop)
+
+        exec_output += UveVectorDupExecute.subst(DupIop)
+        exec_output += UveVectorDupExecute.subst(MvsvIop)
 
         for args in VectorLoadTemplateArgs:
             substDict = {'tpl_args': '<%s>' % ', '.join(args),
                          'class_name': 'UveVectorDup'}
             exec_output += UveVectorExecDeclare.subst(substDict)
+            substDict = {'tpl_args': '<%s>' % ', '.join(args),
+                         'class_name': 'UveVectorMoveSV'}
+            exec_output += UveVectorExecDeclare.subst(substDict)
 
     emitUveVectorDup()
+
+
+    def emitUveVectorMove():
+        global header_output, exec_output, decoders
+        tplHeader = 'template <class RegElemType>'
+        tplArgs = '<RegElemType>'
+
+        moveCode = '''
+        for (int i = 0; i < eCount; i++) {
+            if(Ps2_x[i])
+                Vd_x[i] = Vs1_x[i];
+        }
+        '''
+
+        moveTCode = '''
+        for (int i = 0; i < eCount/2; i++) {
+            if(Ps2_x[i]){
+                Vd_x[i] = Vs1_x[eCount-1-i];
+                Vd_x[eCount-1-i] = Vs1_x[i];
+            }
+        }
+        if(eCount%2==1){
+            Vd_x[eCount/2+1] = Vs1_x[eCount/2+1];
+        }
+        '''
+
+        MoveIop = InstObjParams('so.v.mv',
+            'UveVectorMove',
+            'UveBaseVectorMove',
+            {'tpl_header': tplHeader,
+             'tpl_args': tplArgs,
+             'ex_code' : moveCode,
+             'op_class': 'SimdAluOp'},
+            [])
+
+        MoveTIop = InstObjParams('so.v.mvt',
+            'UveVectorMoveT',
+            'UveBaseVectorMove',
+            {'tpl_header': tplHeader,
+             'tpl_args': tplArgs,
+             'ex_code' : moveTCode,
+             'op_class': 'SimdAluOp'},
+            [])
+
+        header_output += UveVectorMoveDeclare.subst(MoveIop)
+        header_output += UveVectorMoveDeclare.subst(MoveTIop)
+
+        exec_output += (UveVectorMoveExecute.subst(MoveIop) +
+                        UveVectorMoveExecute.subst(MoveTIop))
+
+        substDict = {'tpl_args': '<%s>' % 'uint8_t',
+                        'class_name': 'UveVectorMove'}
+        exec_output += UveVectorExecDeclare.subst(substDict)
+
+        substDict = {'tpl_args': '<%s>' % 'uint8_t',
+                        'class_name': 'UveVectorMoveT'}
+        exec_output += UveVectorExecDeclare.subst(substDict)
+
+    emitUveVectorMove()
+
+    def emitUveVectorMoveVS():
+        global header_output, exec_output, decoders
+        tplHeader = 'template <class RegElemType>'
+        tplArgs = '<RegElemType>'
+
+        moveVSCode = '''
+            auto veccont = (TheISA::VecRegContainer)Vs1_x;
+            switch(vector_width){
+                case 0:
+                    Rd_ud = veccont.as<uint8_t>()[0];
+                break;
+                case 1:
+                    Rd_ud = veccont.as<uint16_t>()[0];
+                break;
+                case 2:
+                    Rd_ud = veccont.as<uint32_t>()[0];
+                break;
+                default:
+                    Rd_ud = veccont.as<uint64_t>()[0];
+                break;
+            }
+        '''
+
+        MoveIop = InstObjParams('so.v.mv',
+            'UveVectorMoveVS',
+            'UveBaseVectorMoveVS',
+            {'tpl_header': tplHeader,
+             'tpl_args': tplArgs,
+             'ex_code' : moveVSCode,
+             'op_class': 'SimdAluOp'},
+            [])
+
+        header_output += UveVectorMoveVSDeclare.subst(MoveIop)
+
+        exec_output += UveVectorMoveVSExecute.subst(MoveIop)
+
+        substDict = {'tpl_args': '<%s>' % 'uint8_t',
+                        'class_name': 'UveVectorMoveVS'}
+        exec_output += UveVectorExecDeclare.subst(substDict)
+
+    emitUveVectorMoveVS()
+
 }};

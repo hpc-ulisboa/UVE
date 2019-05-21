@@ -68,13 +68,61 @@ class UveBaseVectorDup : public RiscvStaticInst
           VDest(_VDest), RS1(_RS1), PSrc2(_PSrc2)
     {
     DPRINTF(UVEMem,
-    "UveBaseMemDup constructor (%s) executed: VDest(%d), RS1(%d), PSrc2(%d)\n",
+    "UveBaseVectorDup constructor (%s) executed: VDest(%d),"
+    " RS1(%d), PSrc2(%d)\n",
     mnem, VDest, RS1, PSrc2);
     }
 
     std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
 };
 
+
+class UveBaseVectorMove : public RiscvStaticInst
+{
+  protected:
+    uint8_t VDest;
+    uint8_t VSrc1;
+    uint8_t PSrc2;
+
+    Request::Flags memAccessFlags;
+
+    UveBaseVectorMove(const char *mnem, ExtMachInst _machInst,
+      OpClass __opClass, uint8_t _VDest, uint8_t _VSrc1, uint8_t _PSrc2) :
+          RiscvStaticInst(mnem, _machInst, __opClass),
+          VDest(_VDest), VSrc1(_VSrc1), PSrc2(_PSrc2)
+    {
+    DPRINTF(UVEMem,
+    "UveBaseVectorMove constructor (%s) executed: VDest(%d),"
+    " VSrc1(%d), PSrc2(%d)\n",
+    mnem, VDest, VSrc1, PSrc2);
+    }
+
+    std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
+};
+
+
+class UveBaseVectorMoveVS : public RiscvStaticInst
+{
+  protected:
+    uint8_t RD;
+    uint8_t VSrc1;
+    uint8_t PSrc2;
+
+    Request::Flags memAccessFlags;
+
+    UveBaseVectorMoveVS(const char *mnem, ExtMachInst _machInst,
+      OpClass __opClass, uint8_t _RD, uint8_t _VSrc1, uint8_t _PSrc2) :
+          RiscvStaticInst(mnem, _machInst, __opClass),
+          RD(_RD), VSrc1(_VSrc1), PSrc2(_PSrc2)
+    {
+    DPRINTF(UVEMem,
+    "UveBaseVectorMoveVS constructor (%s) executed: RD(%d),"
+    " VSrc1(%d), PSrc2(%d)\n",
+    mnem, RD, VSrc1, PSrc2);
+    }
+
+    std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
+};
 
 
 }  // namespace RiscvISA

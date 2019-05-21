@@ -71,6 +71,21 @@ RiscvStaticInst::getWidthRepr() const {
 }
 
 std::string
+RiscvStaticInst::getUpdateRepr() const {
+    int8_t u_bit = bits(machInst,14);
+    std::string u_bit_repr = "";
+    switch(u_bit){
+        case 0:
+            u_bit_repr = "";
+            break;
+        case 1:
+            u_bit_repr = ".u";
+            break;
+    }
+    return u_bit_repr;
+}
+
+std::string
 RiscvStaticInst::getSbitRepr() const {
     int8_t s_bit = bits(machInst,25);
     std::string s_bit_repr = "";

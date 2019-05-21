@@ -11,6 +11,10 @@ namespace Uve
     StaticInstPtr decodeVectorLoad(ExtMachInst machInst);
     StaticInstPtr decodeVectorStore(ExtMachInst machInst);
     StaticInstPtr decodeVectorDup(ExtMachInst machInst);
+    StaticInstPtr decodeVectorMove(ExtMachInst machInst);
+    StaticInstPtr decodeVectorMoveVS(ExtMachInst machInst);
+    StaticInstPtr decodeVectorMoveSV(ExtMachInst machInst);
+
     // StaticInstPtr decodeSveIntArithBinPred(ExtMachInst machInst);
     // StaticInstPtr decodeSveIntReduc(ExtMachInst machInst);
     // StaticInstPtr decodeSveShiftByImmPred(ExtMachInst machInst);
@@ -57,6 +61,27 @@ namespace Uve
             case 0x3: //Vector Duplicate
                 return decodeVectorDup(machInst);
                 break;
+            case 0x2:
+                switch (bits(machInst, 25, 24))
+                {
+                case 0x0: //Vector Move Vec to Vec
+                    return decodeVectorMove(machInst);
+                    break;
+                case 0x1: {//Vector Move Vec <-> Scl
+                        // mvVS
+                        if(bits(machInst, 23)==0){
+                            return decodeVectorMoveVS(machInst);
+                        }
+                        // mvSV
+                        else {
+                            return decodeVectorMoveSV(machInst);
+                        }
+                        break;
+                    }
+                default:  //Vector Conv
+                    return new Unknown(machInst);
+                    break;
+                }
             default:
                 return new Unknown(machInst);
                 break;

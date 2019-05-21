@@ -42,11 +42,11 @@ namespace Uve
 
         if(!s_bit) {
             return decodeVectorStoreTemplated<UveMemStore>(
-            bits(machInst, 13, 12), machInst, vector_src, base_addr, size);
+            machInst, vector_src, base_addr, size);
         }
         else {
             return decodeVectorStoreTemplated<UveMemStoreSet>(
-            bits(machInst, 13, 12), machInst, vector_src, base_addr, size);
+            machInst, vector_src, base_addr, size);
         }
     }
 
@@ -60,6 +60,38 @@ namespace Uve
         bits(machInst, 13, 12), machInst, vector_dest, reg_src, preg);
     }
 
+    StaticInstPtr
+    decodeVectorMoveSV(ExtMachInst machInst){
+        uint8_t vector_dest =(uint8_t) bits(machInst, 11, 7);
+        uint8_t reg_src = (uint8_t) bits(machInst, 19, 15);
+
+        return decodeVectorMoveSVTemplated<UveVectorMoveSV>(
+        bits(machInst, 13, 12), machInst, vector_dest, reg_src);
+    }
+
+    StaticInstPtr
+    decodeVectorMove(ExtMachInst machInst){
+        uint8_t vector_dest =(uint8_t) bits(machInst, 11, 7);
+        uint8_t reg_src = (uint8_t) bits(machInst, 19, 15);
+        uint8_t preg = (uint8_t) bits(machInst, 22, 20);
+
+        if(bits(machInst, 23)==0)
+            return decodeVectorMoveTemplated<UveVectorMove>(machInst,
+                vector_dest, reg_src, preg);
+        else
+            return decodeVectorMoveTemplated<UveVectorMoveT>(machInst,
+                vector_dest, reg_src, preg);
+
+    }
+
+    StaticInstPtr
+    decodeVectorMoveVS(ExtMachInst machInst){
+        uint8_t reg_dest =(uint8_t) bits(machInst, 11, 7);
+        uint8_t vector_src = (uint8_t) bits(machInst, 19, 15);
+        //JMTODO: Refactor
+        return decodeVectorMoveVSTemplated<UveVectorMoveVS>(machInst,
+            reg_dest, vector_src);
+    }
 
 } // namespace Uve
 

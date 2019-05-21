@@ -62,6 +62,7 @@ class RiscvStaticInst : public StaticInst
 
     //JMNOTE: Functions for generating dissassembly
     std::string getWidthRepr() const;
+    std::string getUpdateRepr() const;
     std::string getSbitRepr() const;
 
     //JMNOTE: Get current Uve vector length
