@@ -124,6 +124,28 @@ class UveBaseVectorMoveVS : public RiscvStaticInst
     std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
 };
 
+class UveBaseVectorConv : public RiscvStaticInst
+{
+  protected:
+    uint8_t VDest;
+    uint8_t VSrc1;
+
+    Request::Flags memAccessFlags;
+
+    UveBaseVectorConv(const char *mnem, ExtMachInst _machInst,
+      OpClass __opClass, uint8_t _VDest, uint8_t _VSrc1) :
+          RiscvStaticInst(mnem, _machInst, __opClass),
+          VDest(_VDest), VSrc1(_VSrc1)
+    {
+    DPRINTF(UVEMem,
+    "UveBaseVectorConv constructor (%s) executed: VDest(%d),"
+    " VSrc1(%d)\n",
+    mnem, VDest, VSrc1);
+    }
+
+    std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
+};
+
 
 }  // namespace RiscvISA
 

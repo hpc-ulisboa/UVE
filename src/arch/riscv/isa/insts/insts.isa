@@ -1,7 +1,22 @@
 // -*- mode:c++ -*-
 
 //JMNOTE: UVE Template Magic for width conversion with type_traits
+// And other helper functions
 let {{
+    header_output = '''
+    #define MEM_PRINTF(mem,dir,vec,count)  DPRINTF(UVEMem, "______________" \
+            "__________________\\n"); \
+            std::string ss; \
+            for (int i = 0; i < count; i++) { \
+                ss += "(" + std::to_string(i) + ") M[" + \
+                std::to_string(mem[i]) + "]" dir "V[" + \
+                std::to_string(vec[i]) + "] -"; \
+                if(i % 30 == 29) ss += "\\n"; \
+            } \
+            DPRINTF(UVEMem, (ss+="\\n").c_str() ); \
+            DPRINTF(UVEMem, "________________________________\\n"); \
+    '''
+
     exec_output = '''
     template <class WidthSize>
     struct width_converter{
@@ -19,20 +34,62 @@ let {{
     struct width_converter<uint8_t>{
         static const uint8_t width = 0;
     };
-    '''
+    template <>
+    struct width_converter<int32_t>{
+        static const uint8_t width = 2;
+    };
+    template <>
+    struct width_converter<int16_t>{
+        static const uint8_t width = 1;
+    };
+    template <>
+    struct width_converter<int8_t>{
+        static const uint8_t width = 0;
+    };    template <>
+    struct width_converter<float>{
+        static const uint8_t width = 2;
+    };
 
-    header_output = '''
-    #define MEM_PRINTF(mem,dir,vec,count)  DPRINTF(UVEMem, "______________" \
-            "__________________\\n"); \
-            std::string ss; \
-            for (int i = 0; i < count; i++) { \
-                ss += "(" + std::to_string(i) + ") M[" + \
-                std::to_string(mem[i]) + "]" dir "V[" + \
-                std::to_string(vec[i]) + "] -"; \
-                if(i % 30 == 29) ss += "\\n"; \
-            } \
-            DPRINTF(UVEMem, (ss+="\\n").c_str() ); \
-            DPRINTF(UVEMem, "________________________________\\n"); \
+    template <typename Ret>
+    Ret convertFP(float& val){return (Ret) val;}
+    template <typename Ret>
+    Ret convertFP(double& val){return (Ret) val;}
+
+    template <typename Ret>
+    Ret convertUInt(uint8_t& val){return ((Ret&) val) & 0xff;}
+    template <typename Ret>
+    Ret convertUInt(uint16_t& val){return ((Ret&) val) & 0xffff;}
+    template <typename Ret>
+    Ret convertUInt(uint32_t& val){return ((Ret&) val) & 0xffffffff;}
+    template <typename Ret>
+    Ret convertUInt(uint64_t& val){return ((Ret&) val);}
+
+    template <typename Ret>
+    Ret convertInt(int8_t& val){
+        auto aux = ((Ret&) val) & 0xff;
+        if((aux >> 7) & 1)
+            aux |= ~(0ULL) << 8;
+        return aux;
+    }
+    template <typename Ret>
+    Ret convertInt(int16_t& val){
+        auto aux = ((Ret&) val) & 0xffff;
+        if((aux >> 15) & 1)
+            aux |= ~(0ULL) << 16;
+        return aux;
+    }
+    template <typename Ret>
+    Ret convertInt(int32_t& val){
+        auto aux = ((Ret&) val) & 0xffffffff;
+        if((aux >> 31) & 1)
+            aux |= ~(0ULL) << 32;
+        return aux;
+    }
+    template <typename Ret>
+    Ret convertInt(int64_t& val){
+        return ((Ret&) val);
+    }
+
     '''
 }};
 

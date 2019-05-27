@@ -65,4 +65,15 @@ const
     return ss.str();
 }
 
+std::string
+UveBaseVectorConv::generateDisassembly(Addr pc, const SymbolTable *symtab)
+const
+{
+    stringstream ss;
+    ss << mnemonic << getFPSignedRepr() << getWidthRepr() <<
+    "\t" << registerName(_destRegIdx[0]) << ", " <<
+    registerName(_srcRegIdx[0]);
+    return ss.str();
+}
+
 }  // namespace RiscvISA

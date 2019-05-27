@@ -72,15 +72,15 @@ namespace Uve
     StaticInstPtr
     decodeVectorMove(ExtMachInst machInst){
         uint8_t vector_dest =(uint8_t) bits(machInst, 11, 7);
-        uint8_t reg_src = (uint8_t) bits(machInst, 19, 15);
+        uint8_t vector_src = (uint8_t) bits(machInst, 19, 15);
         uint8_t preg = (uint8_t) bits(machInst, 22, 20);
 
         if(bits(machInst, 23)==0)
             return decodeVectorMoveTemplated<UveVectorMove>(machInst,
-                vector_dest, reg_src, preg);
+                vector_dest, vector_src, preg);
         else
             return decodeVectorMoveTemplated<UveVectorMoveT>(machInst,
-                vector_dest, reg_src, preg);
+                vector_dest, vector_src, preg);
 
     }
 
@@ -91,6 +91,31 @@ namespace Uve
         //JMTODO: Refactor
         return decodeVectorMoveVSTemplated<UveVectorMoveVS>(machInst,
             reg_dest, vector_src);
+    }
+
+    StaticInstPtr
+    decodeVectorConv(ExtMachInst machInst){
+        uint8_t vector_dest =(uint8_t) bits(machInst, 11, 7);
+        uint8_t vector_src = (uint8_t) bits(machInst, 19, 15);
+
+        //Selects FP, Unsigned and Signed
+        uint8_t values_type = (uint8_t) bits(machInst, 24, 23);
+
+        switch (values_type)
+        {
+        case 0x0:
+            return decodeVectorConvTemplatedUnsigned<UveVectorConvUnsigned>(
+            bits(machInst, 13, 12), machInst, vector_dest, vector_src);
+            break;
+        case 0x1:
+            return decodeVectorConvTemplatedSigned<UveVectorConvSigned>(
+            bits(machInst, 13, 12), machInst, vector_dest, vector_src);
+            break;
+        default:
+            return decodeVectorConvTemplatedFP<UveVectorConvFP>(
+            bits(machInst, 13, 12), machInst, vector_dest, vector_src);
+            break;
+        }
     }
 
 } // namespace Uve

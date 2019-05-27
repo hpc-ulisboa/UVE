@@ -100,5 +100,29 @@ RiscvStaticInst::getSbitRepr() const {
     return s_bit_repr;
 }
 
+std::string
+RiscvStaticInst::getFPSignedRepr() const {
+    int8_t fp_bit = bits(machInst,24);
+    int8_t signed_bit = bits(machInst,23);
+    std::string final_repr = "";
+    switch(fp_bit){
+        case 0:
+            switch (signed_bit)
+            {
+            case 0:
+                final_repr = "";
+                break;
+            case 1:
+                final_repr = ".s";
+                break;
+            }
+            break;
+        case 1:
+            final_repr = ".fp";
+            break;
+    }
+    return final_repr;
+}
+
 
 } // namespace RiscvISA

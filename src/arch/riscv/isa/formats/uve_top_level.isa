@@ -14,6 +14,7 @@ namespace Uve
     StaticInstPtr decodeVectorMove(ExtMachInst machInst);
     StaticInstPtr decodeVectorMoveVS(ExtMachInst machInst);
     StaticInstPtr decodeVectorMoveSV(ExtMachInst machInst);
+    StaticInstPtr decodeVectorConv(ExtMachInst nachInst);
 
     // StaticInstPtr decodeSveIntArithBinPred(ExtMachInst machInst);
     // StaticInstPtr decodeSveIntReduc(ExtMachInst machInst);
@@ -79,7 +80,7 @@ namespace Uve
                         break;
                     }
                 default:  //Vector Conv
-                    return new Unknown(machInst);
+                    return decodeVectorConv(machInst);
                     break;
                 }
             default:

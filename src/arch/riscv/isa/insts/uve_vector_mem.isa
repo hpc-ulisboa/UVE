@@ -113,6 +113,79 @@ output header {{
         const char* mn = "so.v.mvvs";
         return new Base<uint8_t>(mn, machInst, rd, rs1, ps2);
     }
+
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeVectorConvTemplatedUnsigned(  uint8_t load_width,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1)
+    {
+        const char* mn = "so.v.cv";
+        switch (load_width) {
+            case 0x0:
+                return new Base<uint8_t>(mn, machInst, rd, rs1);
+                break;
+            case 0x1:
+                return new Base<uint16_t>(mn, machInst, rd, rs1);
+                break;
+            case 0x2:
+                return new Base<uint32_t>(mn, machInst, rd, rs1);
+                break;
+            default:
+                return new Base<uint64_t>(mn, machInst, rd, rs1);
+                break;
+        }
+    }
+
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeVectorConvTemplatedSigned(  uint8_t load_width,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1)
+    {
+        const char* mn = "so.v.cv";
+        switch (load_width) {
+            case 0x0:
+                return new Base<int8_t>(mn, machInst, rd, rs1);
+                break;
+            case 0x1:
+                return new Base<int16_t>(mn, machInst, rd, rs1);
+                break;
+            case 0x2:
+                return new Base<int32_t>(mn, machInst, rd, rs1);
+                break;
+            default:
+                return new Base<int64_t>(mn, machInst, rd, rs1);
+                break;
+        }
+    }
+
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeVectorConvTemplatedFP(  uint8_t load_width,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1)
+    {
+        const char* mn = "so.v.cv";
+        switch (load_width) {
+            case 0x0:
+                return new Unknown(machInst);
+                break;
+            case 0x1:
+                return new Unknown(machInst);
+                break;
+            case 0x2:
+                return new Base<float>(mn, machInst, rd, rs1);
+                break;
+            default:
+                return new Base<double>(mn, machInst, rd, rs1);
+                break;
+        }
+    }
+
 }};
 
 
@@ -359,5 +432,173 @@ let {{
         exec_output += UveVectorExecDeclare.subst(substDict)
 
     emitUveVectorMoveVS()
+
+    UnsignedVectorConvTemplateArgs = (
+        ('uint8_t',),
+        ('uint16_t',),
+        ('uint32_t',),
+        ('uint64_t',),
+    )
+    SignedVectorConvTemplateArgs = (
+        ('int8_t',),
+        ('int16_t',),
+        ('int32_t',),
+        ('int64_t',),
+    )
+    #JMTODO: Need to add 16-bit and 8-bit FP
+    FPVectorConvTemplateArgs = (
+        ('float',),
+        ('double',),
+    )
+    def emitUveVectorConversion():
+        global header_output, exec_output, decoders
+        tplHeader = 'template <class RegElemType>'
+        tplArgs = '<RegElemType>'
+
+        genericConversion = '''
+        auto src_vec_cont = (TheISA::VecRegContainer)Vs1_x;
+        if(src_vector_width < dest_vector_width){
+            //In this case: e.g. 8->16
+            // 1 Copy elems to dest vector
+            // 2 Shift elems in the src vector
+            switch(src_vector_width){
+                case 0:{
+                    auto aux_vec = src_vec_cont.as<%(un)sint8_t>();
+                    for(int i=0; i<dest_eCount; i++){
+                        Vd_x[i] = %(conv_func)s<RegElemType>(aux_vec[i]);
+                    }
+                    for(int i=0; i<src_eCount - dest_eCount; i++)
+                        aux_vec[i] = aux_vec[i+dest_eCount];
+                }
+                break;
+                case 1:{
+                    auto aux_vec = src_vec_cont.as<%(un)sint16_t>();
+                    for(int i=0; i<dest_eCount; i++){
+                        Vd_x[i] = %(conv_func)s<RegElemType>(aux_vec[i]);
+                    }
+                    for(int i=0; i<src_eCount - dest_eCount; i++)
+                        aux_vec[i] = aux_vec[i+dest_eCount];
+                }
+                break;
+                case 2:
+                {
+                    auto aux_vec = src_vec_cont.as<%(un)sint32_t>();
+                    for(int i=0; i<dest_eCount; i++)
+                        Vd_x[i] = %(conv_func)s<RegElemType>(aux_vec[i]);
+                    for(int i=0; i<src_eCount - dest_eCount; i++)
+                        aux_vec[i] = aux_vec[i+dest_eCount];
+                }
+                break;
+            }
+            auto aux_vec = src_vec_cont.as<RegElemType>();
+            for(int i=0;i<dest_eCount;i++)
+                Vs1_merge_x[i] = aux_vec[i];
+        }
+        else {
+            //In this case: e.g. 16->8
+            // 1 Shift elems in dest vector
+            for(int i=dest_eCount; i>=src_eCount; i--)
+                Vd_x[i] = Vd_merge_x[i-src_eCount];
+            // 2 Copy elems to dest vector
+            switch(src_vector_width){
+                case 0:{
+                    auto aux_vec = src_vec_cont.as<%(un)sint8_t>();
+                    for(int i=0; i<src_eCount; i++)
+                        Vd_x[i] = %(conv_func)s<RegElemType>(aux_vec[i]);
+                }
+                break;
+                case 1:
+                    {auto aux_vec = src_vec_cont.as<%(un)sint16_t>();
+                    for(int i=0; i<src_eCount; i++)
+                        Vd_x[i] = %(conv_func)s<RegElemType>(aux_vec[i]);}
+                break;
+                case 2:
+                    {auto aux_vec = src_vec_cont.as<%(un)sint32_t>();
+                    for(int i=0; i<src_eCount; i++)
+                        Vd_x[i] = %(conv_func)s<RegElemType>(aux_vec[i]);}
+                break;
+                case 3:
+                    {auto aux_vec = src_vec_cont.as<%(un)sint64_t>();
+                    for(int i=0; i<src_eCount; i++)
+                        Vd_x[i] = %(conv_func)s<RegElemType>(aux_vec[i]);}
+                break;
+            }
+        }
+        '''
+
+        unsignedConversion = genericConversion % {'conv_func': 'convertUInt',
+                                'un':"u"}
+
+        signedConversion =  genericConversion % {'conv_func': 'convertInt',
+                                'un':""}
+
+        fpConversion = '''
+        auto src_vec_cont = (TheISA::VecRegContainer)Vs1_x;
+        if(src_vector_width < dest_vector_width){
+            //In this case: e.g. 8->16
+            // 1 Copy elems to dest vector
+            // 2 Shift elems in the src vector
+            switch(src_vector_width){
+                case 2:
+                {
+                    auto aux_vec = src_vec_cont.as<float>();
+                    for(int i=0; i<dest_eCount; i++){
+                        DPRINTF(UVEMem, "aux_vec[%%d] = %%#x\\n",i,aux_vec[i]);
+                        double tmp = %(conv_func)s<RegElemType>(aux_vec[i]);
+                        Vd_x[i] = tmp;
+                        DPRINTF(UVEMem, "Vd = %%#x\\n",tmp);
+                        }
+                    for(int i=0; i<src_eCount - dest_eCount; i++)
+                        aux_vec[i] = aux_vec[i+dest_eCount];
+                }
+                break;
+            }
+            auto aux_vec = src_vec_cont.as<RegElemType>();
+            for(int i=0;i<dest_eCount;i++)
+                Vs1_merge_x[i] = aux_vec[i];
+        }
+        else {
+            //In this case: e.g. 16->8
+            // 1 Shift elems in dest vector
+            for(int i=dest_eCount; i>=src_eCount; i--)
+                Vd_x[i] = Vd_merge_x[i-src_eCount];
+            // 2 Copy elems to dest vector
+            switch(src_vector_width){
+                case 2:
+                    {auto aux_vec = src_vec_cont.as<float>();
+                    for(int i=0; i<src_eCount; i++)
+                        Vd_x[i] = %(conv_func)s<RegElemType>(aux_vec[i]);}
+                break;
+                case 3:
+                    {auto aux_vec = src_vec_cont.as<double>();
+                    for(int i=0; i<src_eCount; i++)
+                        Vd_x[i] = %(conv_func)s<RegElemType>(aux_vec[i]);}
+                break;
+            }
+        }
+        ''' % {'conv_func': 'convertFP'}
+
+        for conv in ["Unsigned", "Signed", "FP"]:
+
+            Iop = InstObjParams('so.v.cv',
+                'UveVectorConv' + conv,
+                'UveBaseVectorConv',
+                {'tpl_header': tplHeader,
+                'tpl_args': tplArgs,
+                'ex_code' : eval(conv.lower() + "Conversion"),
+                'op_class': 'SimdAluOp'},
+                [])
+
+
+            header_output += UveVectorConvDeclare.subst(Iop)
+
+            exec_output += UveVectorConvExecute.subst(Iop)
+
+            for args in eval(conv + "VectorConvTemplateArgs"):
+                substDict = {'tpl_args': '<%s>' % ', '.join(args),
+                            'class_name': 'UveVectorConv'+conv}
+                exec_output += UveVectorExecDeclare.subst(substDict)
+
+    emitUveVectorConversion()
 
 }};

@@ -662,8 +662,6 @@ class FloatRegOperand(Operand):
         return wb
 
 
-#JMNOTE: This class can be copied to origin a uve vector class. The same for the following VecRegElements and VecPredReg
-#JMTODO: Create a UVE VecReg class
 class VecRegOperand(Operand):
     reg_class = 'VecRegClass'
 

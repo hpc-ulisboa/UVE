@@ -64,6 +64,7 @@ class RiscvStaticInst : public StaticInst
     std::string getWidthRepr() const;
     std::string getUpdateRepr() const;
     std::string getSbitRepr() const;
+    std::string getFPSignedRepr() const;
 
     //JMNOTE: Get current Uve vector length
     //Usage: RiscvStaticInst::getCurUveVecLen(xc->tcBase());

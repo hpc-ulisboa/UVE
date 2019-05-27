@@ -357,6 +357,7 @@ def template UveVectorDupDeclare {{
 }};
 
 //JMNOTE: Generic Exec Declare Template Implementation Templates
+//This expands templates, in order for the linkage process to work
 
 def template UveVectorExecDeclare {{
     template
@@ -495,6 +496,66 @@ def template UveVectorMoveVSExecute {{
             %(ex_code)s;
             DPRINTF(UVEMem, "%(class_name)s->execute: Rd: %s\n",
             Rd);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+
+
+
+//JMNOTE: Uve Conversion Vector Header Declaration Template
+
+def template UveVectorConvDeclare {{
+    %(tpl_header)s
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef RegElemType TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _VDest, uint8_t _VSrc1)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _VDest, _VSrc1)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+//JMNOTE: Conversion Vector Instruction Templates
+
+def template UveVectorConvExecute {{
+    %(tpl_header)s
+    Fault %(class_name)s%(tpl_args)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        uint8_t src_vector_width = RiscvStaticInst::getUveVecType(xc->tcBase(),
+            VSrc1);
+        uint8_t dest_vector_width = width_converter<RegElemType>::width;
+        unsigned src_eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / (1<<src_vector_width);
+        unsigned dest_eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / (1<<dest_vector_width);
+
+        DPRINTF(UVEMem, "%(class_name)s->execute: Src_W(%d) Dest_W(%d)\n",
+            src_vector_width, dest_vector_width);
+        DPRINTF(UVEMem, "%(class_name)s->execute: Src_eC(%d) Dest_eC(%d)\n",
+            src_eCount, dest_eCount);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+
+            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
+                dest_vector_width);
             %(op_wb)s;
         }
 

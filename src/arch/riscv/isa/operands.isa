@@ -137,6 +137,17 @@ def operands {{
         'Vs1Q':  vectorRegElem('0', 'tud', zeroing = True)
     }),
 
+    'Vs1_merge': vectorReg('VSrc1',
+    {
+        'Vs1P0': vectorRegElem('0'),
+        'Vs1P1': vectorRegElem('1'),
+        'Vs1P2': vectorRegElem('2'),
+        'Vs1P3': vectorRegElem('3'),
+        'Vs1S':  vectorRegElem('0', 'sf', zeroing = True),
+        'Vs1D':  vectorRegElem('0', 'df', zeroing = True),
+        'Vs1Q':  vectorRegElem('0', 'tud', zeroing = True)
+    }),
+
     'Vs2': vectorReg('VSrc2',
     {
         'Vs2P0': vectorRegElem('0'),
