@@ -90,8 +90,32 @@ let {{
         return ((Ret&) val);
     }
 
+    void check_equal_src_widths(size_t a, size_t b){
+        //JMTODO: Use assert in the future
+        if(a!=b)
+            DPRINTF(UVEArith,"Src widths differ.. invalid src code");
+    }
+
+    size_t get_vector_width(ExecContext *xc, uint8_t reg ){
+        return RiscvStaticInst::getUveVecType(xc->tcBase(),
+            reg);
+    }
+
+
+    template <typename Ret>
+    typename enable_if<std::is_integral<Ret>::value, Ret>::type
+    uveAbs(Ret& val){
+        return abs(val);
+    }
+    template <typename Ret>
+    typename enable_if<std::is_floating_point<Ret>::value, Ret>::type
+    uveAbs(Ret& val){
+        return fabs(val);
+    }
     '''
 }};
 
 //UVE
 ##include "uve_vector_mem.isa"
+
+##include "uve_arithmetic.isa"

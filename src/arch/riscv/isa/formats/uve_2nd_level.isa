@@ -6,10 +6,11 @@
 //
 
 output decoder {{
+
+//Vector Move and Mem Instructions
 namespace Uve
 {
 
-    // JMNOTE: TO change
     StaticInstPtr
     decodeVectorLoad(ExtMachInst machInst)
     {
@@ -107,7 +108,7 @@ namespace Uve
             return decodeVectorConvTemplatedUnsigned<UveVectorConvUnsigned>(
             bits(machInst, 13, 12), machInst, vector_dest, vector_src);
             break;
-        case 0x1:
+        case 0x2:
             return decodeVectorConvTemplatedSigned<UveVectorConvSigned>(
             bits(machInst, 13, 12), machInst, vector_dest, vector_src);
             break;
@@ -120,4 +121,112 @@ namespace Uve
 
 } // namespace Uve
 
+
+//Vector Arithmetic Instructions
+namespace Uve
+{
+    StaticInstPtr
+    decodeArithmetic(ExtMachInst machInst)
+    {
+        uint8_t dest = (uint8_t) bits(machInst, 11, 7);
+        uint8_t src1 = (uint8_t) bits(machInst, 19, 15);
+        uint8_t src2 = (uint8_t) bits(machInst, 24, 20);
+        uint8_t pred = (uint8_t) bits(machInst, 27, 25);
+
+        bool acc_bit = bits(machInst,20) ? true : false;
+        uint8_t signed_fp = (uint8_t) bits(machInst, 13, 12);
+
+        uint8_t top_decoder = (uint8_t) bits(machInst, 29, 28);
+        uint8_t snd_decoder = (uint8_t) bits(machInst, 14);
+
+        uint8_t decoder = top_decoder << 1 | snd_decoder;
+
+        switch(decoder){
+            case 0b000:
+                return decodeThreeVecPredicatedFPTemplated
+                    <UveArithAddUnsigned, UveArithAddSigned, UveArithAddFP>(
+                    "so.a.add", signed_fp, machInst, dest, src1, src2, pred);
+            break;
+            case 0b001:
+                return  decodeThreeVecPredicatedFPTemplated
+                    <UveArithSubUnsigned, UveArithSubSigned, UveArithSubFP>(
+                    "so.a.sub", signed_fp, machInst, dest, src1, src2, pred);
+            break;
+            case 0b010:
+                return  decodeThreeVecPredicatedFPTemplated
+                    <UveArithMulUnsigned, UveArithMulSigned, UveArithMulFP>(
+                    "so.a.mul", signed_fp, machInst, dest, src1, src2, pred);
+            break;
+            case 0b011:
+                return  decodeThreeVecPredicatedFPTemplated
+                    <UveArithDivUnsigned, UveArithDivSigned, UveArithDivFP>(
+                    "so.a.div", signed_fp, machInst, dest, src1, src2, pred);
+            break;
+            case 0b100:
+                if(!acc_bit){
+                    return  decodeTwoVecPredicatedFPTemplated
+                        <UveArithAddeUnsigned, UveArithAddeSigned,
+                        UveArithAddeFP>(
+                        "so.a.adde", signed_fp, machInst,
+                        dest, src1, pred);
+                }
+                else {
+                    return  decodeTwoVecPredicatedFPTemplated
+                        <UveArithAddeUnsignedAcc, UveArithAddeSignedAcc,
+                        UveArithAddeFPAcc>
+                        ("so.a.adde", signed_fp, machInst,
+                        dest, src1, pred);
+                }
+            break;
+            case 0b101:
+                if(!acc_bit){
+                    return  decodeTwoVecPredicatedFPTemplated
+                        <UveArithAddsUnsigned, UveArithAddsSigned,
+                        UveArithAddsFP>(
+                        "so.a.adds", signed_fp, machInst,
+                        dest, src1, pred);
+                }
+                else {
+                    return  decodeTwoVecPredicatedFPTemplated
+                        <UveArithAddsUnsignedAcc, UveArithAddsSignedAcc,
+                        UveArithAddsFPAcc>
+                        ("so.a.adds", signed_fp, machInst,
+                        dest, src1, pred);
+                }
+            break;
+            case 0b110:{
+                uint8_t bit_13 = (uint8_t) bits(machInst,13);
+                if(bit_13 == 0){
+                    return  decodeTwoVecPredicatedFPoTemplated
+                    <UveArithAbsSigned,UveArithAbsFP>(
+                        "so.a.abs", signed_fp, machInst, dest, src1, pred);
+                }
+                else {
+                    return new Unknown(machInst);
+                    // return  decodeOneSrcVecTemplated<UveArithFlush>(
+                    //     "so.a.flush", machInst, src1);
+                }
+            }
+            break;
+            case 0b111:
+                return  decodeThreeVecPredicatedFPTemplated
+                    <UveArithMacUnsigned, UveArithMacSigned, UveArithMacFP>(
+                    "so.a.mac", signed_fp, machInst, dest, src1, src2, pred);
+            break;
+        }
+        return new Unknown(machInst);
+    }
+
+    StaticInstPtr
+    decodeLogic(ExtMachInst machInst)
+    {
+        return new Unknown(machInst);
+    }
+
+    StaticInstPtr
+    decodeMisc(ExtMachInst machInst)
+    {
+        return new Unknown(machInst);
+    }
+} // namespace Uve
 }};

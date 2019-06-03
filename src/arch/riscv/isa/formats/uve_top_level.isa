@@ -16,6 +16,10 @@ namespace Uve
     StaticInstPtr decodeVectorMoveSV(ExtMachInst machInst);
     StaticInstPtr decodeVectorConv(ExtMachInst nachInst);
 
+    StaticInstPtr decodeArithmetic(ExtMachInst machInst);
+    StaticInstPtr decodeLogic(ExtMachInst machInst);
+    StaticInstPtr decodeMisc(ExtMachInst machInst);
+
     // StaticInstPtr decodeSveIntArithBinPred(ExtMachInst machInst);
     // StaticInstPtr decodeSveIntReduc(ExtMachInst machInst);
     // StaticInstPtr decodeSveShiftByImmPred(ExtMachInst machInst);
@@ -46,7 +50,21 @@ namespace Uve
 
     StaticInstPtr
     decodeUveSOArithLogicMisc(ExtMachInst machInst){
-        return new Unknown(machInst);
+        switch (bits(machInst, 31, 30))
+        {
+            case 0x0: //Arith
+                return decodeArithmetic(machInst);
+                break;
+            case 0x3: //Logic
+                return decodeLogic(machInst);
+                break;
+            case 0x1: //Misc
+                return decodeMisc(machInst);
+                break;
+            default:
+                return new Unknown(machInst);
+                break;
+        }
     }
 
     StaticInstPtr

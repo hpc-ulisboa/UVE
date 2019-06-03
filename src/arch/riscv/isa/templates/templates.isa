@@ -2,3 +2,4 @@
 
 // Templates for UVE instructions
 ##include "uve_vector_mem.isa"
+##include "uve_arithmetic.isa"

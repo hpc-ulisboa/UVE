@@ -1,0 +1,118 @@
+//JMNOTE: Uve Arithmetic 3VecsPredicated Header Declaration Template
+
+def template UveThreeVecPredicatedDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef uint8_t TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _VDest, uint8_t _VSrc1, uint8_t _VSrc2,
+            uint8_t _PSrc3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _VDest, _VSrc1, _VSrc2, _PSrc3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+//JMNOTE: Uve Arithmetic 2VecsPredicated Header Declaration Template
+
+def template UveTwoVecPredicatedDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef uint8_t TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _VDest, uint8_t _VSrc1,
+            uint8_t _PSrc3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _VDest, _VSrc1, _PSrc3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+
+//JMNOTE: Generic Exec Declare Template Implementation Templates
+//This expands templates, in order for the linkage process to work
+
+def template UveArithExecDeclare {{
+    Fault %(class_name)s::execute(ExecContext *,
+        Trace::InstRecord *) const;
+}};
+
+//JMNOTE: 3Vec Pred Instruction Templates
+
+def template UveThreeVecPredicatedExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(uint8_t);
+        uint8_t src1_vw = get_vector_width(xc, VSrc1);
+        uint8_t src2_vw = get_vector_width(xc, VSrc2);
+        unsigned iCount = eCount /  (1<<src1_vw);
+
+        check_equal_src_widths(src1_vw, src2_vw);
+        std::fesetround(FE_TONEAREST); //JMTODO: Note we are rounding to
+            //Nearest here.. with conscience of the other possibilities
+
+        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
+        eCount, iCount);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
+                src1_vw);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+
+
+//JMNOTE: 2Vec Pred Instruction Templates
+
+def template UveTwoVecPredicatedExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(uint8_t);
+        uint8_t src1_vw = get_vector_width(xc, VSrc1);
+        unsigned iCount = eCount /  (1<<src1_vw);
+
+        std::fesetround(FE_TONEAREST); //JMTODO: Maybe complete this
+
+        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
+        eCount, iCount);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
+                src1_vw);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
