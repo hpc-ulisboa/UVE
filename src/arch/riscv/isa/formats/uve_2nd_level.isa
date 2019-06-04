@@ -220,6 +220,68 @@ namespace Uve
     StaticInstPtr
     decodeLogic(ExtMachInst machInst)
     {
+        uint8_t dest = (uint8_t) bits(machInst, 11, 7);
+        uint8_t src1 = (uint8_t) bits(machInst, 19, 15);
+        uint8_t src2 = (uint8_t) bits(machInst, 24, 20);
+        uint8_t pred = (uint8_t) bits(machInst, 27, 25);
+
+        uint8_t top_decoder = (uint8_t) bits(machInst, 28);
+        uint8_t snd_decoder = (uint8_t) bits(machInst, 14, 12);
+
+        if(top_decoder == 0) //Pure Logic Insts
+            switch(snd_decoder){
+                case 0b000:
+                    return new UveArithNAND("so.a.nand",machInst,dest,src1,
+                                        src2,pred);
+                break;
+                case 0b001:
+                    return new UveArithAND("so.a.and",machInst,dest,src1,
+                                        src2,pred);
+                break;
+                case 0b010:
+                    return new UveArithNOR("so.a.nor",machInst,dest,src1,
+                                        src2,pred);
+                break;
+                case 0b011:
+                    return new UveArithOR("so.a.or",machInst,dest,src1,
+                                        src2,pred);
+                break;
+                case 0b100:
+                    return new UveArithNOT("so.a.not",machInst,dest,src1,
+                                        pred);
+                break;
+                case 0b101:
+                    return new UveArithXOR("so.a.xor",machInst,dest,src1,
+                                        src2,pred);
+                break;
+            }
+        else //Shift Insts
+            switch(snd_decoder){
+                case 0b000:
+                    return new UveArithSLL("so.a.nand",machInst,dest,src1,
+                                        src2,pred);
+                break;
+                // case 0b001:
+                //     return new UveArithSLLS("so.a.nand",machInst,dest,src1,
+                //                         src2,pred);
+                // break;
+                case 0b010:
+                    return new UveArithSRL("so.a.nand",machInst,dest,src1,
+                                        src2,pred);
+                break;
+                // case 0b011:
+                //     return new UveArithSRLS("so.a.nand",machInst,dest,src1,
+                //                         src2,pred);
+                // break;
+                case 0b100:
+                    return new UveArithSRA("so.a.nand",machInst,dest,src1,
+                                        src2,pred);
+                break;
+                // case 0b101:
+                //     return new UveArithSRAS("so.a.nand",machInst,dest,src1,
+                //                         src2,pred);
+                // break;
+            }
         return new Unknown(machInst);
     }
 
