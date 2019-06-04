@@ -112,6 +112,30 @@ let {{
     uveAbs(Ret& val){
         return fabs(val);
     }
+
+
+    template <typename Ret>
+    Ret castBitsToRetType(uint64_t arg){
+        union
+        {
+            Ret src;
+            uint64_t bits;
+        } val;
+        val.bits = arg;
+        return val.src;
+    }
+
+    template <typename T>
+    uint64_t typeCastToBits(T arg)
+    {
+        union
+        {
+            T src;
+            uint64_t bits;
+        } val;
+        val.src = arg;
+        return val.bits;
+    }
     '''
 }};
 

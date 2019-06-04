@@ -65,7 +65,7 @@ def template UveThreeVecPredicatedExecute {{
         unsigned iCount = eCount /  (1<<src1_vw);
 
         check_equal_src_widths(src1_vw, src2_vw);
-        std::fesetround(FE_TONEAREST); //JMTODO: Note we are rounding to
+        std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
 
         DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
@@ -98,7 +98,8 @@ def template UveTwoVecPredicatedExecute {{
         uint8_t src1_vw = get_vector_width(xc, VSrc1);
         unsigned iCount = eCount /  (1<<src1_vw);
 
-        std::fesetround(FE_TONEAREST); //JMTODO: Maybe complete this
+        std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
+            //Nearest here.. with conscience of the other possibilities
 
         DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
         eCount, iCount);

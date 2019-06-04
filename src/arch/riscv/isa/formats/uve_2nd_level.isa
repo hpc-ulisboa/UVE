@@ -172,8 +172,8 @@ namespace Uve
                 }
                 else {
                     return  decodeTwoVecPredicatedFPTemplated
-                        <UveArithAddeUnsignedAcc, UveArithAddeSignedAcc,
-                        UveArithAddeFPAcc>
+                        <UveArithAddeAccUnsigned, UveArithAddeAccSigned,
+                        UveArithAddeAccFP>
                         ("so.a.adde", signed_fp, machInst,
                         dest, src1, pred);
                 }
@@ -188,8 +188,8 @@ namespace Uve
                 }
                 else {
                     return  decodeTwoVecPredicatedFPTemplated
-                        <UveArithAddsUnsignedAcc, UveArithAddsSignedAcc,
-                        UveArithAddsFPAcc>
+                        <UveArithAddsAccUnsigned, UveArithAddsAccSigned,
+                        UveArithAddsAccFP>
                         ("so.a.adds", signed_fp, machInst,
                         dest, src1, pred);
                 }
