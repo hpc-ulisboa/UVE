@@ -261,26 +261,26 @@ namespace Uve
                     return new UveArithSLL("so.a.nand",machInst,dest,src1,
                                         src2,pred);
                 break;
-                // case 0b001:
-                //     return new UveArithSLLS("so.a.nand",machInst,dest,src1,
-                //                         src2,pred);
-                // break;
+                case 0b001:
+                    return new UveArithSLLS("so.a.nand",machInst,dest,src1,
+                                        src2,pred);
+                break;
                 case 0b010:
                     return new UveArithSRL("so.a.nand",machInst,dest,src1,
                                         src2,pred);
                 break;
-                // case 0b011:
-                //     return new UveArithSRLS("so.a.nand",machInst,dest,src1,
-                //                         src2,pred);
-                // break;
+                case 0b011:
+                    return new UveArithSRLS("so.a.nand",machInst,dest,src1,
+                                        src2,pred);
+                break;
                 case 0b100:
                     return new UveArithSRA("so.a.nand",machInst,dest,src1,
                                         src2,pred);
                 break;
-                // case 0b101:
-                //     return new UveArithSRAS("so.a.nand",machInst,dest,src1,
-                //                         src2,pred);
-                // break;
+                case 0b101:
+                    return new UveArithSRAS("so.a.nand",machInst,dest,src1,
+                                        src2,pred);
+                break;
             }
         return new Unknown(machInst);
     }
