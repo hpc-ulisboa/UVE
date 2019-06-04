@@ -57,6 +57,31 @@ class UveBaseTwoVecPredicated : public RiscvStaticInst
     std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
 };
 
+class UveBaseVecScaPredicated : public RiscvStaticInst
+{
+  protected:
+    uint8_t VDest;
+    uint8_t VSrc1;
+    uint8_t RS2;
+    uint8_t PSrc3;
+
+    Request::Flags memAccessFlags;
+
+    UveBaseVecScaPredicated(const char *mnem, ExtMachInst _machInst,
+      OpClass __opClass, uint8_t _VDest, uint8_t _VSrc1, uint8_t _RS2,
+      uint8_t _PSrc3) :
+          RiscvStaticInst(mnem, _machInst, __opClass),
+          VDest(_VDest), VSrc1(_VSrc1), RS2(_RS2), PSrc3(_PSrc3)
+    {
+    DPRINTF(UVEMem,
+    "UveBaseVecScaPredicated constructor (%s) executed: VDest(%d), VSrc1(%d)"
+    "RS2(%d) PSrc3(%d)\n",
+    mnem, VDest, VSrc1, RS2, PSrc3);
+    }
+
+    std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
+};
+
 }  // namespace RiscvISA
 
 #endif  // __ARCH_RISCV_UVE_ARITHMETIC_HH__

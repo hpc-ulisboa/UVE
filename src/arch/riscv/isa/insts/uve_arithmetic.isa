@@ -88,7 +88,6 @@ let {{
         'type64': 'int64_t',
         'acc_type': 'int64_t'
     }
-
     TypeFP = {
         'type8': 'uint8_t',
         'type16': 'uint16_t',
@@ -97,6 +96,7 @@ let {{
         'acc_type': 'double'
     }
 
+    # JMNOTE: 3VecPredicatedFPInsts
     def emitUveArithThreeVecPredicatedFPInsts(mnemonic, class_name,
                                     code = None, generic_code = None,
                                     generic_code_float = None,
@@ -207,7 +207,6 @@ let {{
             exec_output += UveThreeVecPredicatedExecute.subst(Iop)
             exec_output += UveArithExecDeclare.subst(Iop)
 
-
     emitUveArithThreeVecPredicatedFPInsts("so.a.add", "UveArithAdd", "+")
     emitUveArithThreeVecPredicatedFPInsts("so.a.sub", "UveArithSub", "-")
     emitUveArithThreeVecPredicatedFPInsts("so.a.mul", "UveArithMul", "*")
@@ -240,6 +239,7 @@ let {{
         generic_code="out[i]=v3[i] + (v1[i]*v2[i]);", dest_as_source=True)
 
 
+    # JMNOTE: 2VecPredicatedFPInsts
     def emitUveArithTwoVecPredicatedFPoInsts(mnemonic, class_name,
                                     code = None,
                                     generic_code_float = None,
@@ -328,6 +328,7 @@ let {{
     emitUveArithTwoVecPredicatedFPoInsts("so.a.abs", "UveArithAbs", "uveAbs")
 
 
+    # JMNOTE: 3VecPredicatedFPInsts (Adde and Adds specific)
     def emitUveArithTwoVecAddesPredicatedFPInsts(mnemonic, class_name,
                                     dest_code, generic_code = None,
                                     generic_code_float = None,
@@ -484,4 +485,235 @@ let {{
         generic_code='''
         out = out + v1[i];
         ''')
+
+    # JMNOTE: 3VecPredicatedLogicInsts
+    def emitUveArithLogicThreeTwoVecPredicatedInsts(mnemonic, class_name,
+                                    generic_code,
+                                    src2 = None, int_types=False,
+                                    src2int=False):
+        global header_output, exec_output, decoders
+
+        assert(src2 is not None)
+
+        genericArithThreeVecPredicated = '''
+        auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        %(src2_inst)s;
+        TheISA::VecRegContainer output;
+        switch(src1_vw){
+            case 0:{
+                auto v1 = src1_vc.as<%(type8)s>();
+                %(src2_cast8)s;
+                auto out = output.as<%(type8)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op8)s
+                }
+            }
+            break;
+            case 1:{
+                auto v1 = src1_vc.as<%(type16)s>();
+                %(src2_cast16)s;
+                auto out = output.as<%(type16)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op16)s
+                }
+            }
+            break;
+            case 2: {
+                auto v1 = src1_vc.as<%(type32)s>();
+                %(src2_cast32)s;
+                auto out = output.as<%(type32)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op32)s
+                }
+            }
+            break;
+            default:
+            {
+                auto v1 = src1_vc.as<%(type64)s>();
+                %(src2_cast64)s;
+                auto out = output.as<%(type64)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op64)s
+                }
+            }
+            break;
+        }
+
+        auto out = output.as<uint8_t>();
+        for(int i=0;i<eCount;i++)
+            Vd_x[i] = out[i];
+        '''
+        src2_ops = {
+            "src2_inst": "auto src2_vc = (TheISA::VecRegContainer)Vs2_x;",
+            "src2_cast8":  "auto v2 = src2_vc.as<%(type8)s>();",
+            "src2_cast16":  "auto v2 = src2_vc.as<%(type16)s>();",
+            "src2_cast32":  "auto v2 = src2_vc.as<%(type32)s>();",
+            "src2_cast64":  "auto v2 = src2_vc.as<%(type64)s>();"
+        } if src2 else {"src2_inst": "",
+            "src2_cast8":"","src2_cast16":"","src2_cast32":"","src2_cast64":""}
+
+        code_dict = TypeUnsigned if not int_types else TypeSigned
+        src2_code_dict = code_dict if not src2int else TypeSigned
+
+        src2_subst = {}
+        for key, val in src2_ops.items():
+            src2_subst[key] = val % src2_code_dict
+
+        code_dict.update({"generic_op8" :generic_code %
+                                    {"type":code_dict["type8"]},
+                              "generic_op16":generic_code %
+                                    {"type":code_dict["type16"]},
+                              "generic_op32":generic_code %
+                                    {"type":code_dict["type32"]},
+                              "generic_op64":generic_code %
+                                    {"type":code_dict["type64"]}
+                              })
+        code_dict.update(src2_subst)
+        full_code = genericArithThreeVecPredicated % code_dict
+
+        Iop = InstObjParams(mnemonic,
+            class_name,
+            'UveBaseThreeVecPredicated' if src2 else \
+                                "UveBaseTwoVecPredicated",
+            {'ex_code' : full_code,
+            'op_class': 'SimdAluOp'},
+            [])
+
+        DeclarerTemplate = UveThreeVecPredicatedDeclare if src2 else \
+                        UveTwoVecPredicatedDeclare
+
+        ExecuterTemplate = UveThreeVecPredicatedExecute if src2 else \
+                        UveTwoVecPredicatedExecute
+
+        header_output += DeclarerTemplate.subst(Iop)
+        exec_output += ExecuterTemplate.subst(Iop)
+        exec_output += UveArithExecDeclare.subst(Iop)
+
+    emitUveArithLogicThreeTwoVecPredicatedInsts("so.a.NAND", "UveArithNAND",
+    '''
+        out[i] = !(v1[i]&v2[i]);
+    ''', src2=True)
+    emitUveArithLogicThreeTwoVecPredicatedInsts("so.a.AND", "UveArithAND",
+    '''
+        out[i] = (v1[i]&v2[i]);
+    ''', src2=True)
+    emitUveArithLogicThreeTwoVecPredicatedInsts("so.a.NOR", "UveArithNOR",
+    '''
+        out[i] = !(v1[i]|v2[i]);
+    ''', src2=True)
+    emitUveArithLogicThreeTwoVecPredicatedInsts("so.a.OR", "UveArithOR",
+    '''
+        out[i] = (v1[i]|v2[i]);
+    ''', src2=True)
+    emitUveArithLogicThreeTwoVecPredicatedInsts("so.a.NOT", "UveArithNOT",
+    '''
+        out[i] = !(v1[i]);
+    ''', src2=False)
+    emitUveArithLogicThreeTwoVecPredicatedInsts("so.a.XOR", "UveArithXOR",
+    '''
+        out[i] = (v1[i]^v2[i]);
+    ''', src2=True)
+
+    emitUveArithLogicThreeTwoVecPredicatedInsts("so.a.SLL", "UveArithSLL",
+    '''
+        out[i] = v1[i]<<v2[i];
+    ''', src2=True, int_types=True, src2int=True)
+    emitUveArithLogicThreeTwoVecPredicatedInsts("so.a.SRL", "UveArithSRL",
+    '''
+        %(type)s aux = (%(type)s) typeCastToBits(v1[i]);
+        out[i] = aux>>v2[i];
+    ''', src2=True, int_types=False, src2int=True)
+    emitUveArithLogicThreeTwoVecPredicatedInsts("so.a.SRA", "UveArithSRA",
+    '''
+        out[i] = v1[i]>>v2[i];
+    ''', src2=True, int_types=True, src2int=True)
+
+
+    def emitUveArithLogicShiftVecScaPredicatedInsts(mnemonic, class_name,
+                                    generic_code, int_types=False):
+        global header_output, exec_output, decoders
+
+        genericArithThreeVecPredicated = '''
+        auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        TheISA::VecRegContainer output;
+        switch(src1_vw){
+            case 0:{
+                auto v1 = src1_vc.as<%(type8)s>();
+                auto out = output.as<%(type8)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op8)s
+                }
+            }
+            break;
+            case 1:{
+                auto v1 = src1_vc.as<%(type16)s>();
+                auto out = output.as<%(type16)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op16)s
+                }
+            }
+            break;
+            case 2: {
+                auto v1 = src1_vc.as<%(type32)s>();
+                auto out = output.as<%(type32)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op32)s
+                }
+            }
+            break;
+            default:
+            {
+                auto v1 = src1_vc.as<%(type64)s>();
+                auto out = output.as<%(type64)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op64)s
+                }
+            }
+            break;
+        }
+
+        auto out = output.as<uint8_t>();
+        for(int i=0;i<eCount;i++)
+            Vd_x[i] = out[i];
+        '''
+
+        code_dict = TypeUnsigned if not int_types else TypeSigned
+
+        code_dict.update({"generic_op8" :generic_code %
+                                    {"type":code_dict["type8"]},
+                              "generic_op16":generic_code %
+                                    {"type":code_dict["type16"]},
+                              "generic_op32":generic_code %
+                                    {"type":code_dict["type32"]},
+                              "generic_op64":generic_code %
+                                    {"type":code_dict["type64"]}
+                              })
+        full_code = genericArithThreeVecPredicated % code_dict
+
+        Iop = InstObjParams(mnemonic,
+            class_name,
+            'UveBaseVecScaPredicated',
+            {'ex_code' : full_code,
+            'op_class': 'SimdAluOp'},
+            [])
+
+        header_output += UveVecScaPredicatedDeclare.subst(Iop)
+        exec_output += UveVecScaPredicatedExecute.subst(Iop)
+        exec_output += UveArithExecDeclare.subst(Iop)
+
+
+    emitUveArithLogicShiftVecScaPredicatedInsts("so.a.SLLS", "UveArithSLLS",
+    '''
+        out[i] = v1[i]<<Rs2_sd;
+    ''',int_types=True);
+    emitUveArithLogicShiftVecScaPredicatedInsts("so.a.SRLS", "UveArithSRLS",
+    '''
+        %(type)s aux = (%(type)s) typeCastToBits(v1[i]);
+        out[i] = aux>>Rs2_sd;
+    # ''',int_types=False)
+    emitUveArithLogicShiftVecScaPredicatedInsts("so.a.SRLS", "UveArithSRAS",
+    '''
+        out[i] = v1[i]>>Rs2_sd;
+    ''',int_types=True)
+
 }};
