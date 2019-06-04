@@ -1,0 +1,487 @@
+/////////////////////////////////
+//
+// Uve vector arithmetic operations instructions definition
+// -----------------
+// João Domingos
+//
+
+output header {{
+
+    template <class BaseU, class BaseS, class BaseFP>
+    StaticInstPtr
+    decodeThreeVecPredicatedFPTemplated(const char * mn, uint8_t signed_fp,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1,
+                                uint8_t rs2,
+                                uint8_t ps3)
+    {
+        switch (signed_fp) {
+            case 0x0: // Unsigned
+                return new BaseU(mn, machInst, rd, rs1, rs2, ps3);
+                break;
+            case 0x2: // Signed
+                return new BaseS(mn, machInst, rd, rs1, rs2, ps3);
+                break;
+            default: // Floating Point
+                return new BaseFP(mn, machInst, rd, rs1, rs2, ps3);
+                break;
+        }
+    }
+
+    template <class BaseU, class BaseS, class BaseFP>
+    StaticInstPtr
+    decodeTwoVecPredicatedFPTemplated(const char * mn, uint8_t signed_fp,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1,
+                                uint8_t ps3)
+    {
+        switch (signed_fp) {
+            case 0x0: // Unsigned
+                return new BaseU(mn, machInst, rd, rs1, ps3);
+                break;
+            case 0x2: // Signed
+                return new BaseS(mn, machInst, rd, rs1, ps3);
+                break;
+            default: // Floating Point
+                return new BaseFP(mn, machInst, rd, rs1, ps3);
+                break;
+        }
+    }
+
+    template <class BaseS, class BaseFP>
+    StaticInstPtr
+    decodeTwoVecPredicatedFPoTemplated(const char * mn, uint8_t signed_fp,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1,
+                                uint8_t ps3)
+    {
+        switch (signed_fp & 0b01) {
+            case 0x1: // Floating Point
+                return new BaseFP(mn, machInst, rd, rs1, ps3);
+                break;
+            default: // Signed
+                return new BaseS(mn, machInst, rd, rs1, ps3);
+                break;
+        }
+    }
+}};
+
+let {{
+    header_output = ''
+    exec_output = ''
+    decoders = { 'Generic': {} }
+
+    TypeUnsigned = {
+        'type8': 'uint8_t',
+        'type16': 'uint16_t',
+        'type32': 'uint32_t',
+        'type64': 'uint64_t',
+        'acc_type': 'uint64_t'
+    }
+    TypeSigned = {
+        'type8': 'int8_t',
+        'type16': 'int16_t',
+        'type32': 'int32_t',
+        'type64': 'int64_t',
+        'acc_type': 'int64_t'
+    }
+
+    TypeFP = {
+        'type8': 'uint8_t',
+        'type16': 'uint16_t',
+        'type32': 'float',
+        'type64': 'double',
+        'acc_type': 'double'
+    }
+
+    def emitUveArithThreeVecPredicatedFPInsts(mnemonic, class_name,
+                                    code = None, generic_code = None,
+                                    generic_code_float = None,
+                                    generic_code_signed = None,
+                                    dest_as_source = False):
+        global header_output, exec_output, decoders
+
+        genericArithThreeVecPredicated = '''
+        auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        auto src2_vc = (TheISA::VecRegContainer)Vs2_x;
+        %(inst)s;
+        TheISA::VecRegContainer output;
+        switch(src1_vw){
+            case 0:{
+                auto v1 = src1_vc.as<%(type8)s>();
+                auto v2 = src2_vc.as<%(type8)s>();
+                auto out = output.as<%(type8)s>();
+                %(cast8)s;
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+            case 1:{
+                auto v1 = src1_vc.as<%(type16)s>();
+                auto v2 = src2_vc.as<%(type16)s>();
+                auto out = output.as<%(type16)s>();
+                %(cast16)s;
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+            case 2: {
+                auto v1 = src1_vc.as<%(type32)s>();
+                auto v2 = src2_vc.as<%(type32)s>();
+                auto out = output.as<%(type32)s>();
+                %(cast32)s;
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+            default:
+            {
+                auto v1 = src1_vc.as<%(type64)s>();
+                auto v2 = src2_vc.as<%(type64)s>();
+                auto out = output.as<%(type64)s>();
+                %(cast64)s;
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+        }
+
+        auto out = output.as<uint8_t>();
+        for(int i=0;i<eCount;i++)
+            Vd_x[i] = out[i];
+        '''
+
+        generic_fixed_code = "out[i] = v1[i] %(op)s v2[i];"
+
+        dest_ops = {
+            "inst": "auto dest_vc = (TheISA::VecRegContainer)Vd_merge_x;",
+            "cast8":  "auto v3 = dest_vc.as<%(type8)s>();",
+            "cast16":  "auto v3 = dest_vc.as<%(type16)s>();",
+            "cast32":  "auto v3 = dest_vc.as<%(type32)s>();",
+            "cast64":  "auto v3 = dest_vc.as<%(type64)s>();"
+        } if dest_as_source else {"inst": "",
+            "cast8":"","cast16":"","cast32":"","cast64":""}
+
+
+        type_suffixes = ["Unsigned", "Signed", "FP"]
+
+        if code is not None:
+            fixed_code = generic_fixed_code % {"op":code}
+
+        for idx, suffix in enumerate(type_suffixes):
+            full_class_name = class_name + suffix
+            code_dict = eval("Type" + suffix)
+
+            dest_op = {}
+            for key, val in dest_ops.items():
+               dest_op[key] = val % code_dict
+
+            if generic_code is not None:
+                if suffix == "FP" and generic_code_float is not None:
+                    aux_gen = generic_code_float
+                elif suffix == "Signed" and generic_code_signed is not None:
+                    aux_gen = generic_code_signed
+                else:
+                    aux_gen = generic_code
+                code_dict.update({"generic_op":aux_gen})
+            else:
+                code_dict.update({"generic_op":fixed_code})
+            code_dict.update(dest_op)
+            full_code = genericArithThreeVecPredicated % code_dict
+
+            Iop = InstObjParams(mnemonic,
+                full_class_name,
+                'UveBaseThreeVecPredicated',
+                {'ex_code' : full_code,
+                'op_class': 'SimdAluOp'},
+                [])
+
+            header_output += UveThreeVecPredicatedDeclare.subst(Iop)
+            exec_output += UveThreeVecPredicatedExecute.subst(Iop)
+            exec_output += UveArithExecDeclare.subst(Iop)
+
+
+    emitUveArithThreeVecPredicatedFPInsts("so.a.add", "UveArithAdd", "+")
+    emitUveArithThreeVecPredicatedFPInsts("so.a.sub", "UveArithSub", "-")
+    emitUveArithThreeVecPredicatedFPInsts("so.a.mul", "UveArithMul", "*")
+    emitUveArithThreeVecPredicatedFPInsts("so.a.div", "UveArithDiv",
+        generic_code='''
+        if (v2[i] == 0) {
+            out[i] = numeric_limits<uint64_t>::max();
+        } else {
+            out[i] = v1[i]/v2[i];
+        }
+        ''',
+        generic_code_float= '''
+        if (std::isnan(v1[i]) || std::isnan(v2[i])) {
+            out[i] = numeric_limits<double>::quiet_NaN();
+        } else {
+            out[i] = (float)((double)v1[i]/(double)v2[i]);
+        }
+        ''',
+        generic_code_signed='''
+         if (v2[i] == 0) {
+            out[i] = -1;
+        } else if (v1[i] == numeric_limits<int64_t>::min()
+                && v2[i] == -1) {
+            out[i] = numeric_limits<int64_t>::min();
+        } else {
+            out[i] = v1[i]/v2[i];
+        }
+        ''')
+    emitUveArithThreeVecPredicatedFPInsts("so.a.mac", "UveArithMac",
+        generic_code="out[i]=v3[i] + (v1[i]*v2[i]);", dest_as_source=True)
+
+
+    def emitUveArithTwoVecPredicatedFPoInsts(mnemonic, class_name,
+                                    code = None,
+                                    generic_code_float = None,
+                                    generic_code_signed = None):
+        global header_output, exec_output, decoders
+
+        genericArithTwoVecPredicated = '''
+        auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        TheISA::VecRegContainer output;
+        switch(src1_vw){
+            case 0:{
+                auto v1 = src1_vc.as<%(type8)s>();
+                auto out = output.as<%(type8)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+            case 1:{
+                auto v1 = src1_vc.as<%(type16)s>();
+                auto out = output.as<%(type16)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+            case 2: {
+                auto v1 = src1_vc.as<%(type32)s>();
+                auto out = output.as<%(type32)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+            default:
+            {
+                auto v1 = src1_vc.as<%(type64)s>();
+                auto out = output.as<%(type64)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+        }
+
+        auto out = output.as<uint8_t>();
+        for(int i=0;i<eCount;i++)
+            Vd_x[i] = out[i];
+        '''
+
+        generic_fixed_code = "out[i] = %(op)s(v1[i]);"
+
+
+        type_suffixes = ["Signed", "FP"]
+
+        if code is not None:
+            fixed_code = generic_fixed_code % {"op":code}
+
+        for idx, suffix in enumerate(type_suffixes):
+            full_class_name = class_name + suffix
+            code_dict = eval("Type" + suffix)
+            if code is None:
+                if suffix == "FP" and generic_code_float is not None:
+                    aux_gen = generic_code_float
+                elif suffix == "Signed" and generic_code_signed is not None:
+                    aux_gen = generic_code_signed
+
+                code_dict.update({"generic_op":aux_gen})
+            else:
+                code_dict.update({"generic_op":fixed_code})
+
+            full_code = genericArithTwoVecPredicated % code_dict
+
+            Iop = InstObjParams(mnemonic,
+                full_class_name,
+                'UveBaseTwoVecPredicated',
+                {'ex_code' : full_code,
+                'op_class': 'SimdAluOp'},
+                [])
+
+            header_output += UveTwoVecPredicatedDeclare.subst(Iop)
+            exec_output += UveTwoVecPredicatedExecute.subst(Iop)
+            exec_output += UveArithExecDeclare.subst(Iop)
+
+
+    emitUveArithTwoVecPredicatedFPoInsts("so.a.abs", "UveArithAbs", "uveAbs")
+
+
+    def emitUveArithTwoVecAddesPredicatedFPInsts(mnemonic, class_name,
+                                    dest_code, generic_code = None,
+                                    generic_code_float = None,
+                                    generic_code_signed = None):
+        global header_output, exec_output, decoders
+
+        genericArithThreeVecPredicated = '''
+        auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        %(acc_type)s out = 0;
+        switch(src1_vw){
+            case 0:{
+                auto v1 = src1_vc.as<%(type8)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+            case 1:{
+                auto v1 = src1_vc.as<%(type16)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+            case 2: {
+                auto v1 = src1_vc.as<%(type32)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+            default:
+            {
+                auto v1 = src1_vc.as<%(type64)s>();
+                for(int i=0;i<iCount;i++){
+                   %(generic_op)s
+                }
+            }
+            break;
+        }
+        switch(src1_vw){
+            case 0:{
+                %(dest_code8)s;
+            } break;
+            case 1:{
+                %(dest_code16)s;
+            } break;
+            case 2:{
+                %(dest_code32)s;
+            } break;
+            default:{
+                %(dest_code64)s;
+            } break;
+        }
+        '''
+        type_suffixes = ["Unsigned", "Signed", "FP"]
+
+        for idx, suffix in enumerate(type_suffixes):
+            full_class_name = class_name + suffix
+            code_dict = eval("Type" + suffix)
+            aux_dest_code = dest_code % code_dict
+            if generic_code is not None:
+                if suffix == "FP" and generic_code_float is not None:
+                    aux_gen = generic_code_float
+                elif suffix == "Signed" and generic_code_signed is not None:
+                    aux_gen = generic_code_signed
+                else:
+                    aux_gen = generic_code
+                code_dict.update({"generic_op":aux_gen})
+            else:
+                code_dict.update({"generic_op":fixed_code})
+            code_dict.update({"dest_code8" :aux_dest_code %
+                                    {"type":code_dict["type8"]},
+                              "dest_code16":aux_dest_code %
+                                    {"type":code_dict["type16"]},
+                              "dest_code32":aux_dest_code %
+                                    {"type":code_dict["type32"]},
+                              "dest_code64":aux_dest_code %
+                                    {"type":code_dict["type64"]}
+                              })
+            full_code = genericArithThreeVecPredicated % code_dict
+
+            Iop = InstObjParams(mnemonic,
+                full_class_name,
+                'UveBaseTwoVecPredicated',
+                {'ex_code' : full_code,
+                'op_class': 'SimdAluOp'},
+                [])
+
+            header_output += UveTwoVecPredicatedDeclare.subst(Iop)
+            exec_output += UveTwoVecPredicatedExecute.subst(Iop)
+            exec_output += UveArithExecDeclare.subst(Iop)
+
+    emitUveArithTwoVecAddesPredicatedFPInsts("so.a.adde", "UveArithAdde",
+        dest_code='''
+        uint8_t aux = 0;
+        for(int i=0; i<1<<src1_vw; i++){
+            aux = (typeCastToBits((%%(type)s)out) >> (8*i)) & 0xFF;
+            Vd_x[i] = aux;
+        }
+        ''',
+        generic_code='''
+        out = out + v1[i];
+        ''')
+    emitUveArithTwoVecAddesPredicatedFPInsts("so.a.adde", "UveArithAddeAcc",
+        dest_code='''
+        uint8_t aux = 0;
+
+        auto vd_cont = (TheISA::VecRegContainer) Vd_merge_x;
+        %(acc_type)s src_aux = 0;
+        switch(src1_vw){
+            case 0:{
+                auto vd_vec = vd_cont.as<%(type8)s>();
+                src_aux = vd_vec[0];
+            } break;
+            case 1:{
+                auto vd_vec = vd_cont.as<%(type16)s>();
+                src_aux = vd_vec[0];
+            } break;
+            case 2:{
+                auto vd_vec = vd_cont.as<%(type32)s>();
+                src_aux = vd_vec[0];
+            } break;
+            default:{
+                auto vd_vec = vd_cont.as<%(type64)s>();
+                src_aux = vd_vec[0];
+            } break;
+        }
+        out = out + src_aux;
+
+        for(int i=0; i<1<<src1_vw; i++){
+            aux = (typeCastToBits((%%(type)s)out) >> (8*i)) & 0xFF;
+            Vd_x[i] = aux;
+        }
+        ''',
+        generic_code='''
+        out = out + v1[i];
+        ''')
+    emitUveArithTwoVecAddesPredicatedFPInsts("so.a.adds", "UveArithAdds",
+        dest_code='''
+        Rd_ud = typeCastToBits(out);
+        ''',
+        generic_code='''
+        out = out + v1[i];
+        ''')
+    emitUveArithTwoVecAddesPredicatedFPInsts("so.a.adds", "UveArithAddsAcc",
+        dest_code='''
+        %(acc_type)s src_aux = 0;
+        src_aux = castBitsToRetType<%(acc_type)s>(Rd_merge_ud);
+        DPRINTF(UVEArith," src_aux(%%%%.10f)\\n",src_aux);
+        DPRINTF(UVEArith," out(%%%%.10f)\\n",out);
+        Rd_ud = typeCastToBits(src_aux + out);
+        ''',
+        generic_code='''
+        out = out + v1[i];
+        ''')
+}};

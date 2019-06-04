@@ -9,7 +9,7 @@ output header {{
 namespace Uve
 {
     StaticInstPtr decodeUveSSStream(ExtMachInst machInst);
-    StaticInstPtr decodeUveSOLoop(ExtMachInst machInst);    
+    StaticInstPtr decodeUveSOLoop(ExtMachInst machInst);
     StaticInstPtr decodeUveSOPred(ExtMachInst machInst);
     StaticInstPtr decodeUveSOArithLogicMisc(ExtMachInst machInst);
     StaticInstPtr decodeUveSOVectorMemControl(ExtMachInst machInst);
@@ -32,7 +32,7 @@ def format Uve() {{
                     case 0x6:
                         return decodeUveSOArithLogicMisc(machInst);
                         break;
-                    
+
                     case 0x4:
                         return decodeUveSOPred(machInst);
                         break;
