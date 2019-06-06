@@ -288,6 +288,54 @@ namespace Uve
     StaticInstPtr
     decodeMisc(ExtMachInst machInst)
     {
+        uint8_t dest = (uint8_t) bits(machInst, 11, 7);
+        uint8_t src1 = (uint8_t) bits(machInst, 19, 15);
+        uint8_t src2 = (uint8_t) bits(machInst, 24, 20);
+        uint8_t pred = (uint8_t) bits(machInst, 27, 25);
+
+        uint8_t signed_fp = (uint8_t) bits(machInst, 13, 12);
+
+        uint8_t top_decoder = (uint8_t) bits(machInst, 29, 28);
+        uint8_t snd_decoder = (uint8_t) bits(machInst, 14);
+
+        uint8_t decoder = top_decoder << 1 | snd_decoder;
+
+        switch(decoder){
+            case 0b000:
+                return decodeThreeVecPredicatedFPTemplated
+                    <UveArithMinUnsigned, UveArithMinSigned, UveArithMinFP>(
+                    "so.a.min", signed_fp, machInst, dest, src1, src2, pred);
+            break;
+            case 0b001:
+                return  decodeThreeVecPredicatedFPTemplated
+                    <UveArithMaxUnsigned, UveArithMaxSigned, UveArithMaxFP>(
+                    "so.a.max", signed_fp, machInst, dest, src1, src2, pred);
+            break;
+            case 0b010:
+                return  decodeTwoVecPredicatedFPTemplated
+                    <UveArithMinsUnsigned, UveArithMinsSigned, UveArithMinsFP>(
+                    "so.a.mins", signed_fp, machInst, dest, src1, pred);
+            break;
+            case 0b011:
+                return  decodeTwoVecPredicatedFPTemplated
+                    <UveArithMaxsUnsigned, UveArithMaxsSigned, UveArithMaxsFP>(
+                    "so.a.maxs", signed_fp, machInst, dest, src1, pred);
+            break;
+            case 0b100:
+                return  decodeTwoVecPredicatedFPTemplated
+                    <UveArithIncUnsigned, UveArithIncSigned,
+                    UveArithIncFP>
+                    ("so.a.inc", signed_fp, machInst,
+                    dest, src1, pred);
+            break;
+            case 0b101:
+                return  decodeTwoVecPredicatedFPTemplated
+                    <UveArithDecUnsigned, UveArithDecSigned,
+                    UveArithDecFP>
+                    ("so.a.dec", signed_fp, machInst,
+                    dest, src1, pred);
+            break;
+        }
         return new Unknown(machInst);
     }
 } // namespace Uve
