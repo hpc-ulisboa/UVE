@@ -117,7 +117,9 @@ let {{
                 auto out = output.as<%(type8)s>();
                 %(cast8)s;
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -127,7 +129,9 @@ let {{
                 auto out = output.as<%(type16)s>();
                 %(cast16)s;
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -137,7 +141,9 @@ let {{
                 auto out = output.as<%(type32)s>();
                 %(cast32)s;
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -148,7 +154,9 @@ let {{
                 auto out = output.as<%(type64)s>();
                 %(cast64)s;
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -223,7 +231,9 @@ let {{
                 auto v1 = src1_vc.as<%(type8)s>();
                 auto out = output.as<%(type8)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -231,7 +241,9 @@ let {{
                 auto v1 = src1_vc.as<%(type16)s>();
                 auto out = output.as<%(type16)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -239,7 +251,9 @@ let {{
                 auto v1 = src1_vc.as<%(type32)s>();
                 auto out = output.as<%(type32)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -248,7 +262,9 @@ let {{
                 auto v1 = src1_vc.as<%(type64)s>();
                 auto out = output.as<%(type64)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -309,7 +325,9 @@ let {{
                 auto v1 = src1_vc.as<%(type8)s>();
                 auto out = output.as<%(type8)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -317,7 +335,9 @@ let {{
                 auto v1 = src1_vc.as<%(type16)s>();
                 auto out = output.as<%(type16)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -325,7 +345,9 @@ let {{
                 auto v1 = src1_vc.as<%(type32)s>();
                 auto out = output.as<%(type32)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -334,7 +356,9 @@ let {{
                 auto v1 = src1_vc.as<%(type64)s>();
                 auto out = output.as<%(type64)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -394,21 +418,27 @@ let {{
             case 0:{
                 auto v1 = src1_vc.as<%(type8)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
             case 1:{
                 auto v1 = src1_vc.as<%(type16)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
             case 2: {
                 auto v1 = src1_vc.as<%(type32)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -416,7 +446,9 @@ let {{
             {
                 auto v1 = src1_vc.as<%(type64)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op)s
+                    if(Ps3_x[i]){
+                        %(generic_op)s
+                    }
                 }
             }
             break;
@@ -498,7 +530,9 @@ let {{
                 %(src2_cast8)s;
                 auto out = output.as<%(type8)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op8)s
+                    if(Ps3_x[i]){
+                        %(generic_op8)s
+                    }
                 }
             }
             break;
@@ -507,7 +541,9 @@ let {{
                 %(src2_cast16)s;
                 auto out = output.as<%(type16)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op16)s
+                    if(Ps3_x[i]){
+                        %(generic_op16)s
+                    }
                 }
             }
             break;
@@ -516,7 +552,9 @@ let {{
                 %(src2_cast32)s;
                 auto out = output.as<%(type32)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op32)s
+                    if(Ps3_x[i]){
+                        %(generic_op32)s
+                    }
                 }
             }
             break;
@@ -526,7 +564,9 @@ let {{
                 %(src2_cast64)s;
                 auto out = output.as<%(type64)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op64)s
+                    if(Ps3_x[i]){
+                        %(generic_op64)s
+                    }
                 }
             }
             break;
@@ -595,7 +635,9 @@ let {{
                 auto v1 = src1_vc.as<%(type8)s>();
                 auto out = output.as<%(type8)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op8)s
+                    if(Ps3_x[i]){
+                        %(generic_op8)s
+                    }
                 }
             }
             break;
@@ -603,7 +645,9 @@ let {{
                 auto v1 = src1_vc.as<%(type16)s>();
                 auto out = output.as<%(type16)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op16)s
+                    if(Ps3_x[i]){
+                        %(generic_op16)s
+                    }
                 }
             }
             break;
@@ -611,7 +655,9 @@ let {{
                 auto v1 = src1_vc.as<%(type32)s>();
                 auto out = output.as<%(type32)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op32)s
+                    if(Ps3_x[i]){
+                        %(generic_op32)s
+                    }
                 }
             }
             break;
@@ -620,7 +666,9 @@ let {{
                 auto v1 = src1_vc.as<%(type64)s>();
                 auto out = output.as<%(type64)s>();
                 for(int i=0;i<iCount;i++){
-                   %(generic_op64)s
+                    if(Ps3_x[i]){
+                        %(generic_op64)s
+                    }
                 }
             }
             break;
