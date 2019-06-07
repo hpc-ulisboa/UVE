@@ -214,7 +214,7 @@ let {{
         tplArgs = '<RegElemType>'
 
         # JMNOTE: Here the memAccessSize comes from the value of rs2 ->
-    #If its zero: memAccessSize = eCount * sizeOf(RegElemType);
+        #If its zero: memAccessSize = eCount * sizeOf(RegElemType);
         eaCode = '''
         size = Rs2_ud;
         EA = Rs1_ud;'''
