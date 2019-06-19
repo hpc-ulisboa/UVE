@@ -85,6 +85,7 @@ void ISA::clear()
     // from the parameters of the simulation
     miscRegFile[MISCREG_UVEVS] = uveVl;
     miscRegFile[MISCREG_UVEVT] = 0;
+    miscRegFile[MISCREG_UVEPVT] = 0;
 }
 
 bool
@@ -229,10 +230,38 @@ ISA::setUveVecType(ThreadContext *tc, uint8_t vector_register_id,
     tc->setMiscReg(MISCREG_UVEVT,vector_type);
 }
 
+//JMNOTE: Set UVE Vector Type
+// template <class WidthSize>
+void
+ISA::setUvePVecType(ThreadContext *tc, uint8_t vector_register_id,
+    uint8_t width)
+{
+    auto vector_type = tc->readMiscReg(MISCREG_UVEPVT);
+    uint8_t shift_amt = vector_register_id * 2;
+
+    vector_type &= ~(0b11 << shift_amt);
+    vector_type |= width << shift_amt;
+    DPRINTF(UVEMem, "Set Uve PredicateType: P(%d) Requested(%d) Final(%#x)\n",
+        vector_register_id, width,vector_type);
+
+    tc->setMiscReg(MISCREG_UVEPVT,vector_type);
+}
+
 uint8_t
 ISA::getUveVecType(ThreadContext *tc, uint8_t vector_register_id)
 {
     auto vector_type = tc->readMiscReg(MISCREG_UVEVT);
+    uint8_t shift_amt = vector_register_id * 2;
+
+    vector_type &= 0b11 << shift_amt;
+
+    return vector_type >> shift_amt;
+}
+
+uint8_t
+ISA::getUvePVecType(ThreadContext *tc, uint8_t vector_register_id)
+{
+    auto vector_type = tc->readMiscReg(MISCREG_UVEPVT);
     uint8_t shift_amt = vector_register_id * 2;
 
     vector_type &= 0b11 << shift_amt;

@@ -269,6 +269,7 @@ enum MiscRegIndex {
     //JMNOTE:uveVl UVE CSRs index enum
     MISCREG_UVEVS,
     MISCREG_UVEVT,
+    MISCREG_UVEPVT,
 
     NUM_MISCREGS
 };
@@ -613,6 +614,7 @@ const std::map<int, CSRMetadata> CSRData = {
     //JMNOTE:uveVl UVE CSRs
     {CSR_UVEVS, {"uvevs", MISCREG_UVEVS}},
     {CSR_UVEVT, {"uvevt", MISCREG_UVEVT}},
+    {CSR_UVEVT, {"uvepvt", MISCREG_UVEPVT}},
 };
 
 /**

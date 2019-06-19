@@ -223,6 +223,13 @@ class VecPredRegT
         }
         return false;
     }
+
+    /** JMNOTE
+     * Cast to VecPredRegContainer&
+     * It is useful to get the reference to the container for ISA tricks,
+     * because casting to reference prevents unnecessary copies.
+     */
+    operator Container&() { return container; }
 };
 
 /// Generic predicate register container.

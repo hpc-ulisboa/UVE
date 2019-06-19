@@ -4,6 +4,8 @@
 
 #include <stdint.h>
 
+#include <cstdarg>
+
 #include "arch/riscv/insts/static_inst.hh"
 #include "debug/UVEUtils.hh"
 
@@ -44,9 +46,10 @@ namespace RiscvISA
     template <typename Ret>
     Ret convertInt(int64_t& val);
 
-    void check_equal_src_widths(size_t a, size_t b);
+    void check_equal_src_widths(size_t widths...);
 
     size_t get_vector_width(ExecContext *xc, uint8_t reg );
+    size_t get_predicate_vector_width(ExecContext *xc, uint8_t reg );
 
     template <typename Ret>
     typename std::enable_if<std::is_integral<Ret>::value, Ret>::type
@@ -89,6 +92,13 @@ namespace RiscvISA
 
     template <typename Ret>
     Ret uveMin(Ret val1, Ret val2);
+
+    template <typename Ret>
+    bool uveEGT(Ret val1, Ret val2);
+    template <typename Ret>
+    bool uveEQ(Ret val1, Ret val2);
+    template <typename Ret>
+    bool uveLT(Ret val1, Ret val2);
 
     template <typename Ret>
     Ret castBitsToRetType(uint64_t arg);
