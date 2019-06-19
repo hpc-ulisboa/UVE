@@ -289,6 +289,7 @@ let {{
 
         dupCode = '''
         for (int i = 0; i < eCount; i++) {
+            //JMFIXME: This needs to be casted to respective c type
             if(Ps2_x[i])
                 Vd_x[i] = Rs1_ud;
         }
@@ -340,6 +341,7 @@ let {{
 
         moveCode = '''
         for (int i = 0; i < eCount; i++) {
+            //JMFIXME: This needs to be casted to respective c type
             if(Ps2_x[i])
                 Vd_x[i] = Vs1_x[i];
         }
@@ -347,6 +349,7 @@ let {{
 
         moveTCode = '''
         for (int i = 0; i < eCount/2; i++) {
+            //JMFIXME: This needs to be casted to respective c type
             if(Ps2_x[i]){
                 Vd_x[i] = Vs1_x[eCount-1-i];
                 Vd_x[eCount-1-i] = Vs1_x[i];

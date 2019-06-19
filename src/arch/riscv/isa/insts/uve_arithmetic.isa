@@ -108,17 +108,18 @@ let {{
         genericArithThreeVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
         auto src2_vc = (TheISA::VecRegContainer)Vs2_x;
+        auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
         %(inst)s;
         TheISA::VecRegContainer output;
         switch(src1_vw){
             case 0:{
                 auto v1 = src1_vc.as<%(type8)s>();
                 auto v2 = src2_vc.as<%(type8)s>();
+                auto p  = p3_vc.as<%(type8)s>();
                 auto out = output.as<%(type8)s>();
                 %(cast8)s;
                 for(int i=0;i<iCount;i++){
-                    //JMTODO: Correct this!!
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -127,10 +128,11 @@ let {{
             case 1:{
                 auto v1 = src1_vc.as<%(type16)s>();
                 auto v2 = src2_vc.as<%(type16)s>();
+                auto p  = p3_vc.as<%(type16)s>();
                 auto out = output.as<%(type16)s>();
                 %(cast16)s;
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -139,10 +141,11 @@ let {{
             case 2: {
                 auto v1 = src1_vc.as<%(type32)s>();
                 auto v2 = src2_vc.as<%(type32)s>();
+                auto p  = p3_vc.as<%(type32)s>();
                 auto out = output.as<%(type32)s>();
                 %(cast32)s;
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -152,10 +155,11 @@ let {{
             {
                 auto v1 = src1_vc.as<%(type64)s>();
                 auto v2 = src2_vc.as<%(type64)s>();
+                auto p  = p3_vc.as<%(type64)s>();
                 auto out = output.as<%(type64)s>();
                 %(cast64)s;
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -226,13 +230,15 @@ let {{
 
         genericArithTwoVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
         TheISA::VecRegContainer output;
         switch(src1_vw){
             case 0:{
                 auto v1 = src1_vc.as<%(type8)s>();
+                auto p  = p3_vc.as<%(type8)s>();
                 auto out = output.as<%(type8)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -240,9 +246,10 @@ let {{
             break;
             case 1:{
                 auto v1 = src1_vc.as<%(type16)s>();
+                auto p  = p3_vc.as<%(type16)s>();
                 auto out = output.as<%(type16)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -250,9 +257,10 @@ let {{
             break;
             case 2: {
                 auto v1 = src1_vc.as<%(type32)s>();
+                auto p  = p3_vc.as<%(type32)s>();
                 auto out = output.as<%(type32)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -261,9 +269,10 @@ let {{
             default:
             {
                 auto v1 = src1_vc.as<%(type64)s>();
+                auto p  = p3_vc.as<%(type64)s>();
                 auto out = output.as<%(type64)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -324,9 +333,10 @@ let {{
         switch(src1_vw){
             case 0:{
                 auto v1 = src1_vc.as<%(type8)s>();
+                auto p  = p3_vc.as<%(type8)s>();
                 auto out = output.as<%(type8)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -334,9 +344,10 @@ let {{
             break;
             case 1:{
                 auto v1 = src1_vc.as<%(type16)s>();
+                auto p  = p3_vc.as<%(type16)s>();
                 auto out = output.as<%(type16)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -344,9 +355,10 @@ let {{
             break;
             case 2: {
                 auto v1 = src1_vc.as<%(type32)s>();
+                auto p  = p3_vc.as<%(type32)s>();
                 auto out = output.as<%(type32)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -355,9 +367,10 @@ let {{
             default:
             {
                 auto v1 = src1_vc.as<%(type64)s>();
+                auto p  = p3_vc.as<%(type64)s>();
                 auto out = output.as<%(type64)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op)s
                     }
                 }
@@ -411,7 +424,7 @@ let {{
                                     generic_code_signed = None,
                                     acc_initial_value = None):
         global header_output, exec_output, decoders
-
+        //JMFIXME: Correct the predicates here
         genericArithThreeVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
         %(acc_type)s out = %(acc_initial_value)s;
@@ -524,14 +537,16 @@ let {{
         genericArithThreeVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
         %(src2_inst)s;
+        auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
         TheISA::VecRegContainer output;
         switch(src1_vw){
             case 0:{
                 auto v1 = src1_vc.as<%(type8)s>();
                 %(src2_cast8)s;
+                auto p  = p3_vc.as<%(type8)s>();
                 auto out = output.as<%(type8)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op8)s
                     }
                 }
@@ -540,9 +555,10 @@ let {{
             case 1:{
                 auto v1 = src1_vc.as<%(type16)s>();
                 %(src2_cast16)s;
+                auto p  = p3_vc.as<%(type16)s>();
                 auto out = output.as<%(type16)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op16)s
                     }
                 }
@@ -551,9 +567,10 @@ let {{
             case 2: {
                 auto v1 = src1_vc.as<%(type32)s>();
                 %(src2_cast32)s;
+                auto p  = p3_vc.as<%(type32)s>();
                 auto out = output.as<%(type32)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op32)s
                     }
                 }
@@ -563,9 +580,10 @@ let {{
             {
                 auto v1 = src1_vc.as<%(type64)s>();
                 %(src2_cast64)s;
+                auto p  = p3_vc.as<%(type64)s>();
                 auto out = output.as<%(type64)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op64)s
                     }
                 }
@@ -630,13 +648,15 @@ let {{
 
         genericArithThreeVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
         TheISA::VecRegContainer output;
         switch(src1_vw){
             case 0:{
                 auto v1 = src1_vc.as<%(type8)s>();
+                auto p  = p3_vc.as<%(type8)s>();
                 auto out = output.as<%(type8)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op8)s
                     }
                 }
@@ -644,9 +664,10 @@ let {{
             break;
             case 1:{
                 auto v1 = src1_vc.as<%(type16)s>();
+                auto p  = p3_vc.as<%(type16)s>();
                 auto out = output.as<%(type16)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op16)s
                     }
                 }
@@ -654,9 +675,10 @@ let {{
             break;
             case 2: {
                 auto v1 = src1_vc.as<%(type32)s>();
+                auto p  = p3_vc.as<%(type32)s>();
                 auto out = output.as<%(type32)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op32)s
                     }
                 }
@@ -665,9 +687,10 @@ let {{
             default:
             {
                 auto v1 = src1_vc.as<%(type64)s>();
+                auto p  = p3_vc.as<%(type64)s>();
                 auto out = output.as<%(type64)s>();
                 for(int i=0;i<iCount;i++){
-                    if(Ps3_x[i]){
+                    if(p[i]){
                         %(generic_op64)s
                     }
                 }
