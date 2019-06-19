@@ -339,4 +339,132 @@ namespace Uve
         return new Unknown(machInst);
     }
 } // namespace Uve
+
+//Vector Predicate Instructions
+namespace Uve
+{
+    StaticInstPtr
+    decodePredicateControl(ExtMachInst machInst)
+    {
+        uint8_t dest = (uint8_t) bits(machInst, 10, 7);
+        uint8_t src1 = (uint8_t) bits(machInst, 18, 15);
+        uint8_t src1_vector = (uint8_t) bits(machInst, 19, 15);
+        uint8_t src2_vector = (uint8_t) bits(machInst, 24, 20);
+        uint8_t pred = (uint8_t) bits(machInst, 27, 25);
+
+        // uint8_t width = (uint8_t) bits(machInst, 21, 20);
+
+        uint8_t decoder = (uint8_t) bits(machInst, 14,11);
+
+        switch(decoder){
+            case 0b0000:
+                return new UvePredZero("so.p.zero", machInst, dest, pred);
+            case 0b0001:
+                return new UvePredOne("so.p.one", machInst, dest, pred);
+            // case 0b0010:
+            //     return new UvePredVecReg("so.p.vr", machInst, dest,
+            //         src1_vector, pred);
+            case 0b0011:
+                return new UvePredNot("so.p.not", machInst, dest,
+                    src1, pred);
+
+            case 0b0100:
+                return new UvePredMove("so.p.mv", machInst, dest,
+                        src1, pred);
+            case 0b0101:
+                return new UvePredMoveT("so.p.mvt", machInst, dest,
+                    src1, pred);
+            //     }
+            // case 0b0110:
+            //     return  decodePredicateInstTemplated<UvePredConv>
+            //         ("so.p.cv", width, machInst,
+            //         dest, src1);
+
+            // EGTS
+            case 0b1000:
+                return new UvePredEGTSUnsigned("so.p.egts.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1010:
+                return new UvePredEGTSFP("so.p.egts.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1100:
+                return new UvePredEGTSSigned("so.p.egts.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+            // EGT
+            case 0b1001:
+                return new UvePredEGTUnsigned("so.p.egt.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1011:
+                return new UvePredEGTFP("so.p.egt.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1101:
+                return new UvePredEGTSigned("so.p.egt.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+        }
+        return new Unknown(machInst);
+    }
+
+    StaticInstPtr
+    decodePredicateLogic(ExtMachInst machInst)
+    {
+        uint8_t dest = (uint8_t) bits(machInst, 10, 7);
+        uint8_t src1_vector = (uint8_t) bits(machInst, 19, 15);
+        uint8_t src2_vector = (uint8_t) bits(machInst, 24, 20);
+        uint8_t pred = (uint8_t) bits(machInst, 27, 25);
+
+        uint8_t decoder = (uint8_t) bits(machInst, 14,11);
+
+        switch(decoder){
+            // EQS
+            case 0b0000:
+                return new UvePredEQSUnsigned("so.p.eqs.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b0010:
+                return new UvePredEQSFP("so.p.eqs.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b0100:
+                return new UvePredEQSSigned("so.p.eqs.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+            // EQ
+            case 0b0001:
+                return new UvePredEQUnsigned("so.p.eq.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b0011:
+                return new UvePredEQFP("so.p.eq.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b0101:
+                return new UvePredEQSigned("so.p.eq.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+            // LTS
+            case 0b1000:
+                return new UvePredLTSUnsigned("so.p.lts.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1010:
+                return new UvePredLTSFP("so.p.lts.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1100:
+                return new UvePredLTSSigned("so.p.lts.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+            // LT
+            case 0b1001:
+                return new UvePredLTUnsigned("so.p.lt.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1011:
+                return new UvePredLTFP("so.p.lt.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1101:
+                return new UvePredLTSigned("so.p.lt.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+        }
+        return new Unknown(machInst);
+    }
+
+
+} // namespace Uve
 }};

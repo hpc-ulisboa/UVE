@@ -86,6 +86,19 @@ class RiscvStaticInst : public StaticInst
     {
         return tc->getIsaPtr()->getUveVecType(tc, vector_register_id);
     }
+
+    static void
+    setUvePVecType(ThreadContext *tc, uint8_t vector_register_id,
+    uint8_t width)
+    {
+        return tc->getIsaPtr()->setUvePVecType(tc, vector_register_id, width);
+    }
+
+    static uint8_t
+    getUvePVecType(ThreadContext *tc, uint8_t vector_register_id)
+    {
+        return tc->getIsaPtr()->getUvePVecType(tc, vector_register_id);
+    }
 };
 
 /**

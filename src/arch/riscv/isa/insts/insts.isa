@@ -1,6 +1,7 @@
 // -*- mode:c++ -*-
 
 //UVE
+##include "uve_arithmetic.isa"
+##include "uve_predicate.isa"
 ##include "uve_vector_mem.isa"
 
-##include "uve_arithmetic.isa"

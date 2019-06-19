@@ -50,14 +50,39 @@ namespace RiscvISA{
         return ((Ret&) val);
     }
 
-    void check_equal_src_widths(size_t a, size_t b){
+    void check_equal_src_widths(size_t widths...){
+        size_t sizes [10] = {0};
+        int i = 0;
+        va_list args;
+        va_start(args, widths);
+
+        while (1){
+            size_t arg = va_arg(args, size_t);
+            if (!arg) break;
+            sizes[i] = arg;
+            i++;
+        }
+
+        va_end(args);
+
         //JMTODO: Use assert in the future
-        if (a!=b)
-            DPRINTF(UVEUtils,"Src widths differ.. invalid src code");
+        if (i > 1){
+            for (int k = 0; k < i - 1; k++){
+                if (sizes[k]!=sizes[k+1]){
+                    DPRINTF(UVEUtils,"Src widths differ.. invalid src code");
+                }
+            }
+        }
+
     }
 
     size_t get_vector_width(ExecContext *xc, uint8_t reg ){
         return RiscvStaticInst::getUveVecType(xc->tcBase(),
+            reg);
+    }
+
+    size_t get_predicate_vector_width(ExecContext *xc, uint8_t reg ){
+        return RiscvStaticInst::getUvePVecType(xc->tcBase(),
             reg);
     }
 
@@ -70,6 +95,21 @@ namespace RiscvISA{
     template <typename Ret>
     Ret uveMin(Ret val1, Ret val2){
         return (val1 < val2 ? val1 : val2);
+    }
+
+    template <typename Ret>
+    bool uveEGT(Ret val1, Ret val2){
+        return (val1 >= val2 ? true : false);
+    }
+
+    template <typename Ret>
+    bool uveEQ(Ret val1, Ret val2){
+        return (val1 == val2 ? true : false);
+    }
+
+    template <typename Ret>
+    bool uveLT(Ret val1, Ret val2){
+        return (val1 == val2 ? true : false);
     }
 
 
@@ -216,6 +256,70 @@ namespace RiscvISA{
     float uveMin(float val1, float val2);
     template
     double uveMin(double val1, double val2);
+
+
+    template
+    bool uveEGT(int8_t val1, int8_t val2);
+    template
+    bool uveEGT(int16_t val1, int16_t val2);
+    template
+    bool uveEGT(int32_t val1, int32_t val2);
+    template
+    bool uveEGT(int64_t val1, int64_t val2);
+    template
+    bool uveEGT(uint8_t val1, uint8_t val2);
+    template
+    bool uveEGT(uint16_t val1, uint16_t val2);
+    template
+    bool uveEGT(uint32_t val1, uint32_t val2);
+    template
+    bool uveEGT(uint64_t val1, uint64_t val2);
+    template
+    bool uveEGT(float val1, float val2);
+    template
+    bool uveEGT(double val1, double val2);
+
+    template
+    bool uveEQ(int8_t val1, int8_t val2);
+    template
+    bool uveEQ(int16_t val1, int16_t val2);
+    template
+    bool uveEQ(int32_t val1, int32_t val2);
+    template
+    bool uveEQ(int64_t val1, int64_t val2);
+    template
+    bool uveEQ(uint8_t val1, uint8_t val2);
+    template
+    bool uveEQ(uint16_t val1, uint16_t val2);
+    template
+    bool uveEQ(uint32_t val1, uint32_t val2);
+    template
+    bool uveEQ(uint64_t val1, uint64_t val2);
+    template
+    bool uveEQ(float val1, float val2);
+    template
+    bool uveEQ(double val1, double val2);
+
+    template
+    bool uveLT(int8_t val1, int8_t val2);
+    template
+    bool uveLT(int16_t val1, int16_t val2);
+    template
+    bool uveLT(int32_t val1, int32_t val2);
+    template
+    bool uveLT(int64_t val1, int64_t val2);
+    template
+    bool uveLT(uint8_t val1, uint8_t val2);
+    template
+    bool uveLT(uint16_t val1, uint16_t val2);
+    template
+    bool uveLT(uint32_t val1, uint32_t val2);
+    template
+    bool uveLT(uint64_t val1, uint64_t val2);
+    template
+    bool uveLT(float val1, float val2);
+    template
+    bool uveLT(double val1, double val2);
 
     template
     uint8_t castBitsToRetType(uint64_t arg);

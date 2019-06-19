@@ -20,12 +20,9 @@ namespace Uve
     StaticInstPtr decodeLogic(ExtMachInst machInst);
     StaticInstPtr decodeMisc(ExtMachInst machInst);
 
-    // StaticInstPtr decodeSveIntArithBinPred(ExtMachInst machInst);
-    // StaticInstPtr decodeSveIntReduc(ExtMachInst machInst);
-    // StaticInstPtr decodeSveShiftByImmPred(ExtMachInst machInst);
-    // StaticInstPtr decodeSveIntArithUnaryPred(ExtMachInst machInst);
-    // StaticInstPtr decodeSveIntMulAdd(ExtMachInst machInst);
-    // StaticInstPtr decodeSveIntArithUnpred(ExtMachInst machInst);
+    StaticInstPtr decodePredicateControl(ExtMachInst machInst);
+    StaticInstPtr decodePredicateLogic(ExtMachInst machInst);
+
 }
 }};
 
@@ -45,7 +42,18 @@ namespace Uve
 
     StaticInstPtr
     decodeUveSOPred(ExtMachInst machInst){
-        return new Unknown(machInst);
+        switch (bits(machInst, 28))
+        {
+            case 0x0: //Predicate Move, Conv, Set
+                return decodePredicateControl(machInst);
+                break;
+            case 0x1: //Predicate Create (Logic)
+                return decodePredicateLogic(machInst);
+                break;
+            default:
+                return new Unknown(machInst);
+                break;
+        }
     }
 
     StaticInstPtr

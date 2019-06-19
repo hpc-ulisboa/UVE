@@ -1,0 +1,297 @@
+//JMNOTE: Uve Predicate Headers
+
+def template UvePredTwoVecPredicatedDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef uint8_t TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _PDest, uint8_t _VSrc1, uint8_t _VSrc2,
+            uint8_t _PSrc3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _PDest, _VSrc1, _VSrc2, _PSrc3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+def template UvePredVecScaPredicatedDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef uint8_t TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _PDest, uint8_t _VSrc1, uint8_t _RS2,
+            uint8_t _PSrc3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _PDest, _VSrc1, _RS2, _PSrc3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+def template UvePredUnaryPredicatedDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef uint8_t TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _PDest, uint8_t _PSrc3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _PDest, _PSrc3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+def template UvePredOneVecPredicatedDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef uint8_t TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _PDest, uint8_t _VSrc1, uint8_t _PSrc3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _PDest, _VSrc1, _PSrc3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+def template UvePredOnePVecPredicatedDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef uint8_t TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _PDest, uint8_t _PSrc1, uint8_t _PSrc3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _PDest, _PSrc1, _PSrc3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+def template UvePredOnePVecDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef uint8_t TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _PDest, uint8_t _PSrc1)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _PDest, _PSrc1)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+
+//JMNOTE: Uve Predicate Explicit Instantiation
+
+def template UvePredicateExecDeclare {{
+    Fault %(class_name)s::execute(ExecContext *,
+        Trace::InstRecord *) const;
+}};
+
+
+//JMNOTE: Predicate Instruction Templates
+
+def template UvePredTwoVecPredicatedExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(uint8_t);
+        uint8_t src1_vw = get_vector_width(xc, VSrc1);
+        uint8_t src2_vw = get_vector_width(xc, VSrc2);
+        unsigned iCount = eCount /  (1<<src1_vw);
+
+        check_equal_src_widths(src1_vw, src2_vw);
+
+        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
+        eCount, iCount);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+            RiscvStaticInst::setUvePVecType(xc->tcBase(), PDest,
+                src1_vw);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+
+def template UvePredVecScaPredicatedExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(uint8_t);
+        uint8_t src1_vw = get_vector_width(xc, VSrc1);
+        unsigned iCount = eCount /  (1<<src1_vw);
+
+        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
+        eCount, iCount);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+            RiscvStaticInst::setUvePVecType(xc->tcBase(), PDest,
+                src1_vw);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+
+
+def template UvePredUnaryPredicatedExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(uint8_t);
+
+        uint8_t src1_vw = get_vector_width(xc, PSrc3);
+        unsigned iCount = eCount /  (1<<src1_vw);
+
+        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
+        eCount, iCount);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+            RiscvStaticInst::setUvePVecType(xc->tcBase(), PDest,
+                src1_vw);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+
+
+def template UvePredOneVecPredicatedExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(uint8_t);
+        uint8_t src1_vw = get_vector_width(xc, VSrc1);
+        unsigned iCount = eCount /  (1<<src1_vw);
+
+        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
+        eCount, iCount);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+            RiscvStaticInst::setUvePVecType(xc->tcBase(), PDest,
+                src1_vw);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+
+def template UvePredOnePVecPredicatedExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(uint8_t);
+        uint8_t src1_vw = get_predicate_vector_width(xc, PSrc1);
+        unsigned iCount = eCount /  (1<<src1_vw);
+
+        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
+        eCount, iCount);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+            RiscvStaticInst::setUvePVecType(xc->tcBase(), PDest,
+                src1_vw);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+
+def template UvePredOnePVecExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(uint8_t);
+        uint8_t src1_vw = get_predicate_vector_width(xc, PSrc1);
+        unsigned iCount = eCount /  (1<<src1_vw);
+
+        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
+        eCount, iCount);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+            RiscvStaticInst::setUvePVecType(xc->tcBase(), PDest,
+                src1_vw);
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+
