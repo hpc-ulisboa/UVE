@@ -117,6 +117,9 @@ class SimpleThread : public ThreadState, public ThreadContext
     /** Did this instruction execute or is it predicated false */
     bool predicate;
 
+    /** True if the memory access should be skipped for this instruction */
+    bool memAccPredicate;
+
   public:
     std::string name() const
     {
@@ -213,21 +216,11 @@ class SimpleThread : public ThreadState, public ThreadContext
     }
 
     PortProxy &getPhysProxy() override { return ThreadState::getPhysProxy(); }
-    FSTranslatingPortProxy &
-    getVirtProxy() override
-    {
-        return ThreadState::getVirtProxy();
-    }
+    PortProxy &getVirtProxy() override { return ThreadState::getVirtProxy(); }
 
     void initMemProxies(ThreadContext *tc) override
     {
         ThreadState::initMemProxies(tc);
-    }
-
-    SETranslatingPortProxy &
-    getMemProxy() override
-    {
-        return ThreadState::getMemProxy();
     }
 
     Process *getProcessPtr() override { return ThreadState::getProcessPtr(); }
@@ -575,6 +568,18 @@ class SimpleThread : public ThreadState, public ThreadContext
     }
 
     unsigned readStCondFailures() const override { return storeCondFailures; }
+
+    bool
+    readMemAccPredicate()
+    {
+        return memAccPredicate;
+    }
+
+    void
+    setMemAccPredicate(bool val)
+    {
+        memAccPredicate = val;
+    }
 
     void
     setStCondFailures(unsigned sc_failures) override

@@ -50,6 +50,7 @@
 
 #include "arch/arm/isa_traits.hh"
 #include "arch/arm/linux/linux.hh"
+#include "base/loader/object_file.hh"
 #include "base/trace.hh"
 #include "cpu/thread_context.hh"
 #include "kern/linux/linux.hh"
@@ -61,61 +62,102 @@
 using namespace std;
 using namespace ArmISA;
 
+namespace
+{
+
+class ArmLinuxObjectFileLoader : public ObjectFile::Loader
+{
+  public:
+    Process *
+    load(ProcessParams *params, ObjectFile *obj_file) override
+    {
+        auto arch = obj_file->getArch();
+        auto opsys = obj_file->getOpSys();
+
+        if (arch != ObjectFile::Arm && arch != ObjectFile::Thumb &&
+                arch != ObjectFile::Arm64) {
+            return nullptr;
+        }
+
+        if (opsys == ObjectFile::UnknownOpSys) {
+            warn("Unknown operating system; assuming Linux.");
+            opsys = ObjectFile::Linux;
+        }
+
+        if (opsys == ObjectFile::LinuxArmOABI) {
+            fatal("gem5 does not support ARM OABI binaries. Please recompile "
+                    "with an EABI compiler.");
+        }
+
+        if (opsys != ObjectFile::Linux)
+            return nullptr;
+
+        if (arch == ObjectFile::Arm64)
+            return new ArmLinuxProcess64(params, obj_file, arch);
+        else
+            return new ArmLinuxProcess32(params, obj_file, arch);
+    }
+};
+
+ArmLinuxObjectFileLoader loader;
+
+} // anonymous namespace
+
 /// Target uname() handler.
 static SyscallReturn
-unameFunc32(SyscallDesc *desc, int callnum, Process *process,
-            ThreadContext *tc)
+unameFunc32(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     int index = 0;
+    auto process = tc->getProcessPtr();
     TypedBufferArg<Linux::utsname> name(process->getSyscallArg(tc, index));
 
     strcpy(name->sysname, "Linux");
     strcpy(name->nodename, "m5.eecs.umich.edu");
-    strcpy(name->release, "3.7.0+");
+    strcpy(name->release, process->release.c_str());
     strcpy(name->version, "#1 SMP Sat Dec  1 00:00:00 GMT 2012");
     strcpy(name->machine, "armv7l");
 
-    name.copyOut(tc->getMemProxy());
+    name.copyOut(tc->getVirtProxy());
     return 0;
 }
 
 /// Target uname() handler.
 static SyscallReturn
-unameFunc64(SyscallDesc *desc, int callnum, Process *process,
-            ThreadContext *tc)
+unameFunc64(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     int index = 0;
+    auto process = tc->getProcessPtr();
     TypedBufferArg<Linux::utsname> name(process->getSyscallArg(tc, index));
 
     strcpy(name->sysname, "Linux");
     strcpy(name->nodename, "gem5");
-    strcpy(name->release, "4.10.8+");
+    strcpy(name->release, process->release.c_str());
     strcpy(name->version, "#1 SMP Sat Dec  1 00:00:00 GMT 2012");
     strcpy(name->machine, "armv8l");
 
-    name.copyOut(tc->getMemProxy());
+    name.copyOut(tc->getVirtProxy());
     return 0;
 }
 
 /// Target set_tls() handler.
 static SyscallReturn
-setTLSFunc32(SyscallDesc *desc, int callnum, Process *process,
-             ThreadContext *tc)
+setTLSFunc32(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     int index = 0;
+    auto process = tc->getProcessPtr();
     uint32_t tlsPtr = process->getSyscallArg(tc, index);
 
-    tc->getMemProxy().writeBlob(ArmLinuxProcess32::commPage + 0x0ff0,
-                                 (uint8_t *)&tlsPtr, sizeof(tlsPtr));
+    tc->getVirtProxy().writeBlob(ArmLinuxProcess32::commPage + 0x0ff0,
+                                &tlsPtr, sizeof(tlsPtr));
     tc->setMiscReg(MISCREG_TPIDRURO,tlsPtr);
     return 0;
 }
 
 static SyscallReturn
-setTLSFunc64(SyscallDesc *desc, int callnum, Process *process,
-             ThreadContext *tc)
+setTLSFunc64(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     int index = 0;
+    auto process = tc->getProcessPtr();
     uint32_t tlsPtr = process->getSyscallArg(tc, index);
 
     tc->setMiscReg(MISCREG_TPIDRRO_EL0, tlsPtr);
@@ -1695,8 +1737,8 @@ ArmLinuxProcess32::initState()
 
     // Fill this page with swi -1 so we'll no if we land in it somewhere.
     for (Addr addr = 0; addr < PageBytes; addr += sizeof(swiNeg1)) {
-        tc->getMemProxy().writeBlob(commPage + addr,
-                                    swiNeg1, sizeof(swiNeg1));
+        tc->getVirtProxy().writeBlob(commPage + addr,
+                                     swiNeg1, sizeof(swiNeg1));
     }
 
     uint8_t memory_barrier[] =
@@ -1704,8 +1746,8 @@ ArmLinuxProcess32::initState()
         0x5f, 0xf0, 0x7f, 0xf5, // dmb
         0x0e, 0xf0, 0xa0, 0xe1  // return
     };
-    tc->getMemProxy().writeBlob(commPage + 0x0fa0, memory_barrier,
-                                sizeof(memory_barrier));
+    tc->getVirtProxy().writeBlob(commPage + 0x0fa0, memory_barrier,
+                                 sizeof(memory_barrier));
 
     uint8_t cmpxchg[] =
     {
@@ -1718,7 +1760,7 @@ ArmLinuxProcess32::initState()
         0x5f, 0xf0, 0x7f, 0xf5,  // dmb
         0x0e, 0xf0, 0xa0, 0xe1   // return
     };
-    tc->getMemProxy().writeBlob(commPage + 0x0fc0, cmpxchg, sizeof(cmpxchg));
+    tc->getVirtProxy().writeBlob(commPage + 0x0fc0, cmpxchg, sizeof(cmpxchg));
 
     uint8_t get_tls[] =
     {
@@ -1726,7 +1768,7 @@ ArmLinuxProcess32::initState()
         0x70, 0x0f, 0x1d, 0xee, // mrc p15, 0, r0, c13, c0, 3
         0x0e, 0xf0, 0xa0, 0xe1  // return
     };
-    tc->getMemProxy().writeBlob(commPage + 0x0fe0, get_tls, sizeof(get_tls));
+    tc->getVirtProxy().writeBlob(commPage + 0x0fe0, get_tls, sizeof(get_tls));
 }
 
 void

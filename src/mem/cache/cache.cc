@@ -305,7 +305,8 @@ Cache::promoteWholeLineWrites(PacketPtr pkt)
 {
     // Cache line clearing instructions
     if (doFastWrites && (pkt->cmd == MemCmd::WriteReq) &&
-        (pkt->getSize() == blkSize) && (pkt->getOffset(blkSize) == 0)) {
+        (pkt->getSize() == blkSize) && (pkt->getOffset(blkSize) == 0) &&
+        !pkt->isMaskedWrite()) {
         pkt->cmd = MemCmd::WriteLineReq;
         DPRINTF(Cache, "packet promoted from Write to WriteLineReq\n");
     }
@@ -1128,6 +1129,12 @@ Cache::handleSnoop(PacketPtr pkt, CacheBlk *blk, bool is_timing,
             // payload
             if (pkt->hasData())
                 pkt->setDataFromBlock(blk->data, blkSize);
+        }
+
+        // When a block is compressed, it must first be decompressed before
+        // being read, and this increases the snoop delay.
+        if (compressor && pkt->isRead()) {
+            snoop_delay += compressor->getDecompressionLatency(blk);
         }
     }
 

@@ -130,6 +130,11 @@ def setup_memory_controllers(system, ruby, dir_cntrls, options):
             else:
                 mem_ctrl.port = dir_cntrl.memory
 
+            # Enable low-power DRAM states if option is set
+            if issubclass(MemConfig.get(options.mem_type), DRAMCtrl):
+                mem_ctrl.enable_dram_powerdown = \
+                        options.enable_dram_powerdown
+
         index += 1
         dir_cntrl.addr_ranges = dir_ranges
 
@@ -156,7 +161,7 @@ def create_system(options, full_system, system, piobus = None, dma_ports = [],
     ruby = system.ruby
 
     # Generate pseudo filesystem
-    FileSystemConfig.config_filesystem(options)
+    FileSystemConfig.config_filesystem(system, options)
 
     # Create the network object
     (network, IntLinkClass, ExtLinkClass, RouterClass, InterfaceClass) = \

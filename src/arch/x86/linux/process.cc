@@ -44,6 +44,7 @@
 #include "arch/x86/isa_traits.hh"
 #include "arch/x86/linux/linux.hh"
 #include "arch/x86/registers.hh"
+#include "base/loader/object_file.hh"
 #include "base/trace.hh"
 #include "cpu/thread_context.hh"
 #include "kern/linux/linux.hh"
@@ -54,28 +55,61 @@
 using namespace std;
 using namespace X86ISA;
 
+namespace
+{
+
+class X86LinuxObjectFileLoader : public ObjectFile::Loader
+{
+  public:
+    Process *
+    load(ProcessParams *params, ObjectFile *obj_file) override
+    {
+        auto arch = obj_file->getArch();
+        auto opsys = obj_file->getOpSys();
+
+        if (arch != ObjectFile::X86_64 && arch != ObjectFile::I386)
+            return nullptr;
+
+        if (opsys == ObjectFile::UnknownOpSys) {
+            warn("Unknown operating system; assuming Linux.");
+            opsys = ObjectFile::Linux;
+        }
+
+        if (opsys != ObjectFile::Linux)
+            return nullptr;
+
+        if (arch == ObjectFile::X86_64)
+            return new X86_64LinuxProcess(params, obj_file);
+        else
+            return new I386LinuxProcess(params, obj_file);
+    }
+};
+
+X86LinuxObjectFileLoader loader;
+
+} // anonymous namespace
+
 /// Target uname() handler.
 static SyscallReturn
-unameFunc(SyscallDesc *desc, int callnum, Process *process,
-          ThreadContext *tc)
+unameFunc(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     int index = 0;
+    auto process = tc->getProcessPtr();
     TypedBufferArg<Linux::utsname> name(process->getSyscallArg(tc, index));
 
     strcpy(name->sysname, "Linux");
     strcpy(name->nodename, "sim.gem5.org");
-    strcpy(name->release, "3.2.0");
+    strcpy(name->release, process->release.c_str());
     strcpy(name->version, "#1 Mon Aug 18 11:32:15 EDT 2003");
     strcpy(name->machine, "x86_64");
 
-    name.copyOut(tc->getMemProxy());
+    name.copyOut(tc->getVirtProxy());
 
     return 0;
 }
 
 static SyscallReturn
-archPrctlFunc(SyscallDesc *desc, int callnum, Process *process,
-              ThreadContext *tc)
+archPrctlFunc(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     enum ArchPrctlCodes
     {
@@ -87,10 +121,11 @@ archPrctlFunc(SyscallDesc *desc, int callnum, Process *process,
 
     // First argument is the code, second is the address
     int index = 0;
+    auto process = tc->getProcessPtr();
     int code = process->getSyscallArg(tc, index);
     uint64_t addr = process->getSyscallArg(tc, index);
     uint64_t fsBase, gsBase;
-    SETranslatingPortProxy &p = tc->getMemProxy();
+    PortProxy &p = tc->getVirtProxy();
     switch(code)
     {
       // Each of these valid options should actually check addr.
@@ -140,12 +175,13 @@ struct UserDesc64 {
 };
 
 static SyscallReturn
-setThreadArea32Func(SyscallDesc *desc, int callnum,
-                    Process *process, ThreadContext *tc)
+setThreadArea32Func(SyscallDesc *desc, int callnum, ThreadContext *tc)
 {
     const int minTLSEntry = 6;
     const int numTLSEntries = 3;
     const int maxTLSEntry = minTLSEntry + numTLSEntries - 1;
+
+    auto process = tc->getProcessPtr();
 
     X86Process *x86p = dynamic_cast<X86Process *>(process);
     assert(x86p);
@@ -158,10 +194,10 @@ setThreadArea32Func(SyscallDesc *desc, int callnum,
         gdt(x86p->gdtStart() + minTLSEntry * sizeof(uint64_t),
             numTLSEntries * sizeof(uint64_t));
 
-    if (!userDesc.copyIn(tc->getMemProxy()))
+    if (!userDesc.copyIn(tc->getVirtProxy()))
         return -EFAULT;
 
-    if (!gdt.copyIn(tc->getMemProxy()))
+    if (!gdt.copyIn(tc->getVirtProxy()))
         panic("Failed to copy in GDT for %s.\n", desc->name());
 
     if (userDesc->entry_number == (uint32_t)(-1)) {
@@ -213,9 +249,9 @@ setThreadArea32Func(SyscallDesc *desc, int callnum,
 
     gdt[index] = (uint64_t)segDesc;
 
-    if (!userDesc.copyOut(tc->getMemProxy()))
+    if (!userDesc.copyOut(tc->getVirtProxy()))
         return -EFAULT;
-    if (!gdt.copyOut(tc->getMemProxy()))
+    if (!gdt.copyOut(tc->getVirtProxy()))
         panic("Failed to copy out GDT for %s.\n", desc->name());
 
     return 0;

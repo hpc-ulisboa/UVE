@@ -64,6 +64,7 @@
 #include "debug/CachePort.hh"
 #include "enums/Clusivity.hh"
 #include "mem/cache/cache_blk.hh"
+#include "mem/cache/compressors/base.hh"
 #include "mem/cache/mshr_queue.hh"
 #include "mem/cache/tags/base.hh"
 #include "mem/cache/write_queue.hh"
@@ -323,6 +324,9 @@ class BaseCache : public ClockedObject
 
     /** Tag and data Storage */
     BaseTags *tags;
+
+    /** Compression method being used. */
+    BaseCacheCompressor* compressor;
 
     /** Prefetcher */
     BasePrefetcher *prefetcher;
@@ -656,6 +660,33 @@ class BaseCache : public ClockedObject
     EventFunctionWrapper writebackTempBlockAtomicEvent;
 
     /**
+     * When a block is overwriten, its compression information must be updated,
+     * and it may need to be recompressed. If the compression size changes, the
+     * block may either become smaller, in which case there is no side effect,
+     * or bigger (data expansion; fat write), in which case the block might not
+     * fit in its current location anymore. If that happens, there are usually
+     * two options to be taken:
+     *
+     * - The co-allocated blocks must be evicted to make room for this block.
+     *   Simpler, but ignores replacement data.
+     * - The block itself is moved elsewhere (used in policies where the CF
+     *   determines the location of the block).
+     *
+     * This implementation uses the first approach.
+     *
+     * Notice that this is only called for writebacks, which means that L1
+     * caches (which see regular Writes), do not support compression.
+     * @sa CompressedTags
+     *
+     * @param blk The block to be overwriten.
+     * @param data A pointer to the data to be compressed (blk's new data).
+     * @param writebacks List for any writebacks that need to be performed.
+     * @return Whether operation is successful or not.
+     */
+    bool updateCompressionData(CacheBlk *blk, const uint64_t* data,
+                               PacketList &writebacks);
+
+    /**
      * Perform any necessary updates to the block and perform any data
      * exchange between the packet and the block. The flags of the
      * packet are also set accordingly.
@@ -981,15 +1012,6 @@ class BaseCache : public ClockedObject
     /** Total cycle latency of overall MSHR misses. */
     Stats::Formula overallMshrUncacheableLatency;
 
-#if 0
-    /** The total number of MSHR accesses per command and thread. */
-    Stats::Formula mshrAccesses[MemCmd::NUM_MEM_CMDS];
-    /** The total number of demand MSHR accesses. */
-    Stats::Formula demandMshrAccesses;
-    /** The total number of MSHR accesses. */
-    Stats::Formula overallMshrAccesses;
-#endif
-
     /** The miss rate in the MSHRs pre command and thread. */
     Stats::Formula mshrMissRate[MemCmd::NUM_MEM_CMDS];
     /** The demand miss rate in the MSHRs. */
@@ -1011,6 +1033,9 @@ class BaseCache : public ClockedObject
 
     /** Number of replacements of valid blocks. */
     Stats::Scalar replacements;
+
+    /** Number of data expansions. */
+    Stats::Scalar dataExpansions;
 
     /**
      * @}
@@ -1069,6 +1094,15 @@ class BaseCache : public ClockedObject
         assert(pkt->isWrite() || pkt->cmd == MemCmd::CleanEvict);
 
         Addr blk_addr = pkt->getBlockAddr(blkSize);
+
+        // If using compression, on evictions the block is decompressed and
+        // the operation's latency is added to the payload delay. Consume
+        // that payload delay here, meaning that the data is always stored
+        // uncompressed in the writebuffer
+        if (compressor) {
+            time += pkt->payloadDelay;
+            pkt->payloadDelay = 0;
+        }
 
         WriteQueueEntry *wq_entry =
             writeBuffer.findMatch(blk_addr, pkt->isSecure());
