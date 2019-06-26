@@ -794,7 +794,7 @@ let {{
         ''')
     emitUveArithTwoVecReductionPredicatedFPInsts("so.a.adds", "UveArithAdds",
         dest_code='''
-        Rd_ud = typeCastToBits(out);
+        Rd_ud = typeCastToBits((%%(type)s)out);
         ''',
         generic_code='''
         out = out + v1[i];
@@ -804,9 +804,7 @@ let {{
         dest_code='''
         %(acc_type)s src_aux = 0;
         src_aux = castBitsToRetType<%(acc_type)s>(Rd_merge_ud);
-        DPRINTF(UVEArith," src_aux(%%%%.10f)\\n",src_aux);
-        DPRINTF(UVEArith," out(%%%%.10f)\\n",out);
-        Rd_ud = typeCastToBits(src_aux + out);
+        Rd_ud = typeCastToBits((%%(type)s)(src_aux + out));
         ''',
         generic_code='''
         out = out + v1[i];

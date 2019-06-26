@@ -156,7 +156,8 @@
 #include "base/cprintf.hh"
 #include "base/logging.hh"
 
-constexpr unsigned MaxVecRegLenInBytes = 256;
+//JMNOTE: PATCHED : Before 256 , Now 1024
+constexpr unsigned MaxVecRegLenInBytes = 1024;
 
 template <size_t Sz>
 class VecRegContainer;

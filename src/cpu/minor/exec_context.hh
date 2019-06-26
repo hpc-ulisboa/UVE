@@ -102,6 +102,13 @@ class ExecContext : public ::ExecContext
 #if THE_ISA == ALPHA_ISA
         thread.setFloatReg(TheISA::ZeroReg, 0);
 #endif
+#if THE_ISA == RISCV_ISA
+        //JMNOTE: UVE Vector Register to zero
+        (thread.getWritableVecRegFlat(TheISA::ZeroVecReg)).zero();
+
+        //JMNOTE: UVE Vector Predicate Register to one
+        (thread.getWritableVecPredRegFlat(TheISA::OneVecPredReg)).set();
+#endif // RISCV_ISA
     }
 
     ~ExecContext()

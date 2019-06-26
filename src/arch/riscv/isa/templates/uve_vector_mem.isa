@@ -148,6 +148,9 @@ def template UveVectorLoadInitiateAcc {{
         unsigned size = 0;
         int memAccessSize = 0;
 
+        DPRINTF(UVEMem, "%(class_name)s->initiateAcc maxExecSize(%d)\n",
+            maxExecSize);
+
         %(op_src_decl)s;
         %(op_rd)s;
         %(ea_code)s;
@@ -188,7 +191,10 @@ def template UveVectorLoadCompleteAcc {{
         memcpy(memData.raw_ptr<uint8_t>(), pkt->getPtr<uint8_t>(),
                 pkt->getSize());
 
+        DPRINTF(UVEMem, "%(class_name)s->completeAcc\n");
+
         %(memacc_code)s;
+        MEM_PRINTF(memDataView,">",Vd,eCount);
         RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
                 width_converter<RegElemType>::width);
         %(set_update_base_address)s;
@@ -278,7 +284,7 @@ def template UveVectorStoreInitiateAcc {{
             xc->tcBase()) / vec_elem_bytes;
         unsigned size = 0;
         int memAccessSize = 0;
-        DPRINTF(UVEMem, "%(class_name)s->execute: vector_width(%d) | "
+        DPRINTF(UVEMem, "%(class_name)s->initiateAcc: vector_width(%d) | "
             "maxExecSize(%d)\n", vector_width, maxExecSize);
 
         %(op_decl)s;
@@ -297,12 +303,16 @@ def template UveVectorStoreInitiateAcc {{
             memAccessSize = maxExecSize * vec_elem_bytes;
         }
 
+        DPRINTF(UVEMem, "%(class_name)s->initiateAcc: EA:%d | memAccSize:%d\n",
+                EA, memAccessSize);
+
         memAccessSize_persistent = memAccessSize;
         TheISA::VecRegContainer memData;
         auto memDataView = memData.as<RegElemType>();
 
         if (fault == NoFault) {
             %(memacc_code)s;
+            MEM_PRINTF(memDataView,"<",Vs1,eCount);
         }
 
         if (fault == NoFault) {
@@ -314,6 +324,10 @@ def template UveVectorStoreInitiateAcc {{
             %(op_wb)s;
         }
 
+        %(set_update_base_address)s;
+
+        %(op_wb)s;
+
         return fault;
     }
 }};
@@ -323,12 +337,7 @@ def template UveVectorStoreCompleteAcc {{
     Fault %(class_name)s%(tpl_args)s::completeAcc(PacketPtr pkt,
         ExecContext *xc, Trace::InstRecord *traceData) const
     {
-        %(op_decl)s;
-        %(op_rd)s;
-
-        %(set_update_base_address)s;
-
-        %(op_wb)s;
+        DPRINTF(UVEMem, "%(class_name)s->completeAcc\n");
         return NoFault;
     }
 }};

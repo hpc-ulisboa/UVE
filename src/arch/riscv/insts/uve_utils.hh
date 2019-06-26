@@ -10,16 +10,26 @@
 namespace RiscvISA
 {
     #define MEM_PRINTF(mem,dir,vec,count)  DPRINTF(UVEMem, "______________" \
-                "__________________\\n"); \
+                "__________________\n"); \
                 std::string ss; \
                 for (int i = 0; i < count; i++) { \
                     ss += "(" + std::to_string(i) + ") M[" + \
-                    std::to_string(mem[i]) + "]" dir "V[" + \
+                    to_hex(mem[i]) + "]" dir "V[" + \
                     std::to_string(vec[i]) + "] -"; \
                     if (i % 30 == 29) ss += "\\n"; \
                 } \
-                DPRINTF(UVEMem, (ss+="\\n").c_str() ); \
-                DPRINTF(UVEMem, "________________________________\\n");
+                DPRINTF(UVEMem, (ss+="\n").c_str() ); \
+                DPRINTF(UVEMem, "________________________________\n");
+
+
+    template <typename T>
+    std::string to_hex(T a){
+        std::string result;
+        std::stringstream ss;
+        ss << std::hex << (long int) a;
+        ss >> result;
+        return result;
+    }
 
     template <typename Ret>
     Ret convertFP(float& val);
