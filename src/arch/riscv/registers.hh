@@ -91,11 +91,11 @@ const int NumFloatRegs = 32;
 //JMNOTE: Now applicable for Uve
 const unsigned NumVecRegs = 32;  // Not applicable to RISC-V
                                 // (1 to prevent warnings)
-                                //JMTODO: Update this
+                                //JMNOTE: 32 vec regs
 //JMNOTE: Now applicable for Uve
 const int NumVecPredRegs = 16;  // Not applicable to RISC-V
                                // (1 to prevent warnings)
-                               //JMTODO: Update this
+                               //JMNOTE: 16 vec pred regs
 
 const int NumCCRegs = 0;
 
@@ -269,7 +269,15 @@ enum MiscRegIndex {
     //JMNOTE:uveVl UVE CSRs index enum
     MISCREG_UVEVS,
     MISCREG_UVEVT,
-    MISCREG_UVEPVT,
+    MISCREG_UVEVI0,
+    MISCREG_UVEVI1,
+    MISCREG_UVEVI2,
+    MISCREG_UVEVI3,
+    MISCREG_UVEVI4,
+    MISCREG_UVEVI5,
+    MISCREG_UVEVI6,
+    MISCREG_UVEVI7,
+
 
     NUM_MISCREGS
 };
@@ -440,8 +448,16 @@ enum CSRIndex {
 
     //JMNOTE:uveVl UVE CSRs index - Used 0x8 as main index.
     // As a result of the analysis of the previous registers
-    CSR_UVEVS = 0x800,
-    CSR_UVEVT = 0x801
+    CSR_UVEVS = 0xFC0, //JMNOTE: FC0-FFF read only custom machine registers
+    CSR_UVEVT = 0xBC1, //JMNOTE: BC0-BFF read write custom machine registers
+    CSR_UVEVI0 = 0xBD0, //JMNOTE: UVEVI# are registers 0-7 for valid index
+    CSR_UVEVI1 = 0xBD1,
+    CSR_UVEVI2 = 0xBD2,
+    CSR_UVEVI3 = 0xBD3,
+    CSR_UVEVI4 = 0xBD4,
+    CSR_UVEVI5 = 0xBD5,
+    CSR_UVEVI6 = 0xBD6,
+    CSR_UVEVI7 = 0xBD7
 };
 
 struct CSRMetadata
@@ -614,7 +630,18 @@ const std::map<int, CSRMetadata> CSRData = {
     //JMNOTE:uveVl UVE CSRs
     {CSR_UVEVS, {"uvevs", MISCREG_UVEVS}},
     {CSR_UVEVT, {"uvevt", MISCREG_UVEVT}},
+<<<<<<< HEAD
     {CSR_UVEVT, {"uvepvt", MISCREG_UVEPVT}},
+=======
+    {CSR_UVEVI0, {"uvevi0", MISCREG_UVEVI0}},
+    {CSR_UVEVI1, {"uvevi1", MISCREG_UVEVI1}},
+    {CSR_UVEVI2, {"uvevi2", MISCREG_UVEVI2}},
+    {CSR_UVEVI3, {"uvevi3", MISCREG_UVEVI3}},
+    {CSR_UVEVI4, {"uvevi4", MISCREG_UVEVI4}},
+    {CSR_UVEVI5, {"uvevi5", MISCREG_UVEVI5}},
+    {CSR_UVEVI6, {"uvevi6", MISCREG_UVEVI6}},
+    {CSR_UVEVI7, {"uvevi7", MISCREG_UVEVI7}}
+>>>>>>> Added vector valid index registers
 };
 
 /**

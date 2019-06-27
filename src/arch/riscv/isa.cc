@@ -85,7 +85,15 @@ void ISA::clear()
     // from the parameters of the simulation
     miscRegFile[MISCREG_UVEVS] = uveVl;
     miscRegFile[MISCREG_UVEVT] = 0;
-    miscRegFile[MISCREG_UVEPVT] = 0;
+    miscRegFile[MISCREG_UVEVI0] = 0;
+    miscRegFile[MISCREG_UVEVI1] = 0;
+    miscRegFile[MISCREG_UVEVI2] = 0;
+    miscRegFile[MISCREG_UVEVI3] = 0;
+    miscRegFile[MISCREG_UVEVI4] = 0;
+    miscRegFile[MISCREG_UVEVI5] = 0;
+    miscRegFile[MISCREG_UVEVI6] = 0;
+    miscRegFile[MISCREG_UVEVI7] = 0;
+
 }
 
 bool
@@ -214,7 +222,6 @@ ISA::setMiscReg(int misc_reg, RegVal val, ThreadContext *tc)
 
 
 //JMNOTE: Set UVE Vector Type
-// template <class WidthSize>
 void
 ISA::setUveVecType(ThreadContext *tc, uint8_t vector_register_id,
     uint8_t width)
@@ -267,6 +274,37 @@ ISA::getUvePVecType(ThreadContext *tc, uint8_t vector_register_id)
     vector_type &= 0b11 << shift_amt;
 
     return vector_type >> shift_amt;
+
+//JMNOTE: Set UVE Vector Valid Index
+void
+ISA::setUveValidIndex(ThreadContext *tc, uint8_t vector_register_id,
+    uint16_t valid_index)
+{
+    //4 is number of vec reg per misc_reg
+    uint8_t misc_reg_index = vector_register_id / 4;
+    uint8_t shift_amt = (vector_register_id % 4) * 16;
+
+    auto vector_index_info = tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
+
+    vector_index_info &= ~(0xFFFF << shift_amt);
+    vector_index_info |= valid_index << shift_amt;
+    DPRINTF(UVEMem, "Set Uve Valid: V(%d) Requested(%d) Final(%#x)\n",
+        vector_register_id, vector_index_info,vector_index_info);
+
+    tc->setMiscReg(MISCREG_UVEVI0 + misc_reg_index, vector_index_info);
+}
+
+uint16_t
+ISA::getUveValidIndex(ThreadContext *tc, uint8_t vector_register_id)
+{
+    //4 is number of vec reg per misc_reg
+    uint8_t misc_reg_index = vector_register_id / 4;
+    uint8_t shift_amt = (vector_register_id % 4) * 16;
+    auto vector_index_info = tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
+
+    vector_index_info &= 0xFFFF << shift_amt;
+
+    return vector_index_info >> shift_amt;
 }
 
 // JMNOTE: Get UVE Vector Length in bytes
