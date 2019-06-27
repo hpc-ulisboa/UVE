@@ -262,8 +262,8 @@ ISA::setUveValidIndex(ThreadContext *tc, uint8_t vector_register_id,
 
     vector_index_info &= ~(0xFFFF << shift_amt);
     vector_index_info |= valid_index << shift_amt;
-    DPRINTF(UVEMem, "Set Uve Valid: V(%d) Requested(%d) Final(%#x)\n",
-        vector_register_id, vector_index_info,vector_index_info);
+    DPRINTF(UVEMem, "Set Uve Valid: V(%d) Requested(%dby) Final(%#x)\n",
+        vector_register_id, valid_index,vector_index_info);
 
     tc->setMiscReg(MISCREG_UVEVI0 + misc_reg_index, vector_index_info);
 }
@@ -277,7 +277,8 @@ ISA::getUveValidIndex(ThreadContext *tc, uint8_t vector_register_id)
     auto vector_index_info = tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
 
     vector_index_info &= 0xFFFF << shift_amt;
-
+    DPRINTF(UVEMem, "Get Uve Valid: V(%d) Got(%dby)\n",vector_register_id,
+            vector_index_info >> shift_amt);
     return vector_index_info >> shift_amt;
 }
 

@@ -100,12 +100,11 @@ def template UveVectorLoadExecute {{
         }
         if(size > 0){
             eCount = size;
-            memAccessSize = size * sizeof(RegElemType);
         }
         else {
             eCount = maxExecSize;
-            memAccessSize = maxExecSize * sizeof(RegElemType);
         }
+        memAccessSize = eCount * sizeof(RegElemType);
         memAccessSize_persistent = memAccessSize;
 
         DPRINTF(UVEMem, "%(class_name)s->execute: eCount: %d | "
@@ -126,6 +125,8 @@ def template UveVectorLoadExecute {{
             MEM_PRINTF(memDataView,">",Vd,eCount)
             RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
                 width_converter<RegElemType>::width);
+            RiscvStaticInst::setUveValidIndex(xc->tcBase(), VDest,
+                memAccessSize);
 
             %(set_update_base_address)s;
             %(op_wb)s;
@@ -160,15 +161,13 @@ def template UveVectorLoadInitiateAcc {{
         }
         if(size > 0){
             eCount = size;
-            memAccessSize = size * sizeof(RegElemType);
         }
         else {
             eCount = maxExecSize;
-            memAccessSize = maxExecSize * sizeof(RegElemType);
         }
-
-        eCount_persistent = eCount;
+        memAccessSize = eCount * sizeof(RegElemType);
         memAccessSize_persistent = memAccessSize;
+        eCount_persistent = eCount;
 
         fault = xc->initiateMemRead(EA, memAccessSize, this->memAccessFlags);
 
@@ -197,6 +196,8 @@ def template UveVectorLoadCompleteAcc {{
         MEM_PRINTF(memDataView,">",Vd,eCount);
         RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
                 width_converter<RegElemType>::width);
+        RiscvStaticInst::setUveValidIndex(xc->tcBase(), VDest,
+                memAccessSize_persistent);
         %(set_update_base_address)s;
         %(op_wb)s;
 
@@ -217,6 +218,8 @@ def template UveVectorStoreExecute {{
         uint8_t vector_width = RiscvStaticInst::getUveVecType(xc->tcBase(),
             VSrc1);
         uint8_t vec_elem_bytes = 1 << vector_width;
+        uint16_t vector_valid_index = RiscvStaticInst::getUveValidIndex(
+            xc->tcBase(), VSrc1) / vec_elem_bytes;
         unsigned maxExecSize = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / vec_elem_bytes;
         unsigned size = 0;
@@ -233,12 +236,14 @@ def template UveVectorStoreExecute {{
         }
         if(size > 0){
             eCount = size * vec_elem_bytes;
-            memAccessSize = size * vec_elem_bytes;
         }
         else {
             eCount = maxExecSize * vec_elem_bytes;
-            memAccessSize = maxExecSize * vec_elem_bytes;
         }
+        if(eCount > vector_valid_index){
+            eCount = vector_valid_index;
+        }
+        memAccessSize = eCount * vec_elem_bytes;
         memAccessSize_persistent = memAccessSize;
 
         DPRINTF(UVEMem, "%(class_name)s->execute: eCount: %d\n",
@@ -280,6 +285,8 @@ def template UveVectorStoreInitiateAcc {{
         uint8_t vector_width = RiscvStaticInst::getUveVecType(xc->tcBase(),
             VSrc1);
         uint8_t vec_elem_bytes = 1 << vector_width;
+        uint16_t vector_valid_index = RiscvStaticInst::getUveValidIndex(
+            xc->tcBase(), VSrc1) / vec_elem_bytes;
         unsigned maxExecSize = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / vec_elem_bytes;
         unsigned size = 0;
@@ -296,17 +303,19 @@ def template UveVectorStoreInitiateAcc {{
         }
         if(size > 0){
             eCount = size * vec_elem_bytes;
-            memAccessSize = size * vec_elem_bytes;
         }
         else {
             eCount = maxExecSize * vec_elem_bytes;
-            memAccessSize = maxExecSize * vec_elem_bytes;
         }
+        if(eCount > vector_valid_index){
+            eCount = vector_valid_index;
+        }
+        memAccessSize = eCount;
+        memAccessSize_persistent = memAccessSize;
 
         DPRINTF(UVEMem, "%(class_name)s->initiateAcc: EA:%d | memAccSize:%d\n",
                 EA, memAccessSize);
 
-        memAccessSize_persistent = memAccessSize;
         TheISA::VecRegContainer memData;
         auto memDataView = memData.as<RegElemType>();
 
@@ -398,6 +407,8 @@ def template UveVectorDupExecute {{
             Vd.print());
             RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
                 width_converter<RegElemType>::width);
+            RiscvStaticInst::setUveValidIndex(xc->tcBase(), VDest,
+                eCount * sizeof(RegElemType));
             %(op_wb)s;
         }
 
@@ -436,6 +447,8 @@ def template UveVectorMoveExecute {{
     Fault %(class_name)s%(tpl_args)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
+
+        //JMTODO: Implement valid index
         Fault fault = NoFault;
         uint8_t vector_width = RiscvStaticInst::getUveVecType(xc->tcBase(),
             VSrc1);
@@ -547,6 +560,9 @@ def template UveVectorConvExecute {{
         uint8_t src_vector_width = RiscvStaticInst::getUveVecType(xc->tcBase(),
             VSrc1);
         uint8_t dest_vector_width = width_converter<RegElemType>::width;
+        // uint16_t vector_valid_index = RiscvStaticInst::getUveValidIndex(
+        //    xc->tcBase(),
+        //     VSrc1) / (1 << src_vector_width);
         unsigned src_eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / (1<<src_vector_width);
         unsigned dest_eCount = RiscvStaticInst::getCurUveVecLen(
@@ -560,11 +576,15 @@ def template UveVectorConvExecute {{
         %(op_decl)s;
         %(op_rd)s;
 
+        //JMTODO: Implement valid bits
+
         if (fault == NoFault) {
             %(ex_code)s;
 
             RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
                 dest_vector_width);
+            // RiscvStaticInst::setUveValidIndex(xc->tcBase(), VDest,
+            //     eCount * sizeof(RegElemType));
             %(op_wb)s;
         }
 
