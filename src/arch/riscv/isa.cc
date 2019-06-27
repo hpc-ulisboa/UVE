@@ -259,11 +259,11 @@ ISA::setUveValidIndex(ThreadContext *tc, uint8_t vector_register_id,
     uint8_t shift_amt = (vector_register_id % 4) * 16;
 
     auto vector_index_info = tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
-
     vector_index_info &= ~(0xFFFF << shift_amt);
-    vector_index_info |= valid_index << shift_amt;
-    DPRINTF(UVEMem, "Set Uve Valid: V(%d) Requested(%dby) Final(%#x)\n",
-        vector_register_id, valid_index,vector_index_info);
+    vector_index_info |= ((uint64_t)valid_index) << shift_amt;
+    DPRINTF(UVEMem, "Set Uve Valid: V(%d) Requested(%dby) Final(%#x) in"
+        " Reg(%d)\n",vector_register_id, valid_index,vector_index_info,
+        misc_reg_index);
 
     tc->setMiscReg(MISCREG_UVEVI0 + misc_reg_index, vector_index_info);
 }
@@ -274,12 +274,13 @@ ISA::getUveValidIndex(ThreadContext *tc, uint8_t vector_register_id)
     //4 is number of vec reg per misc_reg
     uint8_t misc_reg_index = vector_register_id / 4;
     uint8_t shift_amt = (vector_register_id % 4) * 16;
-    auto vector_index_info = tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
 
-    vector_index_info &= 0xFFFF << shift_amt;
-    DPRINTF(UVEMem, "Get Uve Valid: V(%d) Got(%dby)\n",vector_register_id,
-            vector_index_info >> shift_amt);
-    return vector_index_info >> shift_amt;
+    auto vector_index_info = tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
+    vector_index_info &= (0xFFFFLL << shift_amt);
+    DPRINTF(UVEMem, "Get Uve Valid: V(%d) Got(%dby) in Reg(%d)\n",
+        vector_register_id,(((uint64_t)vector_index_info) >> shift_amt),
+            misc_reg_index);
+    return (((uint64_t)vector_index_info) >> shift_amt);
 }
 
 // JMNOTE: Get UVE Vector Length in bytes

@@ -42,6 +42,28 @@ def template UveTwoVecPredicatedDeclare {{
     };
 }};
 
+//JMNOTE: Uve Arithmetic 2Vecs to 1SDest Predicated Header Declaration Template
+
+def template UveTwoVec2ScaPredicatedDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef uint8_t TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _RD, uint8_t _VSrc1,
+            uint8_t _PSrc3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _RD, _VSrc1, _PSrc3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
 
 //JMNOTE: Uve Arithmetic VecScaPredicated Header Declaration Template
 
@@ -84,9 +106,58 @@ def template UveThreeVecPredicatedExecute {{
             xc->tcBase()) / sizeof(uint8_t);
         uint8_t src1_vw = get_vector_width(xc, VSrc1);
         uint8_t src2_vw = get_vector_width(xc, VSrc2);
+        uint16_t src1_vi = RiscvStaticInst::getUveValidIndex(
+            xc->tcBase(), VSrc1) / (1 << src1_vw);
+        uint16_t src2_vi = RiscvStaticInst::getUveValidIndex(
+            xc->tcBase(), VSrc2) / (1 << src2_vw);
         unsigned iCount = eCount /  (1<<src1_vw);
-
+        uint16_t dest_vi = 0;
         check_equal_src_widths(src1_vw, src2_vw);
+        dest_vi = get_dest_valid_index(src1_vi, src2_vi);
+        std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
+            //Nearest here.. with conscience of the other possibilities
+
+        if(iCount > dest_vi){
+            iCount = dest_vi;
+        }
+        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
+        eCount, iCount);
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
+                src1_vw);
+            RiscvStaticInst::setUveValidIndex(xc->tcBase(), VDest,
+                iCount * (1 << src1_vw));
+            %(op_wb)s;
+        }
+
+        return fault;
+    }
+}};
+
+
+//JMNOTE: 2Vec Pred Instruction Templates
+
+def template UveTwoVecPredicatedExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(uint8_t);
+        uint8_t src1_vw = get_vector_width(xc, VSrc1);
+        uint16_t src1_vi = RiscvStaticInst::getUveValidIndex(
+            xc->tcBase(), VSrc1) / (1 << src1_vw);
+        unsigned iCount = eCount /  (1<<src1_vw);
+        //JMFIXME: Change this to simple function
+        if (iCount > src1_vi){
+            iCount = src1_vi;
+        }
+
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
 
@@ -108,9 +179,10 @@ def template UveThreeVecPredicatedExecute {{
 }};
 
 
-//JMNOTE: 2Vec Pred Instruction Templates
 
-def template UveTwoVecPredicatedExecute {{
+//JMNOTE: 2Vec 1SDest Pred Instruction Templates
+
+def template UveTwoVec2ScaPredicatedExecute {{
     Fault %(class_name)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
@@ -118,7 +190,13 @@ def template UveTwoVecPredicatedExecute {{
         unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / sizeof(uint8_t);
         uint8_t src1_vw = get_vector_width(xc, VSrc1);
+        uint16_t src1_vi = RiscvStaticInst::getUveValidIndex(
+            xc->tcBase(), VSrc1) / (1 << src1_vw);
         unsigned iCount = eCount /  (1<<src1_vw);
+        //JMFIXME: Change this to simple function
+        if (iCount > src1_vi){
+            iCount = src1_vi;
+        }
 
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
@@ -131,8 +209,6 @@ def template UveTwoVecPredicatedExecute {{
 
         if (fault == NoFault) {
             %(ex_code)s;
-            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
-                src1_vw);
             %(op_wb)s;
         }
 

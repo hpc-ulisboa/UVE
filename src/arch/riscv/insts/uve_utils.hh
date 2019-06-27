@@ -56,6 +56,9 @@ namespace RiscvISA
 
     void check_equal_src_widths(size_t a, size_t b);
 
+    uint16_t get_dest_valid_index(uint16_t a, uint16_t b);
+    uint16_t get_dest_valid_index(uint16_t a, uint16_t b, uint16_t c);
+
     size_t get_vector_width(ExecContext *xc, uint8_t reg );
 
     template <typename Ret>

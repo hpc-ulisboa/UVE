@@ -408,7 +408,8 @@ let {{
                                     dest_code, generic_code = None,
                                     generic_code_float = None,
                                     generic_code_signed = None,
-                                    acc_initial_value = None):
+                                    acc_initial_value = None,
+                                    dest_scalar = False):
         global header_output, exec_output, decoders
 
         genericArithThreeVecPredicated = '''
@@ -502,13 +503,18 @@ let {{
 
             Iop = InstObjParams(mnemonic,
                 full_class_name,
-                'UveBaseTwoVecPredicated',
+                'UveBaseTwoVecPredicated' if not dest_scalar
+                    else 'UveBaseTwoVec2ScaPredicated',
                 {'ex_code' : full_code,
                 'op_class': 'SimdAluOp'},
                 [])
 
-            header_output += UveTwoVecPredicatedDeclare.subst(Iop)
-            exec_output += UveTwoVecPredicatedExecute.subst(Iop)
+            header_output += \
+                UveTwoVecPredicatedDeclare.subst(Iop) if not dest_scalar \
+                    else UveTwoVec2ScaPredicatedDeclare.subst(Iop)
+            exec_output += \
+                UveTwoVecPredicatedExecute.subst(Iop) if not dest_scalar \
+                    else UveTwoVec2ScaPredicatedExecute.subst(Iop)
             exec_output += UveArithExecDeclare.subst(Iop)
 
     # JMNOTE: 3VecPredicatedInsts Logical
@@ -798,17 +804,17 @@ let {{
         ''',
         generic_code='''
         out = out + v1[i];
-        ''')
+        ''', dest_scalar=True)
     emitUveArithTwoVecReductionPredicatedFPInsts("so.a.adds",
         "UveArithAddsAcc",
         dest_code='''
         %(acc_type)s src_aux = 0;
-        src_aux = castBitsToRetType<%(acc_type)s>(Rd_merge_ud);
+        src_aux = (%(acc_type)s) castBitsToRetType<%%(type)s>(Rd_merge_s_ud);
         Rd_ud = typeCastToBits((%%(type)s)(src_aux + out));
         ''',
         generic_code='''
         out = out + v1[i];
-        ''')
+        ''', dest_scalar=True)
     emitUveArithTwoVecReductionPredicatedFPInsts("so.a.mins", "UveArithMins",
         dest_code='''
         Rd_ud = typeCastToBits(out);
