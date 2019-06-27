@@ -100,6 +100,7 @@ def operands {{
 
     # Rd_merge has special purpose on vector insts that accumulate
     'Rd_merge': ('IntReg', 'ud', 'VDest', 'IsInteger', 2),
+    'Rd_merge_s': ('IntReg', 'ud', 'RD', 'IsInteger', 2),
     'Rs1_merge': ('IntReg', 'ud', 'RS1', 'IsInteger', 2),
 
 #Vector Reg Operands
