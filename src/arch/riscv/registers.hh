@@ -269,6 +269,7 @@ enum MiscRegIndex {
     //JMNOTE:uveVl UVE CSRs index enum
     MISCREG_UVEVS,
     MISCREG_UVEVT,
+    MISCREG_UVEPVT,
     MISCREG_UVEVI0,
     MISCREG_UVEVI1,
     MISCREG_UVEVI2,
@@ -450,6 +451,7 @@ enum CSRIndex {
     // As a result of the analysis of the previous registers
     CSR_UVEVS = 0xFC0, //JMNOTE: FC0-FFF read only custom machine registers
     CSR_UVEVT = 0xBC1, //JMNOTE: BC0-BFF read write custom machine registers
+    CSR_UVEPVT = 0xBC2, //JMNOTE: BC0-BFF read write custom machine registers
     CSR_UVEVI0 = 0xBD0, //JMNOTE: UVEVI# are registers 0-7 for valid index
     CSR_UVEVI1 = 0xBD1,
     CSR_UVEVI2 = 0xBD2,
@@ -630,9 +632,7 @@ const std::map<int, CSRMetadata> CSRData = {
     //JMNOTE:uveVl UVE CSRs
     {CSR_UVEVS, {"uvevs", MISCREG_UVEVS}},
     {CSR_UVEVT, {"uvevt", MISCREG_UVEVT}},
-<<<<<<< HEAD
     {CSR_UVEVT, {"uvepvt", MISCREG_UVEPVT}},
-=======
     {CSR_UVEVI0, {"uvevi0", MISCREG_UVEVI0}},
     {CSR_UVEVI1, {"uvevi1", MISCREG_UVEVI1}},
     {CSR_UVEVI2, {"uvevi2", MISCREG_UVEVI2}},
@@ -641,7 +641,6 @@ const std::map<int, CSRMetadata> CSRData = {
     {CSR_UVEVI5, {"uvevi5", MISCREG_UVEVI5}},
     {CSR_UVEVI6, {"uvevi6", MISCREG_UVEVI6}},
     {CSR_UVEVI7, {"uvevi7", MISCREG_UVEVI7}}
->>>>>>> Added vector valid index registers
 };
 
 /**

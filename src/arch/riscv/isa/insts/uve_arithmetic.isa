@@ -329,6 +329,7 @@ let {{
 
         genericArithTwoVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
         TheISA::VecRegContainer output;
         switch(src1_vw){
             case 0:{
@@ -425,7 +426,7 @@ let {{
                                     acc_initial_value = None,
                                     dest_scalar = False):
         global header_output, exec_output, decoders
-        //JMFIXME: Correct the predicates here
+        #JMFIXME: Correct the predicates here
         genericArithThreeVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
         %(acc_type)s out = %(acc_initial_value)s;

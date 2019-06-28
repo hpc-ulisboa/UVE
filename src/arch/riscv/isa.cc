@@ -274,6 +274,7 @@ ISA::getUvePVecType(ThreadContext *tc, uint8_t vector_register_id)
     vector_type &= 0b11 << shift_amt;
 
     return vector_type >> shift_amt;
+}
 
 //JMNOTE: Set UVE Vector Valid Index
 void
@@ -285,7 +286,7 @@ ISA::setUveValidIndex(ThreadContext *tc, uint8_t vector_register_id,
     uint8_t shift_amt = (vector_register_id % 4) * 16;
 
     auto vector_index_info = tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
-    vector_index_info &= ~(0xFFFF << shift_amt);
+    vector_index_info &= ~(((uint64_t)0xFFFF) << shift_amt);
     vector_index_info |= ((uint64_t)valid_index) << shift_amt;
     DPRINTF(UVEMem, "Set Uve Valid: V(%d) Requested(%dby) Final(%#x) in"
         " Reg(%d)\n",vector_register_id, valid_index,vector_index_info,

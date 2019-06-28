@@ -219,7 +219,7 @@ def template UveVectorStoreExecute {{
             VSrc1);
         uint8_t vec_elem_bytes = 1 << vector_width;
         uint16_t vector_valid_index = RiscvStaticInst::getUveValidIndex(
-            xc->tcBase(), VSrc1) / vec_elem_bytes;
+            xc->tcBase(), VSrc1);
         unsigned maxExecSize = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / vec_elem_bytes;
         unsigned size = 0;
@@ -286,7 +286,7 @@ def template UveVectorStoreInitiateAcc {{
             VSrc1);
         uint8_t vec_elem_bytes = 1 << vector_width;
         uint16_t vector_valid_index = RiscvStaticInst::getUveValidIndex(
-            xc->tcBase(), VSrc1) / vec_elem_bytes;
+            xc->tcBase(), VSrc1);
         unsigned maxExecSize = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / vec_elem_bytes;
         unsigned size = 0;

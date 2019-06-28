@@ -86,7 +86,6 @@ class RiscvStaticInst : public StaticInst
     {
         return tc->getIsaPtr()->getUveVecType(tc, vector_register_id);
     }
-<<<<<<< HEAD
 
     static void
     setUvePVecType(ThreadContext *tc, uint8_t vector_register_id,
@@ -99,7 +98,8 @@ class RiscvStaticInst : public StaticInst
     getUvePVecType(ThreadContext *tc, uint8_t vector_register_id)
     {
         return tc->getIsaPtr()->getUvePVecType(tc, vector_register_id);
-=======
+    }
+
     static void
     setUveValidIndex(ThreadContext *tc, uint8_t vector_register_id,
         uint16_t valid_index)
@@ -112,7 +112,6 @@ class RiscvStaticInst : public StaticInst
     getUveValidIndex(ThreadContext *tc, uint8_t vector_register_id)
     {
         return tc->getIsaPtr()->getUveValidIndex(tc, vector_register_id);
->>>>>>> Added  valid in memory instrucitions...
     }
 };
 
