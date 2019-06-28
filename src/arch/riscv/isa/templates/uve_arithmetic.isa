@@ -95,7 +95,7 @@ def template UveArithExecDeclare {{
         Trace::InstRecord *) const;
 }};
 
-//JMNOTE: 3Vec Pred Instruction Templates
+//JMNOTE: 3Vec Pred Instruction Templates ([] = OP([], []))
 
 def template UveThreeVecPredicatedExecute {{
     Fault %(class_name)s::execute(ExecContext *xc,
@@ -116,10 +116,7 @@ def template UveThreeVecPredicatedExecute {{
         dest_vi = get_dest_valid_index(src1_vi, src2_vi);
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
-
-        if(iCount > dest_vi){
-            iCount = dest_vi;
-        }
+        iCount = UVEMIN(iCount,dest_vi);
         DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
         eCount, iCount);
 
@@ -140,7 +137,7 @@ def template UveThreeVecPredicatedExecute {{
 }};
 
 
-//JMNOTE: 2Vec Pred Instruction Templates
+//JMNOTE: 2Vec Pred Instruction Templates  ([] =  OP([], []?) + []?)
 
 def template UveTwoVecPredicatedExecute {{
     Fault %(class_name)s::execute(ExecContext *xc,
@@ -153,10 +150,7 @@ def template UveTwoVecPredicatedExecute {{
         uint16_t src1_vi = RiscvStaticInst::getUveValidIndex(
             xc->tcBase(), VSrc1) / (1 << src1_vw);
         unsigned iCount = eCount /  (1<<src1_vw);
-        //JMFIXME: Change this to simple function
-        if (iCount > src1_vi){
-            iCount = src1_vi;
-        }
+        iCount = UVEMIN(iCount,src1_vi);
 
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
@@ -171,6 +165,8 @@ def template UveTwoVecPredicatedExecute {{
             %(ex_code)s;
             RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
                 src1_vw);
+            RiscvStaticInst::setUveValidIndex(xc->tcBase(), VDest,
+                iCount * (1 << src1_vw));
             %(op_wb)s;
         }
 
@@ -180,7 +176,7 @@ def template UveTwoVecPredicatedExecute {{
 
 
 
-//JMNOTE: 2Vec 1SDest Pred Instruction Templates
+//JMNOTE: 1/2Vec 1SDest Pred Instruction Templates (Sca = OP([], []?) + Sca?)
 
 def template UveTwoVec2ScaPredicatedExecute {{
     Fault %(class_name)s::execute(ExecContext *xc,
@@ -193,10 +189,8 @@ def template UveTwoVec2ScaPredicatedExecute {{
         uint16_t src1_vi = RiscvStaticInst::getUveValidIndex(
             xc->tcBase(), VSrc1) / (1 << src1_vw);
         unsigned iCount = eCount /  (1<<src1_vw);
-        //JMFIXME: Change this to simple function
-        if (iCount > src1_vi){
-            iCount = src1_vi;
-        }
+        iCount = UVEMIN(iCount,src1_vi);
+
 
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
@@ -217,7 +211,7 @@ def template UveTwoVec2ScaPredicatedExecute {{
 }};
 
 
-//JMNOTE: VecSca Pred Instruction Templates
+//JMNOTE: VecSca Pred Instruction Templates ([] = [] << Sca)
 
 def template UveVecScaPredicatedExecute {{
     Fault %(class_name)s::execute(ExecContext *xc,
@@ -227,7 +221,10 @@ def template UveVecScaPredicatedExecute {{
         unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / sizeof(uint8_t);
         uint8_t src1_vw = get_vector_width(xc, VSrc1);
+        uint16_t src1_vi = RiscvStaticInst::getUveValidIndex(
+            xc->tcBase(), VSrc1) / (1 << src1_vw);
         unsigned iCount = eCount /  (1<<src1_vw);
+        iCount = UVEMIN(iCount,src1_vi);
 
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
@@ -242,6 +239,8 @@ def template UveVecScaPredicatedExecute {{
             %(ex_code)s;
             RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
                 src1_vw);
+            RiscvStaticInst::setUveValidIndex(xc->tcBase(), VDest,
+                iCount * (1 << src1_vw));
             %(op_wb)s;
         }
 
