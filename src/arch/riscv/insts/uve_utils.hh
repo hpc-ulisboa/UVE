@@ -9,6 +9,10 @@
 
 namespace RiscvISA
 {
+    #define UVEMIN(a,b) (a < b )? a : b
+    #define UVEMAX(a,b) (a > b )? a : b
+
+
     #define MEM_PRINTF(mem,dir,vec,count)  DPRINTF(UVEMem, "______________" \
                 "__________________\n"); \
                 std::string ss; \
