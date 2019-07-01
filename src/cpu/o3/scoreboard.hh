@@ -91,6 +91,8 @@ class Scoreboard
 
         if (phys_reg->isZeroReg())
             assert(ready);
+        if (phys_reg->isOnePredReg())
+            assert(ready);
 
         return ready;
     }

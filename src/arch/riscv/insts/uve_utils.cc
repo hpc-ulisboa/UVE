@@ -84,14 +84,6 @@ namespace RiscvISA{
         return uveMin(uveMin(a, b), c);
     }
 
-    uint16_t get_dest_valid_index(uint16_t a, uint16_t b){
-        return uveMin(a, b);
-    }
-
-    uint16_t get_dest_valid_index(uint16_t a, uint16_t b, uint16_t c){
-        return uveMin(uveMin(a, b), c);
-    }
-
     size_t get_vector_width(ExecContext *xc, uint8_t reg ){
         return RiscvStaticInst::getUveVecType(xc->tcBase(),
             reg);

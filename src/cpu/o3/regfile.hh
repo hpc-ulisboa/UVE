@@ -334,7 +334,13 @@ class PhysRegFile
         DPRINTF(IEW, "RegFile: Setting vector register %i to %s\n",
                 int(phys_reg->index()), val.print());
 
+        #if THE_ISA == RISCV_ISA
+        //JMNOTE: Setting vecPredRegFile for one pred reg
+        if (!phys_reg->isZeroReg())
+            vectorRegFile[phys_reg->index()] = val;
+        #else
         vectorRegFile[phys_reg->index()] = val;
+        #endif
     }
 
     /** Sets a vector register to the given value. */
@@ -358,7 +364,13 @@ class PhysRegFile
         DPRINTF(IEW, "RegFile: Setting predicate register %i to %s\n",
                 int(phys_reg->index()), val.print());
 
+        #if THE_ISA == RISCV_ISA
+        //JMNOTE: Setting vecPredRegFile for one pred reg
+        if (!phys_reg->isOnePredReg())
+            vecPredRegFile[phys_reg->index()] = val;
+        #else
         vecPredRegFile[phys_reg->index()] = val;
+        #endif
     }
 
     /** Sets a condition-code register to the given value. */

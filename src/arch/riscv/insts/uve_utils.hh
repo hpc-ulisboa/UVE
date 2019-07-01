@@ -65,9 +65,6 @@ namespace RiscvISA
     uint16_t get_dest_valid_index(uint16_t a, uint16_t b);
     uint16_t get_dest_valid_index(uint16_t a, uint16_t b, uint16_t c);
 
-    uint16_t get_dest_valid_index(uint16_t a, uint16_t b);
-    uint16_t get_dest_valid_index(uint16_t a, uint16_t b, uint16_t c);
-
     size_t get_vector_width(ExecContext *xc, uint8_t reg );
     size_t get_predicate_vector_width(ExecContext *xc, uint8_t reg );
 
