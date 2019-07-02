@@ -102,7 +102,7 @@ let {{
                                     code = None, generic_code = None,
                                     generic_code_float = None,
                                     generic_code_signed = None,
-                                    dest_as_source = False):
+                                    dest_as_source = False, op_class = "Alu"):
         global header_output, exec_output, decoders
 
         genericArithThreeVecPredicated = '''
@@ -214,7 +214,8 @@ let {{
                 full_class_name,
                 'UveBaseThreeVecPredicated',
                 {'ex_code' : full_code,
-                'op_class': 'SimdAluOp'},
+                'op_class': 'Simd'+('Float' if (suffix=="FP") else "") +
+                    op_class +"Op"},
                 [])
 
             header_output += UveThreeVecPredicatedDeclare.subst(Iop)
@@ -225,7 +226,8 @@ let {{
     def emitUveArithTwoVecPredicatedFPInsts(mnemonic, class_name,
                                     code = None,
                                     generic_code_float = None,
-                                    generic_code_signed = None):
+                                    generic_code_signed = None,
+                                    op_class = "Alu"):
         global header_output, exec_output, decoders
 
         genericArithTwoVecPredicated = '''
@@ -313,7 +315,8 @@ let {{
                 full_class_name,
                 'UveBaseTwoVecPredicated',
                 {'ex_code' : full_code,
-                'op_class': 'SimdAluOp'},
+                'op_class': 'Simd'+('Float' if (suffix=="FP") else "") +
+                    op_class +"Op"},
                 [])
 
             header_output += UveTwoVecPredicatedDeclare.subst(Iop)
@@ -324,7 +327,8 @@ let {{
     def emitUveArithTwoVecPredicatedFPoInsts(mnemonic, class_name,
                                     code = None,
                                     generic_code_float = None,
-                                    generic_code_signed = None):
+                                    generic_code_signed = None,
+                                    op_class = "Alu"):
         global header_output, exec_output, decoders
 
         genericArithTwoVecPredicated = '''
@@ -411,7 +415,8 @@ let {{
                 full_class_name,
                 'UveBaseTwoVecPredicated',
                 {'ex_code' : full_code,
-                'op_class': 'SimdAluOp'},
+                'op_class': 'Simd'+('Float' if (suffix=="FP") else "") +
+                    op_class +"Op"},
                 [])
 
             header_output += UveTwoVecPredicatedDeclare.subst(Iop)
@@ -424,7 +429,7 @@ let {{
                                     generic_code_float = None,
                                     generic_code_signed = None,
                                     acc_initial_value = None,
-                                    dest_scalar = False):
+                                    dest_scalar = False, op_class = "Alu"):
         global header_output, exec_output, decoders
         #JMFIXME: Correct the predicates here
         genericArithThreeVecPredicated = '''
@@ -521,7 +526,8 @@ let {{
                 'UveBaseTwoVecPredicated' if not dest_scalar
                     else 'UveBaseTwoVec2ScaPredicated',
                 {'ex_code' : full_code,
-                'op_class': 'SimdAluOp'},
+                'op_class': 'Simd'+('Float' if (suffix=="FP") else "") +
+                    op_class +"Op"},
                 [])
 
             header_output += \
@@ -536,7 +542,7 @@ let {{
     def emitUveArithLogicThreeVecPredicatedInsts(mnemonic, class_name,
                                     generic_code,
                                     src2 = None, int_types=False,
-                                    src2int=False):
+                                    src2int=False, op_class="Alu"):
         global header_output, exec_output, decoders
 
         assert(src2 is not None)
@@ -635,7 +641,7 @@ let {{
             'UveBaseThreeVecPredicated' if src2 else \
                                 "UveBaseTwoVecPredicated",
             {'ex_code' : full_code,
-            'op_class': 'SimdAluOp'},
+            'op_class': 'Simd'+ op_class +"Op"},
             [])
 
         DeclarerTemplate = UveThreeVecPredicatedDeclare if src2 else \
@@ -650,7 +656,8 @@ let {{
 
     # JMNOTE: Vec + Scalar Shift Insts (slls,srls,sras)
     def emitUveArithLogicShiftVecScaPredicatedInsts(mnemonic, class_name,
-                                    generic_code, int_types=False):
+                                    generic_code, int_types=False,
+                                    op_class="Alu"):
         global header_output, exec_output, decoders
 
         genericArithThreeVecPredicated = '''
@@ -727,7 +734,7 @@ let {{
             class_name,
             'UveBaseVecScaPredicated',
             {'ex_code' : full_code,
-            'op_class': 'SimdAluOp'},
+            'op_class': 'Simd'+ op_class +"Op"},
             [])
 
         header_output += UveVecScaPredicatedDeclare.subst(Iop)
@@ -735,9 +742,12 @@ let {{
         exec_output += UveArithExecDeclare.subst(Iop)
 
 
-    emitUveArithThreeVecPredicatedFPInsts("so.a.add", "UveArithAdd", "+")
-    emitUveArithThreeVecPredicatedFPInsts("so.a.sub", "UveArithSub", "-")
-    emitUveArithThreeVecPredicatedFPInsts("so.a.mul", "UveArithMul", "*")
+    emitUveArithThreeVecPredicatedFPInsts("so.a.add", "UveArithAdd", "+",
+                                            op_class="Add")
+    emitUveArithThreeVecPredicatedFPInsts("so.a.sub", "UveArithSub", "-",
+                                            op_class="Add")
+    emitUveArithThreeVecPredicatedFPInsts("so.a.mul", "UveArithMul", "*",
+                                            op_class="Mult")
     emitUveArithThreeVecPredicatedFPInsts("so.a.div", "UveArithDiv",
         generic_code='''
         if (v2[i] == 0) {
@@ -762,19 +772,23 @@ let {{
         } else {
             out[i] = v1[i]/v2[i];
         }
-        ''')
+        ''', op_class="Div")
     emitUveArithThreeVecPredicatedFPInsts("so.a.mac", "UveArithMac",
-        generic_code="out[i]=v3[i] + (v1[i]*v2[i]);", dest_as_source=True)
+        generic_code="out[i]=v3[i] + (v1[i]*v2[i]);", dest_as_source=True,
+        op_class="MultAcc")
     emitUveArithThreeVecPredicatedFPInsts("so.a.max", "UveArithMax",
-        generic_code="out[i]= uveMax(v1[i],v2[i]);")
+        generic_code="out[i]= uveMax(v1[i],v2[i]);", op_class="Cmp")
     emitUveArithThreeVecPredicatedFPInsts("so.a.min", "UveArithMin",
-        generic_code="out[i]= uveMin(v1[i],v2[i]);")
+        generic_code="out[i]= uveMin(v1[i],v2[i]);", op_class="Cmp")
 
-    emitUveArithTwoVecPredicatedFPInsts("so.a.inc", "UveArithInc", "uveInc")
-    emitUveArithTwoVecPredicatedFPInsts("so.a.dec", "UveArithDec", "uveDec")
+    emitUveArithTwoVecPredicatedFPInsts("so.a.inc", "UveArithInc", "uveInc",
+                                        op_class="Add")
+    emitUveArithTwoVecPredicatedFPInsts("so.a.dec", "UveArithDec", "uveDec",
+                                        op_class="Add")
 
 
-    emitUveArithTwoVecPredicatedFPoInsts("so.a.abs", "UveArithAbs", "uveAbs")
+    emitUveArithTwoVecPredicatedFPoInsts("so.a.abs", "UveArithAbs", "uveAbs",
+                                        op_class="Misc")
 
 
     emitUveArithTwoVecReductionPredicatedFPInsts("so.a.adde", "UveArithAdde",
@@ -787,7 +801,7 @@ let {{
         ''',
         generic_code='''
         out = out + v1[i];
-        ''')
+        ''',op_class="ReduceAdd")
     emitUveArithTwoVecReductionPredicatedFPInsts("so.a.adde",
         "UveArithAddeAcc",
         dest_code='''
@@ -822,14 +836,14 @@ let {{
         ''',
         generic_code='''
         out = out + v1[i];
-        ''')
+        ''', op_class="ReduceAdd")
     emitUveArithTwoVecReductionPredicatedFPInsts("so.a.adds", "UveArithAdds",
         dest_code='''
         Rd_ud = typeCastToBits((%%(type)s)out);
         ''',
         generic_code='''
         out = out + v1[i];
-        ''', dest_scalar=True)
+        ''', dest_scalar=True, op_class="ReduceAdd")
     emitUveArithTwoVecReductionPredicatedFPInsts("so.a.adds",
         "UveArithAddsAcc",
         dest_code='''
@@ -839,21 +853,23 @@ let {{
         ''',
         generic_code='''
         out = out + v1[i];
-        ''', dest_scalar=True)
+        ''', dest_scalar=True, op_class="ReduceAdd")
     emitUveArithTwoVecReductionPredicatedFPInsts("so.a.mins", "UveArithMins",
         dest_code='''
         Rd_ud = typeCastToBits(out);
         ''',
         generic_code='''
         out = uveMin(out, (%(acc_type)s) v1[i]);
-        ''', acc_initial_value="numeric_limits<%(acc_type)s>::max()")
+        ''', acc_initial_value="numeric_limits<%(acc_type)s>::max()",
+        op_class="ReduceCmp")
     emitUveArithTwoVecReductionPredicatedFPInsts("so.a.maxs", "UveArithMaxs",
         dest_code='''
         Rd_ud = typeCastToBits(out);
         ''',
         generic_code='''
         out = uveMax(out, (%(acc_type)s) v1[i]);
-        ''', acc_initial_value="numeric_limits<%(acc_type)s>::min()")
+        ''', acc_initial_value="numeric_limits<%(acc_type)s>::min()",
+        op_class="ReduceAdd")
 
 
     emitUveArithLogicThreeVecPredicatedInsts("so.a.NAND", "UveArithNAND",
@@ -883,31 +899,31 @@ let {{
     emitUveArithLogicThreeVecPredicatedInsts("so.a.SLL", "UveArithSLL",
     '''
         out[i] = v1[i]<<v2[i];
-    ''', src2=True, int_types=True, src2int=True)
+    ''', src2=True, int_types=True, src2int=True, op_class="Shift")
     emitUveArithLogicThreeVecPredicatedInsts("so.a.SRL", "UveArithSRL",
     '''
         %(type)s aux = (%(type)s) typeCastToBits(v1[i]);
         out[i] = aux>>v2[i];
-    ''', src2=True, int_types=False, src2int=True)
+    ''', src2=True, int_types=False, src2int=True, op_class="Shift")
     emitUveArithLogicThreeVecPredicatedInsts("so.a.SRA", "UveArithSRA",
     '''
         out[i] = v1[i]>>v2[i];
-    ''', src2=True, int_types=True, src2int=True)
+    ''', src2=True, int_types=True, src2int=True, op_class="Shift")
 
 
     emitUveArithLogicShiftVecScaPredicatedInsts("so.a.SLLS", "UveArithSLLS",
     '''
         out[i] = v1[i]<<Rs2_sd;
-    ''',int_types=True);
+    ''',int_types=True, op_class="Shift");
     emitUveArithLogicShiftVecScaPredicatedInsts("so.a.SRLS", "UveArithSRLS",
     '''
         %(type)s aux = (%(type)s) typeCastToBits(v1[i]);
         out[i] = aux>>Rs2_sd;
-    # ''',int_types=False)
+    # ''',int_types=False, op_class="Shift")
     emitUveArithLogicShiftVecScaPredicatedInsts("so.a.SRLS", "UveArithSRAS",
     '''
         out[i] = v1[i]>>Rs2_sd;
-    ''',int_types=True)
+    ''',int_types=True, op_class="Shift")
 
 
 }};

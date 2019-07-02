@@ -60,7 +60,7 @@ namespace RiscvISA
     template <typename Ret>
     Ret convertInt(int64_t& val);
 
-    void check_equal_src_widths(size_t widths...);
+    void check_equal_src_widths(size_t width1, size_t width2);
 
     uint16_t get_dest_valid_index(uint16_t a, uint16_t b);
     uint16_t get_dest_valid_index(uint16_t a, uint16_t b, uint16_t c);

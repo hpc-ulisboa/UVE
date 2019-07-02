@@ -50,30 +50,12 @@ namespace RiscvISA{
         return ((Ret&) val);
     }
 
-    void check_equal_src_widths(size_t widths...){
-        size_t sizes [10] = {0};
-        int i = 0;
-        va_list args;
-        va_start(args, widths);
-
-        while (1){
-            size_t arg = va_arg(args, size_t);
-            if (!arg) break;
-            sizes[i] = arg;
-            i++;
-        }
-
-        va_end(args);
-
+    void check_equal_src_widths(size_t width1,size_t width2){
         //JMTODO: Use assert in the future
-        if (i > 1){
-            for (int k = 0; k < i - 1; k++){
-                if (sizes[k]!=sizes[k+1]){
-                    DPRINTF(UVEUtils,"Src widths differ.. invalid src code");
-                }
-            }
+        if (width1!=width2){
+            DPRINTF(UVEUtils,"Src widths differ..(%d)!=(%d)\n",
+            width1, width2);
         }
-
     }
 
     uint16_t get_dest_valid_index(uint16_t a, uint16_t b){
