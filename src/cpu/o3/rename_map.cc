@@ -47,6 +47,7 @@
 
 #include "cpu/reg_class.hh"
 #include "debug/Rename.hh"
+#include "debug/JMDEVEL.hh"
 
 using namespace std;
 
@@ -73,6 +74,9 @@ SimpleRenameMap::init(unsigned size, SimpleFreeList *_freeList,
 SimpleRenameMap::RenameInfo
 SimpleRenameMap::rename(const RegId& arch_reg)
 {
+    //JMTODO: Map rename destination register (Physical)
+    //Actual renaming
+
     PhysRegIdPtr renamed_reg;
     // Record the current physical register that is renamed to the
     // requested architected register.
@@ -90,6 +94,7 @@ SimpleRenameMap::rename(const RegId& arch_reg)
         renamed_reg = prev_reg;
         renamed_reg->decrNumPinnedWrites();
     } else {
+        //JMTODO: Common renaming, change code here to load data from
         renamed_reg = freeList->getReg();
         map[arch_reg.flatIndex()] = renamed_reg;
         renamed_reg->setNumPinnedWrites(arch_reg.getNumPinnedWrites());

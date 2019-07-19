@@ -54,6 +54,8 @@
 #include "cpu/inst_seq.hh"
 #include "cpu/reg_class.hh"
 
+#include "debug/JMDEVEL.hh"
+
 class Packet;
 
 template <class Impl>
@@ -95,6 +97,7 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     Fault initiateAcc();
 
     /** Completes the access.  Only valid for memory operations. */
+    //JMNOTE: Only valid for memory loads
     Fault completeAcc(PacketPtr pkt);
 
   private:
@@ -282,6 +285,7 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     const VecRegContainer&
     readVecRegOperand(const StaticInst *si, int idx) const override
     {
+        DPRINTF(JMDEVEL, "dyn_inst.287 readVecRegOperand: _srcRegIdx[%d]=*%p\n",idx,this->_srcRegIdx[idx]);
         return this->cpu->readVecReg(this->_srcRegIdx[idx]);
     }
 

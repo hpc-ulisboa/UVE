@@ -1060,6 +1060,9 @@ InstructionQueue<Impl>::wakeDependents(const DynInstPtr &completed_inst)
             // so that it knows which of its source registers is
             // ready.  However that would mean that the dependency
             // graph entries would need to hold the src_reg_idx.
+            //JMTODO: Here is where the registers are marked as ready
+            // Note that markSrcRegReady does inst side marking
+            // And addIfReady puts the inst in the readyQueue, if it's ready
             dep_inst->markSrcRegReady();
 
             addIfReady(dep_inst);
@@ -1370,6 +1373,7 @@ InstructionQueue<Impl>::addToDependents(const DynInstPtr &new_inst)
 {
     // Loop through the instruction's source registers, adding
     // them to the dependency list if they are not ready.
+    //JMTODO: Register are being added to dependency list if not ready
     int8_t total_src_regs = new_inst->numSrcRegs();
     bool return_val = false;
 

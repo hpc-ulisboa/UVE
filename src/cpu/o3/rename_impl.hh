@@ -448,7 +448,7 @@ DefaultRename<Impl>::tick()
         DPRINTF(Rename, "Processing [tid:%i]\n", tid);
 
         status_change = checkSignalsAndUpdate(tid) || status_change;
-
+        //JMNOTE: Rename itself is called here
         rename(status_change, tid);
     }
 
@@ -752,6 +752,9 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             serializeAfter(insts_to_rename, tid);
         }
 
+        //JMTODO: HERE the registers are only renamed or looked up.
+        //The readiness of each register can be handled latter if necessary
+
         renameSrcRegs(inst, inst->threadNumber);
 
         renameDestRegs(inst, inst->threadNumber);
@@ -967,6 +970,9 @@ DefaultRename<Impl>::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
     typename std::list<RenameHistory>::iterator hb_it =
         historyBuffer[tid].begin();
 
+    //JMTODO: Renaming Squashing, the instructions that were mispredicted
+    //Must be removed, and therefore the registers must be rewinded
+
     // After a syscall squashes everything, the history buffer may be empty
     // but the ROB may still be squashing instructions.
     // Go through the most recent instructions, undoing the mappings
@@ -1069,12 +1075,24 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
     RenameMap *map = renameMap[tid];
     unsigned num_src_regs = inst->numSrcRegs();
 
+    //JMTODO: Rename source register (Physical)
+
     // Get the architectual register numbers from the source and
     // operands, and redirect them to the right physical register.
     for (int src_idx = 0; src_idx < num_src_regs; src_idx++) {
         const RegId& src_reg = inst->srcRegIdx(src_idx);
         PhysRegIdPtr renamed_reg;
 
+        //JMTODO: Check if vector register is stream
+
+        //JMTODO: IF Stream: First time create new register (call rename)
+        //Then mark it as created (For first time flag)
+        //Add it to scoreboard as not ready
+
+        //JMTODO: IF Stream: Do the same, and get data from Streaming Unit
+        //JMTODO: If data is complete: mark scoreboard as ready
+
+        //Standard lookup behaviour applies to any register in the same way
         renamed_reg = map->lookup(tc->flattenRegId(src_reg));
         switch (src_reg.classValue()) {
           case IntRegClass:
@@ -1098,6 +1116,13 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
             panic("Invalid register class: %d.", src_reg.classValue());
         }
 
+        if(src_reg.isVecReg() || src_reg.isVecPredReg())
+            DPRINTF(JMDEVEL, "[tid:%i] "
+                "[S] Looking up %s arch reg %i, got phys reg %i (%s)\n",
+                tid,src_reg.className(), src_reg.index(),
+                renamed_reg->index(),
+                renamed_reg->flatIndex());
+
         DPRINTF(Rename,
                 "[tid:%i] "
                 "Looking up %s arch reg %i, got phys reg %i (%s)\n",
@@ -1105,9 +1130,13 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
                 src_reg.index(), renamed_reg->index(),
                 renamed_reg->className());
 
+
         inst->renameSrcReg(src_idx, renamed_reg);
 
         // See if the register is ready or not.
+        //JMTODO: Here is the only time the registers are checked to be ready
+        // In rename stages
+        // JMNOTE: Registers are checked again in inst_queue_impl
         if (scoreboard->getReg(renamed_reg)) {
             DPRINTF(Rename,
                     "[tid:%i] "
@@ -1136,6 +1165,9 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
     RenameMap *map = renameMap[tid];
     unsigned num_dest_regs = inst->numDestRegs();
 
+    //JMTODO: Rename destination register (Physical)
+    //Here is where the rename map is called to do the actual renaming
+
     // Rename the destination registers.
     for (int dest_idx = 0; dest_idx < num_dest_regs; dest_idx++) {
         const RegId& dest_reg = inst->destRegIdx(dest_idx);
@@ -1149,6 +1181,13 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         inst->flattenDestReg(dest_idx, flat_dest_regid);
 
         scoreboard->unsetReg(rename_result.first);
+
+        if(flat_dest_regid.isVecReg() || flat_dest_regid.isVecPredReg())
+            DPRINTF(JMDEVEL, "[tid:%i] "
+                "[D] Renaming arch reg %i (%s) to physical reg %i (%i).\n",
+                tid,dest_reg.index(), dest_reg.className(),
+                rename_result.first->index(),
+                rename_result.first->flatIndex());
 
         DPRINTF(Rename,
                 "[tid:%i] "

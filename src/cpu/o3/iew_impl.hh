@@ -1336,6 +1336,8 @@ DefaultIEW<Impl>::executeInsts()
             // If we execute the instruction (even if it's a nop) the fault
             // will be replaced and we will lose it.
             if (inst->getFault() == NoFault) {
+                //JMTODO: Here is where the instruction really executes
+                //JMTODO: Operands must be ready before execution
                 inst->execute();
                 if (!inst->readPredicate())
                     inst->forwardOldRegs();
@@ -1476,6 +1478,8 @@ DefaultIEW<Impl>::writebackInsts()
         // E.g. Strictly ordered loads have not actually executed when they
         // are first sent to commit.  Instead commit must tell the LSQ
         // when it's ready to execute the strictly ordered load.
+        //JMTODO: Here is where the writeback is done, by marking the registers
+        // in the scoreboard
         if (!inst->isSquashed() && inst->isExecuted() && inst->getFault() == NoFault) {
             int dependents = instQueue.wakeDependents(inst);
 

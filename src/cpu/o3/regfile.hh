@@ -53,6 +53,7 @@
 #include "config/the_isa.hh"
 #include "cpu/o3/comm.hh"
 #include "debug/IEW.hh"
+#include "debug/JMDEVEL.hh"
 #include "enums/VecRegRenameMode.hh"
 
 class UnifiedFreeList;
@@ -210,6 +211,8 @@ class PhysRegFile
     {
         assert(phys_reg->isVectorPhysReg());
 
+        DPRINTF(JMDEVEL, "regfile.213 readVecReg idx(%d) data: %s\n",int(phys_reg->index()),
+                vectorRegFile[phys_reg->index()].print());
         DPRINTF(IEW, "RegFile: Access to vector register %i, has "
                 "data %s\n", int(phys_reg->index()),
                 vectorRegFile[phys_reg->index()].print());

@@ -68,6 +68,8 @@
 #include "sim/stat_control.hh"
 #include "sim/system.hh"
 
+#include "debug/JMDEVEL.hh"
+
 #if THE_ISA == ALPHA_ISA
 #include "arch/alpha/osfpal.hh"
 #include "debug/Activity.hh"
@@ -1264,6 +1266,8 @@ auto
 FullO3CPU<Impl>::readVecReg(PhysRegIdPtr phys_reg) const
         -> const VecRegContainer&
 {
+    DPRINTF(JMDEVEL, "cpu.1267 readVecReg\n");
+
     vecRegfileReads++;
     return regFile.readVecReg(phys_reg);
 }
