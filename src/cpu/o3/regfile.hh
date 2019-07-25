@@ -211,8 +211,8 @@ class PhysRegFile
     {
         assert(phys_reg->isVectorPhysReg());
 
-        DPRINTF(JMDEVEL, "regfile.213 readVecReg idx(%d) data: %s\n",int(phys_reg->index()),
-                vectorRegFile[phys_reg->index()].print());
+        // DPRINTF(JMDEVEL, "regfile.213 readVecReg idx(%d) data: %s\n",int(phys_reg->index()),
+                // vectorRegFile[phys_reg->index()].print());
         DPRINTF(IEW, "RegFile: Access to vector register %i, has "
                 "data %s\n", int(phys_reg->index()),
                 vectorRegFile[phys_reg->index()].print());

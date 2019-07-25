@@ -545,7 +545,7 @@ LSQUnit<Impl>::executeLoad(const DynInstPtr &inst)
 
     load_fault = inst->initiateAcc();
 
-    DPRINTF(JMDEVEL, "InitiateAcc %s, [sn:%lli]\t readMem %d, adicionar fault!!!\n",inst->pcState(), inst->seqNum, inst->readMemAccPredicate());
+    // DPRINTF(JMDEVEL, "InitiateAcc %s, [sn:%lli]\t readMem %d, adicionar fault!!!\n",inst->pcState(), inst->seqNum, inst->readMemAccPredicate());
 
     //JMNOTE: Called only when readMemAccPredicate is 0... and noFault
     if (load_fault == NoFault && !inst->readMemAccPredicate()) {

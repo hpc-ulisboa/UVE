@@ -22,6 +22,8 @@ public:
             Commit *cmt_ptr, DerivO3CPUParams *params);
     ~SEInterface() {};
 
+    void startupComponent();
+
 
 private:
     /** Pointers for parent and sibling structures. */
@@ -29,6 +31,12 @@ private:
     Decode *decStage;
     IEW *iewStage;
     Commit *cmtStage;
+
+    /* Pointer for communication port */
+    MasterPort *dcachePort;
+
+    /* Addr range */
+    AddrRange sengine_addr_range;
 
 };
 

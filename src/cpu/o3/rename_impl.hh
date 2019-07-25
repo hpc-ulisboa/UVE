@@ -1116,12 +1116,12 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
             panic("Invalid register class: %d.", src_reg.classValue());
         }
 
-        if(src_reg.isVecReg() || src_reg.isVecPredReg())
-            DPRINTF(JMDEVEL, "[tid:%i] "
-                "[S] Looking up %s arch reg %i, got phys reg %i (%s)\n",
-                tid,src_reg.className(), src_reg.index(),
-                renamed_reg->index(),
-                renamed_reg->flatIndex());
+        // if(src_reg.isVecReg() || src_reg.isVecPredReg())
+            // DPRINTF(JMDEVEL, "[tid:%i] "
+            //     "[S] Looking up %s arch reg %i, got phys reg %i (%s)\n",
+            //     tid,src_reg.className(), src_reg.index(),
+            //     renamed_reg->index(),
+            //     renamed_reg->flatIndex());
 
         DPRINTF(Rename,
                 "[tid:%i] "
@@ -1182,12 +1182,12 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
 
         scoreboard->unsetReg(rename_result.first);
 
-        if(flat_dest_regid.isVecReg() || flat_dest_regid.isVecPredReg())
-            DPRINTF(JMDEVEL, "[tid:%i] "
-                "[D] Renaming arch reg %i (%s) to physical reg %i (%i).\n",
-                tid,dest_reg.index(), dest_reg.className(),
-                rename_result.first->index(),
-                rename_result.first->flatIndex());
+        // if(flat_dest_regid.isVecReg() || flat_dest_regid.isVecPredReg())
+        //     DPRINTF(JMDEVEL, "[tid:%i] "
+        //         "[D] Renaming arch reg %i (%s) to physical reg %i (%i).\n",
+        //         tid,dest_reg.index(), dest_reg.className(),
+        //         rename_result.first->index(),
+        //         rename_result.first->flatIndex());
 
         DPRINTF(Rename,
                 "[tid:%i] "

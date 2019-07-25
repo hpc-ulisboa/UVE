@@ -117,6 +117,7 @@ bool
 FullO3CPU<Impl>::DcachePort::recvTimingResp(PacketPtr pkt)
 {
     //JMTODO: Do forwarding to SEInterface
+    DPRINTF(JMDEVEL, "Packet in recvTimingResp: Addr[%#x]\n", pkt->getAddr());
     return lsq->recvTimingResp(pkt);
 }
 
@@ -129,6 +130,7 @@ FullO3CPU<Impl>::DcachePort::recvTimingSnoopReq(PacketPtr pkt)
             cpu->wakeup(tid);
         }
     }
+    DPRINTF(JMDEVEL, "Packet in recvTimingSnoopReq: Addr[%#x]\n", pkt->getAddr());
     //JMTODO: Do forwarding to SEInterface
     lsq->recvTimingSnoopReq(pkt);
 }
@@ -137,7 +139,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::DcachePort::recvReqRetry()
 {
-    //JMTODO: Do forwarding to SEInterface
+    //JMTODO: Do forwarding to SEInterface, just dispatch to both
     lsq->recvReqRetry();
 }
 
@@ -428,6 +430,9 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
 
     for (ThreadID tid = 0; tid < this->numThreads; tid++)
         this->thread[tid]->setFuncExeInst(0);
+
+    //JMFIXME: SEInterface set dcachePort, do this from the object
+    // sei.setDcachePort(&dcachePort);
 }
 
 template <class Impl>
@@ -683,6 +688,8 @@ FullO3CPU<Impl>::startup()
     iew.startupStage();
     rename.startupStage();
     commit.startupStage();
+
+    sei.startupComponent();
 }
 
 template <class Impl>
@@ -1272,7 +1279,7 @@ auto
 FullO3CPU<Impl>::readVecReg(PhysRegIdPtr phys_reg) const
         -> const VecRegContainer&
 {
-    DPRINTF(JMDEVEL, "cpu.1267 readVecReg\n");
+    // DPRINTF(JMDEVEL, "cpu.1267 readVecReg\n");
 
     vecRegfileReads++;
     return regFile.readVecReg(phys_reg);

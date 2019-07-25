@@ -285,7 +285,7 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     const VecRegContainer&
     readVecRegOperand(const StaticInst *si, int idx) const override
     {
-        DPRINTF(JMDEVEL, "dyn_inst.287 readVecRegOperand: _srcRegIdx[%d]=*%p\n",idx,this->_srcRegIdx[idx]);
+        // DPRINTF(JMDEVEL, "dyn_inst.287 readVecRegOperand: _srcRegIdx[%d]=*%p\n",idx,this->_srcRegIdx[idx]);
         return this->cpu->readVecReg(this->_srcRegIdx[idx]);
     }
 
