@@ -37,4 +37,40 @@ SEInterface<Impl>::startupComponent()
              sengine_addr_range.to_string());
 }
 
+template <class Impl>
+bool
+SEInterface<Impl>::recvTimingResp(PacketPtr pkt)
+{
+    if (sengine_addr_range.contains(pkt->getAddr())) {
+        //JMTODO: Handle the request, it is directed
+        DPRINTF(UVESEI, "recvTimingResp addr[%#x]\n",pkt->getAddr());
+        return true;
+    }
+    else {
+        return iewStage->ldstQueue.recvTimingResp(pkt);
+    }
+}
+
+template <class Impl>
+void
+SEInterface<Impl>::recvTimingSnoopReq(PacketPtr pkt)
+{
+    if (sengine_addr_range.contains(pkt->getAddr())) {
+        //JMTODO: Handle the request, it is directed
+        DPRINTF(UVESEI, "recvTimingSnoopResp addr[%#x]\n",pkt->getAddr());
+        return;
+    }
+    else {
+        return iewStage->ldstQueue.recvTimingSnoopReq(pkt);
+    }
+}
+
+template <class Impl>
+void
+SEInterface<Impl>::recvReqRetry()
+{
+    iewStage->ldstQueue.recvReqRetry();
+    //JMFIXME: For now leave as this, but this must me addressed
+}
+
 #endif // __CPU_O3_SE_INTERFACE_IMPL_HH__

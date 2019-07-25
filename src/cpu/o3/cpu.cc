@@ -117,8 +117,8 @@ bool
 FullO3CPU<Impl>::DcachePort::recvTimingResp(PacketPtr pkt)
 {
     //JMTODO: Do forwarding to SEInterface
-    DPRINTF(JMDEVEL, "Packet in recvTimingResp: Addr[%#x]\n", pkt->getAddr());
-    return lsq->recvTimingResp(pkt);
+    return sei->recvTimingResp(pkt);
+
 }
 
 template <class Impl>
@@ -130,9 +130,8 @@ FullO3CPU<Impl>::DcachePort::recvTimingSnoopReq(PacketPtr pkt)
             cpu->wakeup(tid);
         }
     }
-    DPRINTF(JMDEVEL, "Packet in recvTimingSnoopReq: Addr[%#x]\n", pkt->getAddr());
     //JMTODO: Do forwarding to SEInterface
-    lsq->recvTimingSnoopReq(pkt);
+    sei->recvTimingSnoopReq(pkt);
 }
 
 template <class Impl>
@@ -140,7 +139,7 @@ void
 FullO3CPU<Impl>::DcachePort::recvReqRetry()
 {
     //JMTODO: Do forwarding to SEInterface, just dispatch to both
-    lsq->recvReqRetry();
+    sei->recvReqRetry();
 }
 
 template <class Impl>
@@ -430,9 +429,6 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
 
     for (ThreadID tid = 0; tid < this->numThreads; tid++)
         this->thread[tid]->setFuncExeInst(0);
-
-    //JMFIXME: SEInterface set dcachePort, do this from the object
-    // sei.setDcachePort(&dcachePort);
 }
 
 template <class Impl>

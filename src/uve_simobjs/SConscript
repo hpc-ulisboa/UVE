@@ -4,4 +4,4 @@ SimObject('UVEStreamingEngine.py')
 Source('uve_se_controller_impl.cc')
 Source('uve_streaming_engine.cc')
 
-DebugFlag('UVESC')
+DebugFlag('UVESE')

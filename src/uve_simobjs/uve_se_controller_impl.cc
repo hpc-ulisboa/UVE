@@ -1,5 +1,5 @@
 
-#include "debug/UVESC.hh"
+#include "debug/UVESE.hh"
 #include "uve_simobjs/uve_streaming_engine.hh"
 
 SEcontroller::SEcontroller(UVEStreamingEngineParams *params,

@@ -3,6 +3,7 @@
 #define __CPU_O3_SE_INTERFACE_HH__
 
 #include "cpu/utils.hh"
+#include "debug/UVESEI.hh"
 #include "mem/port.hh"
 #include "sim/sim_object.hh"
 
@@ -23,6 +24,10 @@ public:
     ~SEInterface() {};
 
     void startupComponent();
+
+    bool recvTimingResp(PacketPtr pkt);
+    void recvTimingSnoopReq(PacketPtr pkt);
+    void recvReqRetry();
 
 
 private:

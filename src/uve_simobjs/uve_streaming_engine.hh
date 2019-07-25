@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 #include "debug/JMDEVEL.hh"
-#include "debug/UVESC.hh"
+#include "debug/UVESE.hh"
 #include "dev/io_device.hh"
 #include "mem/mem_object.hh"
 #include "params/UVEStreamingEngine.hh"
