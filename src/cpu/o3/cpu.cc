@@ -116,6 +116,7 @@ template <class Impl>
 bool
 FullO3CPU<Impl>::DcachePort::recvTimingResp(PacketPtr pkt)
 {
+    //JMTODO: Do forwarding to SEInterface
     return lsq->recvTimingResp(pkt);
 }
 
@@ -128,6 +129,7 @@ FullO3CPU<Impl>::DcachePort::recvTimingSnoopReq(PacketPtr pkt)
             cpu->wakeup(tid);
         }
     }
+    //JMTODO: Do forwarding to SEInterface
     lsq->recvTimingSnoopReq(pkt);
 }
 
@@ -135,6 +137,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::DcachePort::recvReqRetry()
 {
+    //JMTODO: Do forwarding to SEInterface
     lsq->recvReqRetry();
 }
 
@@ -167,6 +170,9 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
               params->numPhysCCRegs,
               vecMode),
 
+      /*JMNOTE: SEInterface Instantiation*/
+      sei(this, &decode, &iew, &commit, params),
+
       freeList(name() + ".freelist", &regFile),
 
       rob(this, params),
@@ -177,7 +183,7 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       isa(numThreads, NULL),
 
       icachePort(&fetch, this),
-      dcachePort(&iew.ldstQueue, this),
+      dcachePort(&iew.ldstQueue, &sei, this),
 
       timeBuffer(params->backComSize, params->forwardComSize),
       fetchQueue(params->backComSize, params->forwardComSize),

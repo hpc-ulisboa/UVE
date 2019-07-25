@@ -59,6 +59,9 @@ if 'O3CPU' in env['CPU_MODELS']:
     Source('store_set.cc')
     Source('thread_context.cc')
 
+    #JMNOTE: Added Source for compilation
+    Source('se_interface.cc')
+
     DebugFlag('CommitRate')
     DebugFlag('IEW')
     DebugFlag('IQ')

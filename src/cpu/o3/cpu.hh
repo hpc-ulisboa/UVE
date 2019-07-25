@@ -167,13 +167,17 @@ class FullO3CPU : public BaseO3CPU
 
         /** Pointer to LSQ. */
         LSQ<Impl> *lsq;
+        //JMNOTE: SEInterface -> DcachePort: Pointer
+        SEInterface<Impl> *sei;
+
         FullO3CPU<Impl> *cpu;
 
       public:
         /** Default constructor. */
-        DcachePort(LSQ<Impl> *_lsq, FullO3CPU<Impl>* _cpu)
+        DcachePort(LSQ<Impl> *_lsq, SEInterface<Impl> *_sei,
+            FullO3CPU<Impl>* _cpu)
             : MasterPort(_cpu->name() + ".dcache_port", _cpu), lsq(_lsq),
-              cpu(_cpu)
+                sei(_sei), cpu(_cpu)
         { }
 
       protected:
@@ -644,6 +648,9 @@ class FullO3CPU : public BaseO3CPU
 
     /** The register file. */
     PhysRegFile regFile;
+
+    /* JMNOTE: SEInterface Defined */
+    typename CPUPolicy::SEInterface sei;
 
     /** The free list. */
     typename CPUPolicy::FreeList freeList;
