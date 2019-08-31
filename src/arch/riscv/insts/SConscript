@@ -35,6 +35,7 @@ if env['TARGET_ISA'] == 'riscv':
     Source('mem.cc')
     Source('uve_arithmetic.cc')
     Source('uve_predicate.cc')
+    Source('uve_stream.cc')
     Source('uve_utils.cc')
     Source('uve_vector_mem.cc')
     Source('standard.cc')

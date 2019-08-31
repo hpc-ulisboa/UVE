@@ -608,6 +608,8 @@ FullO3CPU<Impl>::tick()
 
     commit.tick();
 
+    sei.tick();
+
     // Now advance the time buffers
     timeBuffer.advance();
 

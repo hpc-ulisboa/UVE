@@ -340,6 +340,16 @@ class ExecContext {
     virtual AddressMonitor *getAddrMonitor() = 0;
 
     /** @} */
+
+    //JMNOTE: SEI get ptr
+    virtual void *getSEIPtr()
+    {
+        panic("getSEIPtr not implemented");
+    }
+    virtual bool sendSEIcmd(void * cmd)
+    {
+        panic("sendSEIcmd not implemented");
+    }
 };
 
 #endif // __CPU_EXEC_CONTEXT_HH__

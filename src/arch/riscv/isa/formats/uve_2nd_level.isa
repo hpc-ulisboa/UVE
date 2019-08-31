@@ -340,6 +340,7 @@ namespace Uve
     }
 } // namespace Uve
 
+
 //Vector Predicate Instructions
 namespace Uve
 {
@@ -467,4 +468,72 @@ namespace Uve
 
 
 } // namespace Uve
+
+
+//Stream Instructions
+namespace Uve
+{
+    StaticInstPtr
+    decodeStreamSimple(ExtMachInst machInst)
+    {
+        uint8_t stream = (uint8_t) bits(machInst, 11, 7);
+        uint8_t offset = (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) bits(machInst, 24, 20);
+        uint8_t stride = (uint8_t) bits(machInst, 31, 27);
+
+        uint8_t width = (uint8_t) bits(machInst, 13, 12);
+
+        //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
+
+        return decodeStreamTemplated<UveStream>(width, machInst,
+            stream, offset, size, stride);
+
+    }  // decodeStreamSimple
+
+    StaticInstPtr
+    decodeStreamStart(ExtMachInst machInst)
+    {
+        uint8_t stream = (uint8_t) bits(machInst, 11, 7);
+        uint8_t offset = (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) bits(machInst, 24, 20);
+        uint8_t stride = (uint8_t) bits(machInst, 31, 27);
+
+        uint8_t width = (uint8_t) bits(machInst, 13, 12);
+
+        //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
+
+        return decodeStreamTemplated<UveStreamSta>(width, machInst,
+            stream, offset, size, stride);
+
+    }  // decodeStreamStart
+
+    StaticInstPtr
+    decodeStreamAppend(ExtMachInst machInst)
+    {
+        uint8_t stream = (uint8_t) bits(machInst, 11, 7);
+        uint8_t offset = (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) bits(machInst, 24, 20);
+        uint8_t stride = (uint8_t) bits(machInst, 31, 27);
+
+        //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
+
+        return new UveStreamApp("ss.app", machInst, stream, offset, size, stride);
+
+    }  // decodeStreamAppend
+    StaticInstPtr
+    decodeStreamEnd(ExtMachInst machInst)
+    {
+        uint8_t stream = (uint8_t) bits(machInst, 11, 7);
+        uint8_t offset = (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) bits(machInst, 24, 20);
+        uint8_t stride = (uint8_t) bits(machInst, 31, 27);
+
+        //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
+
+        return new UveStreamEnd("ss.end", machInst, stream, offset, size, stride);
+
+    }  // decodeStreamEnd
+
+} // namespace Uve
+
 }};

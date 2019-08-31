@@ -1,0 +1,112 @@
+def template UveStreamDeclareT {{
+    %(tpl_header)s
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef RegElemType TPElem;
+        mutable int memAccessSize_persistent;
+        mutable int eCount_persistent;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _VDest, uint8_t _RS1,
+            uint8_t _RS2, uint8_t _RS3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _VDest, _RS1, _RS2, _RS3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+def template UveStreamDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        mutable int memAccessSize_persistent;
+        mutable int eCount_persistent;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _VDest, uint8_t _RS1,
+            uint8_t _RS2, uint8_t _RS3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _VDest, _RS1, _RS2, _RS3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+def template UveStreamExecDeclareT {{
+    template
+    Fault %(class_name)s%(tpl_args)s::execute(ExecContext *,
+        Trace::InstRecord *) const;
+}};
+
+
+def template UveStreamExecuteT {{
+    %(tpl_header)s
+    Fault %(class_name)s%(tpl_args)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        StreamWidth width;
+        switch (sizeof(TPElem))
+        {
+        case 1:
+            width = StreamWidth::byte;
+            break;
+        case 2:
+            width = StreamWidth::half;
+            break;
+        case 4:
+            width = StreamWidth::word;
+            break;
+        default:
+            width = StreamWidth::dword;
+            break;
+        }
+
+        DPRINTF(UVEMem, "%(class_name)s->execute\n");
+
+        SECommand *cmd = new %(cmd_code)s;
+        // auto sei = (SEInterface<O3CPUImpl>*) xc->getSEIPtr();
+        // sei->sendCommand(cmd);
+
+
+        xc->sendSEIcmd((void *) cmd);
+        %(op_wb)s;
+        return fault;
+    }
+}};
+
+def template UveStreamExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        DPRINTF(UVEMem, "%(class_name)s->execute\n");
+
+        SECommand *cmd = new %(cmd_code)s;
+        // auto sei = (SEInterface<O3CPUImpl>*) xc->getSEIPtr();
+        // sei->sendCommand(cmd);
+
+
+        xc->sendSEIcmd((void *) cmd);
+        %(op_wb)s;
+        return fault;
+    }
+}};

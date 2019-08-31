@@ -53,6 +53,7 @@ output header {{
 #include "arch/riscv/insts/unknown.hh"
 #include "arch/riscv/insts/uve_arithmetic.hh"
 #include "arch/riscv/insts/uve_predicate.hh"
+#include "arch/riscv/insts/uve_stream.hh"
 #include "arch/riscv/insts/uve_utils.hh"
 #include "arch/riscv/insts/uve_vector_mem.hh"
 #include "cpu/static_inst.hh"
@@ -109,6 +110,11 @@ output exec {{
 
 /* JMNOTE:UVEMem Debug flag include */
 #include "debug/UVEMem.hh"
+
+/* JMNOTE:SE include */
+#include "uve_simobjs/utils.hh"
+#include "cpu/o3/dyn_inst.hh"
+#include "cpu/o3/impl.hh"
 
 using namespace RiscvISA;
 using namespace std;

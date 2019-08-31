@@ -179,6 +179,8 @@ class DerivO3CPU(BaseCPU):
     needsTSO = Param.Bool(buildEnv['TARGET_ISA'] == 'x86',
                           "Enable TSO Memory model")
 
+    streamEngine = VectorParam.UVEStreamingEngine([], "UVE Streaming Engine")
+
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:
             from m5.objects.ArmTLB import ArmTLB

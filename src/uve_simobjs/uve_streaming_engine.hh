@@ -9,9 +9,47 @@
 #include "mem/mem_object.hh"
 #include "params/UVEStreamingEngine.hh"
 #include "sim/system.hh"
+#include "uve_simobjs/utils.hh"
 
 // class SCftch;
 // class SCmem;
+class SEprocessing
+{
+  protected:
+    UVEStreamingEngine *parent;
+    std::array<SEIterPtr,32> iterQueue;
+    uint8_t pID;
+    // SCmem *memCore;
+    // SCftch *fetchCore;
+
+  public:
+
+    // void setMemCore(SCmem * memCorePtr);
+
+    /** constructor
+     */
+    SEprocessing(UVEStreamingEngineParams *params,
+                UVEStreamingEngine *_parent){
+                  parent = _parent;
+                  iterQueue.fill(new SEIter());
+                };
+
+    bool setIterator(StreamID sid, SEIterPtr iterator){
+      //JMFIXME: Clean memory on past iterators;
+      if(iterQueue[sid]->empty()){
+        iterQueue[sid] = iterator;
+        return true;
+      }
+      else {
+        iterQueue[sid] = iterator;
+        return false;
+      }
+    }
+
+    void Tick();
+
+};
+
 
 /*
  * Config uCore Object
@@ -20,15 +58,15 @@ class SEcontroller
 {
   protected:
     UVEStreamingEngine *parent;
-    // SCmem *memCore;
+    std::array<SEStack,32> cmdQueue;
+    SEprocessing *memCore;
     // SCftch *fetchCore;
 
   public:
     // JMTODO: Define methods for Pio Port
-    Tick read(PacketPtr pkt);
-    Tick write(PacketPtr pkt);
+    Tick recvCommand(SECommand command);
 
-    // void setMemCore(SCmem * memCorePtr);
+    void setMemCore(SEprocessing * memCorePtr);
 
     /** constructor
      */
@@ -111,6 +149,8 @@ class UVEStreamingEngine : public ClockedObject
           SimpleTimingPort(name, dev), device(dev)
       {}
   };
+  public:
+    void tick();
 
   private:
     MemSidePort memoryPort;
@@ -120,6 +160,7 @@ class UVEStreamingEngine : public ClockedObject
     // JMFIXME: Add port for fetch Core
 
   public:
+    SEprocessing memCore;
     SEcontroller confCore;
 
   protected:
@@ -140,6 +181,9 @@ class UVEStreamingEngine : public ClockedObject
     void sendRangeChange() const;
 
     Port& getPort(const std::string& if_name, PortID idx) override;
+
+    bool recvCommand(SECommand cmd);
+
 };
 
 

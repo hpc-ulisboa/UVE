@@ -15,6 +15,12 @@ SEInterface<Impl>::SEInterface(O3CPU *cpu_ptr, Decode *dec_ptr, IEW *iew_ptr,
                 cmtStage(cmt_ptr)
             {
                 dcachePort = &(cpu_ptr->getDataPort());
+                if( params->streamEngine.size() == 1 ){
+                    engine = params->streamEngine[0];
+                }
+                else{
+                    engine = nullptr;
+                }
             }
 
 template<class Impl>
@@ -72,5 +78,30 @@ SEInterface<Impl>::recvReqRetry()
     iewStage->ldstQueue.recvReqRetry();
     //JMFIXME: For now leave as this, but this must me addressed
 }
+
+template <class Impl>
+bool
+SEInterface<Impl>::sendCommand(SECommand cmd){
+    return engine->recvCommand(cmd);
+}
+
+// template <class Impl>
+// void
+// SEInterface<Impl>::configureStream(Stream stream, Dimension dim)
+// {
+//     //Create Request for Physical device (l.427 request.hh)
+//         //Address: StreamID + BaseAddress
+//     Addr req_addr = sengine_addr_range.start() + stream.getID();
+//     Flags req_flags = Request::Flags();
+//     MasterID req_mid = cpu->dataMasterId();
+
+//     //There are no memflags.. just create an empty Flags object
+//     //JMFIXME: REQUEST for initiateAcc is created in lsq_impl.hh@pushRequest or dma_device
+//     Request request = Request(req_addr, 1, req_flags, req_mid);
+//     //Create Packet
+//     PacketPtr _packet = Packet::createWrite(request);
+//     //Send Packet
+// }
+
 
 #endif // __CPU_O3_SE_INTERFACE_IMPL_HH__

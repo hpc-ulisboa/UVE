@@ -1,0 +1,109 @@
+output header {{
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeStreamTemplated(  uint8_t width,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1,
+                                uint8_t rs2,
+                                uint8_t rs3)
+    {
+        const char* mn = "ss";
+        switch (width) {
+            case 0x0:
+                return new Base<uint8_t>(mn, machInst, rd, rs1, rs2, rs3);
+                break;
+            case 0x1:
+                return new Base<uint16_t>(mn, machInst, rd, rs1, rs2, rs3);
+                break;
+            case 0x2:
+                return new Base<uint32_t>(mn, machInst, rd, rs1, rs2, rs3);
+                break;
+            default:
+                return new Base<uint64_t>(mn, machInst, rd, rs1, rs2, rs3);
+                break;
+        }
+    }
+}};
+
+
+let {{
+    header_output = ''
+    exec_output = ''
+    decoders = { 'Generic': {} }
+
+    TemplateArgs = (
+        ('uint8_t',),
+        ('uint16_t',),
+        ('uint32_t',),
+        ('uint64_t',),
+    )
+
+    def emitUveStreamInstsT(cmdCode, variant):
+        global header_output, exec_output, decoders
+        tplHeader = 'template <class RegElemType>'
+        tplArgs = '<RegElemType>'
+
+        # JMNOTE: Here the memAccessSize comes from the value of rs2 ->
+        #If its zero: memAccessSize = eCount * sizeOf(RegElemType);
+
+
+        StreamIop = InstObjParams('ss',
+            'UveStream' + variant,
+            'UveBaseStream',
+            {'tpl_header': tplHeader,
+             'tpl_args': tplArgs,
+             'cmd_code': cmdCode,
+             'op_class': 'UveStreamOp'},
+            ['IsNonSpeculative'])
+
+
+        header_output += UveStreamDeclareT.subst(StreamIop)
+
+        exec_output += (
+            UveStreamExecuteT.subst(StreamIop)
+        )
+
+        for args in TemplateArgs:
+            substDict = {'tpl_args': '<%s>' % ', '.join(args),
+                         'class_name': 'UveStream' + variant}
+            exec_output += UveStreamExecDeclareT.subst(substDict)
+
+
+    def emitUveStreamInsts(cmdCode, variant):
+        global header_output, exec_output, decoders
+        # JMNOTE: Here the memAccessSize comes from the value of rs2 ->
+        #If its zero: memAccessSize = eCount * sizeOf(RegElemType);
+
+
+        StreamIop = InstObjParams('ss',
+            'UveStream' + variant,
+            'UveBaseStream',
+            {
+             'cmd_code': cmdCode,
+             'op_class': 'UveStreamOp'},
+            ['IsNonSpeculative'])
+
+
+        header_output += UveStreamDeclare.subst(StreamIop)
+
+        exec_output += (
+            UveStreamExecute.subst(StreamIop)
+        )
+
+
+
+    emitUveStreamInstsT(''' SECommand(VDest, width, StreamMode::load,
+                            Rs1_ud, Rs2_ud, Rs3_ud)
+                    ''', '')
+    emitUveStreamInstsT(''' SECommand(VDest, width, StreamMode::load,
+                            Rs1_ud, Rs2_ud, Rs3_ud, StreamType::start)
+                    ''', 'Sta')
+    emitUveStreamInsts(''' SECommand(VDest,
+                            Rs1_ud, Rs2_ud, Rs3_ud, StreamType::append)
+                    ''', 'App')
+    emitUveStreamInsts(''' SECommand(VDest,
+                            Rs1_ud, Rs2_ud, Rs3_ud, StreamType::end)
+                    ''', 'End')
+
+}};

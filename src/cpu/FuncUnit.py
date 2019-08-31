@@ -42,6 +42,7 @@ from m5.SimObject import SimObject
 from m5.params import *
 
 class OpClass(Enum):
+    #JMNOTE: UVE op added
     vals = ['No_OpClass', 'IntAlu', 'IntMult', 'IntDiv', 'FloatAdd',
             'FloatCmp', 'FloatCvt', 'FloatMult', 'FloatMultAcc', 'FloatDiv',
             'FloatMisc', 'FloatSqrt',
@@ -57,7 +58,7 @@ class OpClass(Enum):
             'SimdShaSigma3',
             'SimdPredAlu',
             'MemRead', 'MemWrite', 'FloatMemRead', 'FloatMemWrite',
-            'IprAccess', 'InstPrefetch']
+            'IprAccess', 'InstPrefetch', 'UveStream']
 
 class OpDesc(SimObject):
     type = 'OpDesc'

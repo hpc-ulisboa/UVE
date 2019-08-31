@@ -102,6 +102,7 @@ def operands {{
     'Rd_merge': ('IntReg', 'ud', 'VDest', 'IsInteger', 2),
     'Rd_merge_s': ('IntReg', 'ud', 'RD', 'IsInteger', 2),
     'Rs1_merge': ('IntReg', 'ud', 'RS1', 'IsInteger', 2),
+    'Rs3': ('IntReg', 'ud', 'RS3', 'IsInteger', 4),
 
 #Vector Reg Operands
     'Vd': vectorReg('VDest',

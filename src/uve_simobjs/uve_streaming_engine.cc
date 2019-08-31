@@ -1,9 +1,10 @@
 #include "uve_simobjs/uve_streaming_engine.hh"
 
 UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams *params) :
-  ClockedObject(params), memoryPort(params->name + ".mem_side", this),
-  confPort(params->name + ".cpu_side", this), confCore(params, this),
-  confAddr(params->start_addr), confSize(32)
+  ClockedObject(params),
+  memoryPort(params->name + ".mem_side", this),
+  confPort(params->name + ".cpu_side", this), memCore(params, this),
+  confCore(params, this), confAddr(params->start_addr), confSize(32)
 {
   // memCore->setConfCore(confCore);
   // confCore->setMemCore(memCore);
@@ -28,11 +29,11 @@ UVEStreamingEngineParams::create()
 }
 
 Tick UVEStreamingEngine::read(PacketPtr pkt){
-  return confCore.read(pkt);
+  return 1;
 }
 
 Tick UVEStreamingEngine::write(PacketPtr pkt){
-  return confCore.write(pkt);
+  return 1;
 }
 
 AddrRangeList
@@ -60,6 +61,13 @@ Port& UVEStreamingEngine::getPort(const std::string& if_name,
   } else {
       return ClockedObject::getPort(if_name, idx);
   }
+}
+
+bool
+UVEStreamingEngine::recvCommand(SECommand cmd)
+{
+  confCore.recvCommand(cmd);
+  return true;
 }
 
 void
@@ -124,4 +132,9 @@ AddrRangeList
 UVEStreamingEngine::CpuSidePort::getAddrRanges() const
 {
     return device->getAddrRanges();
+}
+
+void
+UVEStreamingEngine::tick(){
+  memCore.Tick();
 }

@@ -2,6 +2,7 @@ Import('*')
 
 SimObject('UVEStreamingEngine.py')
 Source('uve_se_controller_impl.cc')
+Source('uve_se_mem_impl.cc')
 Source('uve_streaming_engine.cc')
 
 DebugFlag('UVESE')

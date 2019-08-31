@@ -23,6 +23,11 @@ namespace Uve
     StaticInstPtr decodePredicateControl(ExtMachInst machInst);
     StaticInstPtr decodePredicateLogic(ExtMachInst machInst);
 
+    StaticInstPtr decodeStreamSimple(ExtMachInst machInst);
+    StaticInstPtr decodeStreamAppend(ExtMachInst machInst);
+    StaticInstPtr decodeStreamStart(ExtMachInst machInst);
+    StaticInstPtr decodeStreamEnd(ExtMachInst machInst);
+
 }
 }};
 
@@ -32,6 +37,17 @@ namespace Uve
 {
     StaticInstPtr
     decodeUveSSStream(ExtMachInst machInst){
+        switch (bits(machInst, 26, 25))
+        {
+            case 0x0:
+                return decodeStreamAppend(machInst);
+            case 0x1:
+                return decodeStreamEnd(machInst);
+            case 0x2:
+                return decodeStreamStart(machInst);
+            case 0x3:
+                return decodeStreamSimple(machInst);
+        }
         return new Unknown(machInst);
     }
 
