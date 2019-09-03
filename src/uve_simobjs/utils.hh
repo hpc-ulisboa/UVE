@@ -227,10 +227,12 @@ using SEStack = std::queue<SECommand>;
 class DimensionObject{
     private:
         bool dimensionEnded = true;
+        bool lowerEnded = false;
         int64_t counter;
         DimensionOffset offset;
         DimensionSize size;
         DimensionStride stride;
+        DimensionOffset saved_offset = 0;
         uint8_t width;
         bool isHead;
         uint8_t decrement;
@@ -240,11 +242,16 @@ class DimensionObject{
             counter(-1), offset(dimension->get_offset()),
             size(dimension->get_size()), stride(dimension->get_stride()),
             width(_width), isHead(head)
-        {decrement = isHead ? 1 : 0;}
+        {
+            decrement = isHead ? 1 : 0;
+            saved_offset = isHead ? offset : offset*stride*width;
+        }
         ~DimensionObject(){}
 
         bool advance(){
-            if(dimensionEnded == true) counter = -1;
+            lowerEnded = false;
+            if (dimensionEnded)
+                counter = -1;
             counter ++;
             if(counter >= size - decrement){
                 dimensionEnded = true;
@@ -258,8 +265,43 @@ class DimensionObject{
 
         DimensionStride get_size(){return size;}
 
-        int64_t get_initial_offset(){}
-        int64_t get_cur_offset(){}
+        int64_t get_initial_offset(bool zero){
+            if (zero){
+                if (isHead){
+                    return offset;
+                }
+                else {
+                    return offset * stride * width;
+                }
+            }
+            else {
+                return saved_offset;
+            }
+        }
+        int64_t get_cur_offset(){
+            if (counter == -1) return get_initial_offset(true);
+
+            if (isHead)
+                return counter*stride*width+offset;
+            else
+                return (counter+offset)*width*stride;
+        }
+
+        void set_offset(){
+            if (dimensionEnded){
+                saved_offset = get_initial_offset(true);
+                return;
+            }
+            if (isHead || lowerEnded){
+                saved_offset = get_cur_offset() + stride*width;
+            } else {
+                saved_offset = get_cur_offset();
+            }
+        }
+
+        void lower_ended(){
+            lowerEnded = true;
+        }
 
         std::string
         to_string(){
@@ -289,7 +331,7 @@ class SEIter: public SEList<DimensionObject> {
         uint8_t width;
         tnode * current_nd;
         tnode * current_dim;
-        uint8_t elem_counter;
+        uint64_t elem_counter;
         uint8_t sequence_number;
         SEIterationStatus status;
         uint64_t head_stride;
@@ -330,7 +372,7 @@ class SEIter: public SEList<DimensionObject> {
                 cmds->pop();
             }
             DPRINTF(JMDEVEL, "Tree: \n%s\n",this->to_string());
-            initial_offset = initial_offset_calculation();
+            initial_offset = initial_offset_calculation(true);
             current_dim = get_end();
         }
         SEIter() {
@@ -338,19 +380,22 @@ class SEIter: public SEList<DimensionObject> {
         }
         ~SEIter(){}
 
-        DimensionOffset initial_offset_calculation(tnode * cursor, DimensionOffset offset){
-            if(cursor->next != nullptr){
-                offset = initial_offset_calculation(cursor->next, offset);
+        DimensionOffset initial_offset_calculation(tnode * cursor,
+                            DimensionOffset offset, bool zero){
+
+            if (cursor->next != nullptr){
+                offset = initial_offset_calculation(cursor->next,
+                                                    offset, zero);
             }
-            return offset + cursor->content->get_initial_offset();;
+            return offset + cursor->content->get_initial_offset(zero);
         }
 
-        DimensionOffset initial_offset_calculation(){
+        DimensionOffset initial_offset_calculation(bool zero = false){
             tnode * cursor = get_head();
             DimensionOffset offset = 0;
             if(cursor->next != nullptr)
-                offset = initial_offset_calculation(cursor->next,offset);
-            offset += cursor->content->get_initial_offset();
+                offset = initial_offset_calculation(cursor->next,offset, zero);
+            offset += cursor->content->get_initial_offset(zero);
             return offset;
         }
 
@@ -358,6 +403,7 @@ class SEIter: public SEList<DimensionObject> {
             if(cursor->next != nullptr){
                 offset = offset_calculation(cursor->next, offset);
             }
+            cursor->content->set_offset();
             return offset + cursor->content->get_cur_offset();
         }
 
@@ -366,10 +412,14 @@ class SEIter: public SEList<DimensionObject> {
             DimensionOffset offset = 0;
             if(cursor->next != nullptr)
                 offset = offset_calculation(cursor->next,offset);
+            cursor->content->set_offset();
             offset += cursor->content->get_cur_offset();
             return offset;
         }
 
+        void stats(SERequestInfo result, StopReason sres){
+            //Create results with this
+        };
 
         SERequestInfo advance(){
             //Iterate until request is generated
@@ -393,6 +443,7 @@ class SEIter: public SEList<DimensionObject> {
                         break;
                     }
                     current_dim = current_dim->next;
+                    current_dim->content->lower_ended();
                     break;
                 }
                 else {
@@ -408,27 +459,15 @@ class SEIter: public SEList<DimensionObject> {
                     else elem_counter ++;
                 }
             }
-            if(sres == StopReason::BufferFull){
-                elem_counter = 0;
-                request.final_offset = offset_calculation() + width;
-                request.initial_offset = initial_offset;
-                request.iterations = 128;
-                request.status = status;
-                request.sequence_number = ++sequence_number;
-                request.width = width;
-                initial_offset = request.final_offset;
-            }
-            else if(sres == StopReason::DimensionSwap ||
-                    sres == StopReason::NonCoallescing){
-                elem_counter = 0;
-                request.final_offset = offset_calculation() + width;
-                request.initial_offset = initial_offset_calculation();
-                request.iterations = 128;
-                request.status = status;
-                request.sequence_number = ++sequence_number;
-                request.width = width;
-                initial_offset = request.final_offset;
-            }
+            elem_counter = 0;
+            request.initial_offset = initial_offset_calculation();
+            request.final_offset = offset_calculation() + width;
+            request.iterations = 128;
+            request.status = status;
+            request.sequence_number = ++sequence_number;
+            request.width = width;
+            initial_offset = request.final_offset;
+            stats(request, sres);
             return request;
         }
 
