@@ -1,6 +1,7 @@
 from m5.params import *
 from m5.proxy import *
 from m5.objects.ClockedObject import ClockedObject
+from RiscvTLB import RiscvTLB
 
 
 class UVEStreamingEngine(ClockedObject):
@@ -21,3 +22,5 @@ class UVEStreamingEngine(ClockedObject):
     start_addr = Param.Addr(0, "First address for Streaming Cache")
 
     system = Param.System(Parent.any, "The system this cache is part of")
+
+    tlb = Param.RiscvTLB(RiscvTLB(), "TLB/MMU to walk page table")

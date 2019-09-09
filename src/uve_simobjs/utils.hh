@@ -11,7 +11,6 @@
 #define PACKET_SIZE 1024
 
 
-
 template <typename T>
 T mult_all(std::vector<T> * vec){
     uint64_t result = 1;
@@ -149,29 +148,37 @@ class SECommand {
     private:
         SEStream * stream;
         SEDimension * dimension;
+        ThreadContext * tc;
     public:
         //Create command from stream and dimension objects
-        SECommand(SEStream * _stream, SEDimension * _dimension) {
+        SECommand(ThreadContext * _tc, SEStream * _stream,
+                    SEDimension * _dimension) {
             stream = _stream;
             dimension = _dimension;
+            tc = _tc;
         }
         //Create command for simple stream
-        SECommand(StreamID _s, StreamWidth _w, StreamMode _m,
-            DimensionOffset _o, DimensionSize _sz, DimensionStride _st, StreamType type = StreamType::simple){
+        SECommand(ThreadContext * _tc, StreamID _s, StreamWidth _w,
+                StreamMode _m, DimensionOffset _o, DimensionSize _sz,
+                DimensionStride _st, StreamType type = StreamType::simple){
             stream = new SEStream(_s, _w, _m, type);
             dimension = new SEDimension(_sz, _o, _st);
+            tc = _tc;
         }
         //Create command for init
-        SECommand(StreamID _s, StreamWidth _w, StreamMode _m,
-            DimensionOffset _o){
+        SECommand(ThreadContext * _tc, StreamID _s, StreamWidth _w,
+                StreamMode _m, DimensionOffset _o){
                 stream = new SEStream(_s, _w, _m, StreamType::start);
                 dimension = new SEDimension(_o);
+                tc = _tc;
             }
         //Create command for simple append and end
-        SECommand(StreamID _s,
-            DimensionOffset _o, DimensionSize _sz, DimensionStride _st, StreamType type = StreamType::append){
+        SECommand(ThreadContext * _tc, StreamID _s, DimensionOffset _o,
+                DimensionSize _sz, DimensionStride _st,
+                StreamType type = StreamType::append){
             stream = new SEStream(_s, type);
             dimension = new SEDimension(_sz, _o, _st);
+            tc = _tc;
         }
         //Create command for end and append
         // SECommand(StreamID _s, StreamModif _sm, StreamConfig _cfg,
@@ -220,6 +227,8 @@ class SECommand {
                 return true;
             else return false;
         }
+
+        ThreadContext * get_tc(){return tc;}
 };
 
 using SEStack = std::queue<SECommand>;
@@ -238,7 +247,8 @@ class DimensionObject{
         uint8_t decrement;
 
     public:
-        DimensionObject(SEDimension * dimension, uint8_t _width, bool head = false):
+        DimensionObject(SEDimension * dimension, uint8_t _width,
+                    bool head = false):
             counter(-1), offset(dimension->get_offset()),
             size(dimension->get_size()), stride(dimension->get_stride()),
             width(_width), isHead(head)
@@ -323,18 +333,27 @@ struct SERequestInfo{
     uint8_t iterations;
     SEIterationStatus status;
     uint8_t sequence_number;
+    Addr initial_paddr;
+    StreamID sid;
+    ThreadContext * tc;
 };
+
 
 class SEIter: public SEList<DimensionObject> {
     private:
+        std::function<bool(Addr, Addr)> pageFunction;
+        StreamID sid;
         DimensionOffset initial_offset;
         uint8_t width;
         tnode * current_nd;
         tnode * current_dim;
         uint64_t elem_counter;
-        uint8_t sequence_number;
+        int16_t sequence_number;
         SEIterationStatus status;
         uint64_t head_stride;
+        SERequestInfo cur_request;
+        SERequestInfo last_request;
+        ThreadContext * tc;
         typedef enum {
             BufferFull,
             DimensionSwap,
@@ -343,8 +362,9 @@ class SEIter: public SEList<DimensionObject> {
         }StopReason;
 
     public:
-        SEIter(SEStack * cmds): SEList(),
-        elem_counter(0), sequence_number(0){
+        SEIter(SEStack * cmds):
+        SEList(),
+        elem_counter(0), sequence_number(-1){
             //JMTODO: Create iterator from cmds
             //Validate all commands
             //Create iteration tree
@@ -356,11 +376,14 @@ class SEIter: public SEList<DimensionObject> {
             SECommand cmd = cmds->front();
             width = cmd.get_width();
             head_stride = cmd.get_dimension()->get_stride();
+            tc = cmd.get_tc();
+            sid = cmd.getStreamID();
 
             while(!cmds->empty()){
                 cmd = cmds->front();
                 DimensionObject * dimobj =
-                    new DimensionObject(cmd.get_dimension(), width, first_iteration);
+                    new DimensionObject(cmd.get_dimension(), width,
+                                        first_iteration);
                 first_iteration = false;
 
                 DPRINTF(JMDEVEL, "Inserting command: %s\n", cmd.to_string());
@@ -379,6 +402,11 @@ class SEIter: public SEList<DimensionObject> {
             status = SEIterationStatus::Clean;
         }
         ~SEIter(){}
+
+        template <typename F>
+        void setCompareFunction(F f){
+            pageFunction = f;
+        }
 
         DimensionOffset initial_offset_calculation(tnode * cursor,
                             DimensionOffset offset, bool zero){
@@ -399,8 +427,9 @@ class SEIter: public SEList<DimensionObject> {
             return offset;
         }
 
-        DimensionOffset offset_calculation(tnode * cursor, DimensionOffset offset){
-            if(cursor->next != nullptr){
+        DimensionOffset offset_calculation(tnode * cursor,
+                                        DimensionOffset offset){
+            if (cursor->next != nullptr){
                 offset = offset_calculation(cursor->next, offset);
             }
             cursor->content->set_offset();
@@ -464,9 +493,12 @@ class SEIter: public SEList<DimensionObject> {
             request.final_offset = offset_calculation() + width;
             request.iterations = 128;
             request.status = status;
-            request.sequence_number = ++sequence_number;
             request.width = width;
+            request.tc = tc;
+            request.sid = sid;
+            request.sequence_number = ++sequence_number;
             initial_offset = request.final_offset;
+            cur_request = request;
             stats(request, sres);
             return request;
         }
@@ -474,6 +506,39 @@ class SEIter: public SEList<DimensionObject> {
         bool empty(){ return (status == SEIterationStatus::Clean ||
                               status == SEIterationStatus::Ended ) ?
                         true : false;}
+
+        uint8_t getWidth(){return width;}
+
+        // returns true if it could not translate
+        // paddr is passed by referenced, contains the translation result
+        // if it succeds (return is true)
+        bool translatePaddr(Addr * paddr){
+            //First request must always be translated by TLB
+            if (sequence_number == 0) {
+                last_request = cur_request;
+                return false;
+            }
+
+            //Check if the page is mantained between last and current request
+            if ( pageFunction(last_request.initial_offset,
+                             last_request.final_offset) &&
+                pageFunction(cur_request.initial_offset,
+                             cur_request.final_offset) &&
+                pageFunction(last_request.initial_offset,
+                             cur_request.initial_offset) )
+            {
+                *paddr = last_request.initial_paddr +
+                        (cur_request.initial_offset -
+                        last_request.initial_offset);
+                return true;
+            }
+            else {
+                //In this case it is not possible to infer the paddr
+                return false;
+            }
+        }
+
+        void setPaddr(Addr paddr){ last_request.initial_paddr = paddr;}
 
 };
 

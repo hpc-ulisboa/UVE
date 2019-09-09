@@ -93,16 +93,17 @@ let {{
 
 
 
-    emitUveStreamInstsT(''' SECommand(VDest, width, StreamMode::load,
-                            Rs1_ud, Rs2_ud, Rs3_ud)
+    emitUveStreamInstsT(''' SECommand(xc->tcBase(), VDest, width,
+                         StreamMode::load, Rs1_ud, Rs2_ud, Rs3_ud)
                     ''', '')
-    emitUveStreamInstsT(''' SECommand(VDest, width, StreamMode::load,
-                            Rs1_ud, Rs2_ud, Rs3_ud, StreamType::start)
+    emitUveStreamInstsT(''' SECommand(xc->tcBase(), VDest, width,
+                         StreamMode::load, Rs1_ud, Rs2_ud, Rs3_ud,
+                         StreamType::start)
                     ''', 'Sta')
-    emitUveStreamInsts(''' SECommand(VDest,
+    emitUveStreamInsts(''' SECommand(xc->tcBase(), VDest,
                             Rs1_ud, Rs2_ud, Rs3_ud, StreamType::append)
                     ''', 'App')
-    emitUveStreamInsts(''' SECommand(VDest,
+    emitUveStreamInsts(''' SECommand(xc->tcBase(), VDest,
                             Rs1_ud, Rs2_ud, Rs3_ud, StreamType::end)
                     ''', 'End')
 

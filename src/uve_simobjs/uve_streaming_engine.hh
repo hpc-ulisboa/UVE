@@ -3,22 +3,50 @@
 
 #include <unordered_map>
 
+#include "arch/riscv/tlb.hh"
+#include "cpu/thread_context.hh"
+#include "cpu/translation.hh"
 #include "debug/JMDEVEL.hh"
 #include "debug/UVESE.hh"
 #include "dev/io_device.hh"
 #include "mem/mem_object.hh"
+#include "mem/packet_access.hh"
 #include "params/UVEStreamingEngine.hh"
+#include "sim/process.hh"
 #include "sim/system.hh"
 #include "uve_simobjs/utils.hh"
 
+class SEprocessing;
+
+class RequestExecuteEvent : public Event
+{
+  private:
+    SEprocessing *callee;
+    SERequestInfo info;
+  public:
+    RequestExecuteEvent(SEprocessing *callee, SERequestInfo info) :
+        Event(Default_Pri, AutoDelete), callee(callee), info(info)
+    { }
+    void process() override;
+};
+
 // class SCftch;
 // class SCmem;
-class SEprocessing
+class SEprocessing : SimObject
 {
   protected:
     UVEStreamingEngine *parent;
     std::array<SEIterPtr,32> iterQueue;
     uint8_t pID;
+
+  public:
+    void tick();
+
+  private:
+    RiscvISA::TLB *tlb;
+    const Addr offsetMask;
+    unsigned cacheLineSize;
+
     // SCmem *memCore;
     // SCftch *fetchCore;
 
@@ -29,14 +57,14 @@ class SEprocessing
     /** constructor
      */
     SEprocessing(UVEStreamingEngineParams *params,
-                UVEStreamingEngine *_parent){
-                  parent = _parent;
-                  iterQueue.fill(new SEIter());
-                };
+                UVEStreamingEngine *_parent);
 
     bool setIterator(StreamID sid, SEIterPtr iterator){
       //JMFIXME: Clean memory on past iterators;
-      if(iterQueue[sid]->empty()){
+      iterator->setCompareFunction(
+        [=](Addr a, Addr b){return this->samePage(a,b);}
+        );
+      if (iterQueue[sid]->empty()){
         iterQueue[sid] = iterator;
         return true;
       }
@@ -45,9 +73,21 @@ class SEprocessing
         return false;
       }
     }
+    void finishTranslation(WholeTranslationState *state);
+    bool isSquashed() { return false; }
 
-    void Tick();
+    void executeRequest(SERequestInfo info);
+    void sendData(RequestPtr req, uint8_t *data, bool read);
+    void accessMemory(Addr addr, int size, int sid, int ssid,
+                      BaseTLB::Mode mode, uint8_t *data,
+                      ThreadContext* tc);
+    void recvData(PacketPtr pkt);
 
+  private:
+    void emitRequest(SERequestInfo info);
+    Addr pageAlign(Addr a)  { return (a & ~offsetMask); }
+  public:
+    bool samePage(Addr a, Addr b) { return (pageAlign(a)==pageAlign(b));}
 };
 
 
@@ -85,11 +125,14 @@ class UVEStreamingEngine : public ClockedObject
   * Port on the memory-side that receives responses.
   * Requests data from memory
   */
-  class MemSidePort : public MasterPort
+  class MemSidePort : public QueuedMasterPort
   {
     private:
       /// The object that owns this object (SCmem)
       UVEStreamingEngine *owner;
+
+      ReqPacketQueue queue;
+      SnoopRespPacketQueue snoopQueue;
 
       /// If we tried to send a packet and it was blocked, store it here
       // PacketPtr blockedPacket;
@@ -99,7 +142,8 @@ class UVEStreamingEngine : public ClockedObject
        * Constructor. Just calls the superclass constructor.
        */
       MemSidePort(const std::string& name, UVEStreamingEngine *owner) :
-          MasterPort(name, owner), owner(owner)
+          QueuedMasterPort(name, owner, queue, snoopQueue), owner(owner),
+          queue(*owner, *this), snoopQueue(*owner, *this)
       { }
 
       /**
@@ -109,20 +153,13 @@ class UVEStreamingEngine : public ClockedObject
        *
        * @param packet to send.
        */
-      void sendPacket(PacketPtr pkt);
+      // void sendPacket(PacketPtr pkt);
 
     protected:
       /**
        * Receive a timing response from the slave port.
        */
       bool recvTimingResp(PacketPtr pkt) override;
-
-      /**
-       * Called by the slave port if sendTimingReq was called on this
-       * master port (causing recvTimingReq to be called on the slave
-       * port) and was unsuccesful.
-       */
-      void recvReqRetry() override;
 
       /**
        * Called to receive an address range change from the peer slave
@@ -134,27 +171,11 @@ class UVEStreamingEngine : public ClockedObject
       void recvRangeChange() override;
   };
 
-  class CpuSidePort : public SimpleTimingPort
-  {
-    protected:
-    /** The device that this port serves. */
-    UVEStreamingEngine *device;
-
-    virtual Tick recvAtomic(PacketPtr pkt);
-
-    virtual AddrRangeList getAddrRanges() const;
-
-    public:
-      CpuSidePort(const std::string& name, UVEStreamingEngine *dev) :
-          SimpleTimingPort(name, dev), device(dev)
-      {}
-  };
   public:
     void tick();
 
   private:
     MemSidePort memoryPort;
-    CpuSidePort confPort;
     // SCftch fetchCore;
     // SCmem  memCore;
     // JMFIXME: Add port for fetch Core
@@ -162,17 +183,19 @@ class UVEStreamingEngine : public ClockedObject
   public:
     SEprocessing memCore;
     SEcontroller confCore;
+    ThreadContext * context;
 
   protected:
     Addr confAddr;
     Addr confSize;
+    Tick cycler = 0;
 
   public:
   /** constructor
    */
     UVEStreamingEngine(UVEStreamingEngineParams *params);
 
-    void init() override;
+    void init();
 
     //PioDevice Methods
     Tick read(PacketPtr pkt);
@@ -181,8 +204,20 @@ class UVEStreamingEngine : public ClockedObject
     void sendRangeChange() const;
 
     Port& getPort(const std::string& if_name, PortID idx) override;
+    MemSidePort * getMemPort(){return &memoryPort;}
 
     bool recvCommand(SECommand cmd);
+    Tick nextAvailableCycle(){
+      if (cycler < curTick()){
+        cycler = nextCycle();
+        return cycler;
+      }
+      else{
+        Tick aux = cycler;
+        cycler += cyclesToTicks(Cycles(1));
+        return aux;
+      }
+    }
 
 };
 
