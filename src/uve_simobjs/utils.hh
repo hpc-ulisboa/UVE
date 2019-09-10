@@ -1,14 +1,16 @@
 #ifndef __UVE_SE_UTILS_HH__
 #define __UVE_SE_UTILS_HH__
 
-#include "sim/sim_object.hh"
-#include "base/cprintf.hh"
-#include "tree_utils.hh"
-#include "debug/JMDEVEL.hh"
 #include <queue>
 
+#include "base/cprintf.hh"
+#include "cpu/thread_context.hh"
+#include "debug/JMDEVEL.hh"
+#include "sim/sim_object.hh"
+#include "tree_utils.hh"
+
 #define MaximumStreams 32
-#define PACKET_SIZE 1024
+#define STOP_SIZE 1024
 
 
 template <typename T>
@@ -460,7 +462,7 @@ class SEIter: public SEList<DimensionObject> {
             status = SEIterationStatus::Running;
             StopReason sres = StopReason::BufferFull;
 
-            while(elem_counter < PACKET_SIZE / width){
+            while (elem_counter < STOP_SIZE / width){
                 assert(current_dim != nullptr);
 
                 result = current_dim->content->advance();

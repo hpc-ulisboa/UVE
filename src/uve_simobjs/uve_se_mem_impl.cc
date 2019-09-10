@@ -174,6 +174,7 @@ std::string v_print(T data, int size=-1){
 void
 SEprocessing::recvData(PacketPtr pkt){
     RiscvISA::VecRegContainer memData;
+    memData.zero();
     StreamID sid = pkt->req->streamId();
     uint64_t ssid = pkt->req->substreamId();
 
@@ -202,7 +203,8 @@ SEprocessing::recvData(PacketPtr pkt){
             DPRINTF(JMDEVEL, "Data(%d:%d)\n%s\n", sid, ssid,
                 v_print(memData.as<uint64_t>(), size));
     }
-
+    //Insert data into fifo
+    parent->ld_fifo.insert(sid, ssid, memData, size, width);
 }
 
 void
