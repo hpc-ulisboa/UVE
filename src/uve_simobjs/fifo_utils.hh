@@ -1,4 +1,6 @@
 #ifndef __UVE_SIMOBJS_FIFO_UTILS_HH__
 #define __UVE_SIMOBJS_FIFO_UTILS_HH__
 
+#define FIFO_DEPTH 5
+
 #endif //__UVE_SIMOBJS_FIFO_UTILS_HH__

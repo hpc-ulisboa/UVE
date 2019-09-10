@@ -126,6 +126,10 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read)
     for (ChunkGenerator gen(ireq->getPaddr(), ireq->getSize(), cacheLineSize);
         !gen.done(); gen.next()) {
 
+        //JMTODO: We need to make sure that a page is not being crossed
+        //If so: Go back with the iteration: For that the next cycle takes
+        // care of that
+
         req = std::make_shared<Request>(
             gen.addr(), gen.size(), 0, 0);
 

@@ -3,8 +3,10 @@
 UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams *params) :
   ClockedObject(params),
   memoryPort(params->name + ".mem_side", this), memCore(params, this),
-  confCore(params, this), confAddr(params->start_addr), confSize(32)
+  confCore(params, this), ld_fifo(params), confAddr(params->start_addr),
+  confSize(32)
 {
+  ld_fifo.init();
   // memCore->setConfCore(confCore);
   // confCore->setMemCore(memCore);
   // confPort = new PioPort(this);
@@ -94,4 +96,10 @@ UVEStreamingEngine::MemSidePort::recvRangeChange()
 void
 UVEStreamingEngine::tick(){
   memCore.tick();
+  ld_fifo.tick();
+}
+
+void
+UVEStreamingEngine::regStats(){
+  ClockedObject::regStats();
 }

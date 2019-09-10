@@ -15,6 +15,7 @@
 #include "sim/process.hh"
 #include "sim/system.hh"
 #include "uve_simobjs/utils.hh"
+#include "uve_simobjs/uve_ff_load.hh"
 
 class SEprocessing;
 
@@ -184,6 +185,7 @@ class UVEStreamingEngine : public ClockedObject
     SEprocessing memCore;
     SEcontroller confCore;
     ThreadContext * context;
+    UVELoadFifo ld_fifo;
 
   protected:
     Addr confAddr;
@@ -218,6 +220,9 @@ class UVEStreamingEngine : public ClockedObject
         return aux;
       }
     }
+
+    void regStats() override;
+
 
 };
 
