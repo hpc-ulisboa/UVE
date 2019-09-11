@@ -351,6 +351,7 @@ class SEIter: public SEList<DimensionObject> {
         tnode * current_dim;
         uint64_t elem_counter;
         int16_t sequence_number;
+        int16_t end_ssid;
         SEIterationStatus status;
         uint64_t head_stride;
         SERequestInfo cur_request;
@@ -366,7 +367,7 @@ class SEIter: public SEList<DimensionObject> {
     public:
         SEIter(SEStack * cmds):
         SEList(),
-        elem_counter(0), sequence_number(-1){
+        elem_counter(0), sequence_number(-1), end_ssid(-1){
             //JMTODO: Create iterator from cmds
             //Validate all commands
             //Create iteration tree
@@ -499,6 +500,9 @@ class SEIter: public SEList<DimensionObject> {
             request.tc = tc;
             request.sid = sid;
             request.sequence_number = ++sequence_number;
+            if (status == SEIterationStatus::Ended){
+                end_ssid = sequence_number;
+            }
             initial_offset = request.final_offset;
             cur_request = request;
             stats(request, sres);
@@ -541,6 +545,9 @@ class SEIter: public SEList<DimensionObject> {
         }
 
         void setPaddr(Addr paddr){ last_request.initial_paddr = paddr;}
+
+        bool ended(){return status == SEIterationStatus::Ended;}
+        uint8_t get_end_ssid(){return end_ssid;}
 
 };
 

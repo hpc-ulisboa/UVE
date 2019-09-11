@@ -20,28 +20,26 @@ UVELoadFifo::tick(){
 
 }
 
+void
+UVELoadFifo::reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
+                    bool last = false){
+    //Reserve space in fifo
+    assert(!fifos[sid].full());
+    fifos[sid].insert(size, ssid, width, last);
+}
+
 bool
-UVELoadFifo::insert(StreamID sid, uint32_t ssid, CoreContainer data,
-                    uint8_t size, uint8_t width){
-    //If empty put
+UVELoadFifo::insert(StreamID sid, uint32_t ssid, CoreContainer data){
     //If not empty try and merge
     //  Not Succeded: Create new entry
     //      If full: Warn no more space
     //      Else: Create new entry
+    assert(!fifos[sid].empty());
 
-    FifoEntry entry = FifoEntry(data, size, ssid, width);
-    if (fifos[sid].empty()){
-        fifos[sid].insert(entry);
+    if (fifos[sid].merge_data(ssid, data.raw_ptr<uint8_t>())){
+        return true;
     }
-    else {
-        if (!fifos[sid].merge(entry)){
-            if (fifos[sid].full()){return false;}
-            else {
-                fifos[sid].insert(entry);
-            }
-        }
-    }
-    return true;
+    return false;
 }
 
 bool
@@ -55,7 +53,11 @@ UVELoadFifo::fetch(StreamID sid, SmartContainer * cnt){
         cnt = nullptr;
         return false;
     }
+}
 
+bool
+UVELoadFifo::full(StreamID sid){
+    return fifos[sid].full();
 }
 
 SmartContainer
@@ -67,19 +69,72 @@ UVELoadFifo::to_smart(FifoEntry entry){
 }
 
 void
-StreamFifo::insert(FifoEntry entry){
-    push_back(entry);
+StreamFifo::insert(uint16_t size, uint16_t ssid, uint8_t width,
+                 bool last = false){
+    //Dont just push back, need to interpolate;
+    uint16_t id = 0;
+    //Offset sets the beggining of the data pointer; 0 in new entries;
+    //Incremented by the size of the last reserve in already present entries
+    uint16_t offset = 0;
+    //First insertion case:
+    if (this->empty()){
+        //Create new entry
+        this->push_back(FifoEntry(width));
+        //Reserve space in entry
+        assert(this->back().reserve(size, last));
+        //First entry was created, set id to 0;
+        this->map.push_back(create_MS(id,size,offset));
+        return;
+    }
+    //Get last entry: this should be the place where to put data;
+    //This insert is called in order
+    if (this->back().complete()){
+        assert(!this->full());
+        //Create new entry due to the last one being complete
+        this->push_back(FifoEntry(width));
+        //New entry was created, increment id;
+        id = this->map.back().id + 1;
+        //Here we absolutelly need to be able to reserve
+        assert(this->back().reserve(size, last));
+
+        this->map.push_back(create_MS(id + 1, size, offset));
+        return;
+    }
+    //Reserve the space
+    bool result = back().reserve(size, last);
+    if (!result){
+        //Means that reserve is bigger than space:
+        //Create new entry
+        this->push_back(FifoEntry(width));
+        //New entry was created, increment id;
+        id = this->map.back().id + 1;
+
+        assert(this->back().reserve(size, last));
+
+        this->map.push_back(create_MS(id + 1,size, offset));
+        return;
+    }
+    else {
+        //No new entry was created, mantain id, but increase offset
+        id = this->map.back().id;
+        offset = this->map.back().offset + this->map.back().size;
+        this->map.push_back(create_MS(id,size,offset));
+        return;
+    }
 }
 
 bool
-StreamFifo::merge(FifoEntry new_entry){
+StreamFifo::merge_data(uint16_t ssid, uint8_t * data){
     assert(!empty());
-    uint16_t packets_per_entry = new_entry.SIZE / owner->cacheLineSize;
-    uint16_t entry_id = new_entry.getSsid() / packets_per_entry;
-    uint16_t entry_offset = new_entry.getSsid() % packets_per_entry;
     //Get corresponding fifo entry
-    auto entry = this->at(entry_id);
-    entry.merge_entry(new_entry, entry_offset);
+    assert(!this->map[ssid].used);
+    auto id = this->map[ssid].id;
+    auto offset = this->map[ssid].offset;
+    auto size = this->map[ssid].size;
+    auto entry = &this->at(id);
+    entry->merge_data(data, offset, size);
+    auto it = this->map.begin() + ssid;
+    it->used = true;
     return true;
 }
 
@@ -96,12 +151,13 @@ bool
 StreamFifo::ready() {
     if (empty()) return false;
     FifoEntry first_entry = front();
-    return first_entry.complete();
+    return first_entry.ready();
 }
 
 bool
 StreamFifo::full() {
-    return this->size() == this->max_size;
+    //Real size is the number of fully complete entries
+    return this->real_size() == this->max_size;
 }
 
 bool
@@ -109,13 +165,55 @@ StreamFifo::empty() {
     return this->size() == 0;
 }
 
-void
-FifoEntry::merge_entry(FifoEntry entry, uint16_t offset) {
-    auto iptr = this->raw_ptr<uint8_t>();
-    auto nptr = entry.raw_ptr<uint8_t>();
-    for (int i = 0; i < offset; i++){iptr ++;}
-    for (int i = 0; i < entry.size; i++){
-        *iptr = *nptr;
-        iptr++; nptr++;
+uint16_t
+StreamFifo::real_size() {
+    uint16_t size = 0;
+    auto it = this->begin();
+    while (it!=this->end()){
+        if (it->complete()) size ++;
+        it++;
     }
+    return size;
+}
+
+
+void
+FifoEntry::merge_data(uint8_t * data, uint16_t offset, uint16_t _size) {
+    auto my_data = this->raw_ptr<uint8_t>();
+    for (int i=0; i<size; i++){
+        (my_data+offset)[i] =  data[i];
+    }
+    csize += _size;
+    if (csize == size){
+        cstate = States::Complete;
+    }
+    else cstate = States::NotComplete;
+}
+
+bool
+FifoEntry::reserve(uint16_t _size, bool last = false) {
+    //In this case we are complete and this reservation does not belong here:
+    //Send false;
+    assert(rstate != States::Complete);
+    if (size + _size > SIZE){
+        rstate = States::Complete;
+        return false;
+    }
+    // Completion on point, the reservation belongs here
+    else if (size + _size == SIZE){
+        rstate = States::Complete;
+        size += _size;
+        return true;
+    }
+    else{
+        if (last){
+            rstate = States::Complete;
+            size += _size;
+            return true;
+        }
+        rstate = States::NotComplete;
+        size += _size;
+        return true;
+    }
+
 }

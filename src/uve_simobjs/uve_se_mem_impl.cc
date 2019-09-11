@@ -21,9 +21,9 @@ void SEprocessing::tick(){
     uint8_t auxID = pID + 1;
     if (auxID > 31) auxID = 0;
 
-    while(iterQueue[auxID]->empty()){
+    while ( iterQueue[auxID]->empty() ){
         //One passage determines if no stream is configured
-        if(auxID == pID){
+        if (auxID == pID){
             // DPRINTF(JMDEVEL, "Blanck Tick\n");
             return;
         }
@@ -122,6 +122,9 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read)
             ireq->getPaddr());
 
     RequestPtr req = NULL;
+    auto sid = ireq->streamId();
+    auto width = iterQueue[sid]->getWidth();
+    bool ended = iterQueue[sid]->ended();
 
     for (ChunkGenerator gen(ireq->getPaddr(), ireq->getSize(), cacheLineSize);
         !gen.done(); gen.next()) {
@@ -130,12 +133,28 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read)
         //If so: Go back with the iteration: For that the next cycle takes
         // care of that
 
+        //JMTODO: Here we need to check FIFO for ocuppancy
+        //And guarantee that it is not full yet
+
         req = std::make_shared<Request>(
             gen.addr(), gen.size(), 0, 0);
 
-        req->setStreamId(ireq->streamId());
-        req->setSubStreamId(ireq->substreamId());
-        ireq->setSubStreamId(ireq->substreamId() + 1);
+        auto ssid = ireq->substreamId();
+        req->setStreamId(sid);
+        req->setSubStreamId(ssid);
+        //JMFIXME: This only works for now... need to update ssid in the
+        // iter object
+        //This is a real pain in the ass problem....
+        ireq->setSubStreamId(ssid + 1);
+
+        if (!parent->ld_fifo.full(sid)){
+            bool last_packet = (ended && gen.last());
+            parent->ld_fifo.reserve(sid, ssid, gen.size(), width,
+                last_packet);
+        }
+        else {
+            //JMTODO: Take action on reversing the processing
+        }
 
         req->taskId(ContextSwitchTaskId::DMA);
         PacketPtr pkt = read ? Packet::createRead(req) :
@@ -150,11 +169,6 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read)
         parent->getMemPort()->schedTimingReq(pkt,
                                 parent->nextAvailableCycle());
     }
-
-    req = std::make_shared<Request>(
-            ireq->getPaddr(), ireq->getSize(), 0, 0);
-    req->setStreamId(ireq->streamId());
-    req->setSubStreamId(ireq->substreamId());
 }
 
 template <typename T>
@@ -204,7 +218,7 @@ SEprocessing::recvData(PacketPtr pkt){
                 v_print(memData.as<uint64_t>(), size));
     }
     //Insert data into fifo
-    parent->ld_fifo.insert(sid, ssid, memData, size, width);
+    parent->ld_fifo.insert(sid, ssid, memData);
 }
 
 void
