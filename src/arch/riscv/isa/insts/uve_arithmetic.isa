@@ -216,7 +216,7 @@ let {{
                 {'ex_code' : full_code,
                 'op_class': 'Simd'+('Float' if (suffix=="FP") else "") +
                     op_class +"Op"},
-                [])
+                ['IsStreamInst'])
 
             header_output += UveThreeVecPredicatedDeclare.subst(Iop)
             exec_output += UveThreeVecPredicatedExecute.subst(Iop)
@@ -317,7 +317,7 @@ let {{
                 {'ex_code' : full_code,
                 'op_class': 'Simd'+('Float' if (suffix=="FP") else "") +
                     op_class +"Op"},
-                [])
+                ['IsStreamInst'])
 
             header_output += UveTwoVecPredicatedDeclare.subst(Iop)
             exec_output += UveTwoVecPredicatedExecute.subst(Iop)
@@ -417,7 +417,7 @@ let {{
                 {'ex_code' : full_code,
                 'op_class': 'Simd'+('Float' if (suffix=="FP") else "") +
                     op_class +"Op"},
-                [])
+                ['IsStreamInst'])
 
             header_output += UveTwoVecPredicatedDeclare.subst(Iop)
             exec_output += UveTwoVecPredicatedExecute.subst(Iop)
@@ -528,7 +528,7 @@ let {{
                 {'ex_code' : full_code,
                 'op_class': 'Simd'+('Float' if (suffix=="FP") else "") +
                     op_class +"Op"},
-                [])
+                ['IsStreamInst'])
 
             header_output += \
                 UveTwoVecPredicatedDeclare.subst(Iop) if not dest_scalar \
@@ -642,7 +642,7 @@ let {{
                                 "UveBaseTwoVecPredicated",
             {'ex_code' : full_code,
             'op_class': 'Simd'+ op_class +"Op"},
-            [])
+            ['IsStreamInst'])
 
         DeclarerTemplate = UveThreeVecPredicatedDeclare if src2 else \
                         UveTwoVecPredicatedDeclare
@@ -735,7 +735,7 @@ let {{
             'UveBaseVecScaPredicated',
             {'ex_code' : full_code,
             'op_class': 'Simd'+ op_class +"Op"},
-            [])
+            ['IsStreamInst'])
 
         header_output += UveVecScaPredicatedDeclare.subst(Iop)
         exec_output += UveVecScaPredicatedExecute.subst(Iop)

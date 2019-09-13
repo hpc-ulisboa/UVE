@@ -88,6 +88,9 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
         serializeInst[tid] = nullptr;
         serializeOnNextInst[tid] = false;
     }
+
+    // JMNOTE: Fill StreamTable with falses
+    std::fill_n(streamTable, 32, false);
 }
 
 template <class Impl>
@@ -1067,15 +1070,14 @@ DefaultRename<Impl>::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
     }
 }
 
+#include "debug/JMDEVEL.hh"
+
 template <class Impl>
 inline void
-DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
-{
+DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
     ThreadContext *tc = inst->tcBase();
     RenameMap *map = renameMap[tid];
     unsigned num_src_regs = inst->numSrcRegs();
-
-    //JMTODO: Rename source register (Physical)
 
     // Get the architectual register numbers from the source and
     // operands, and redirect them to the right physical register.
@@ -1083,16 +1085,59 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
         const RegId& src_reg = inst->srcRegIdx(src_idx);
         PhysRegIdPtr renamed_reg;
 
-        //JMTODO: Check if vector register is stream
+        // JMNOTE: Check if vector register is active stream
+        if (inst->isStreamInst() && src_reg.isVecReg() &&
+            streamTable[src_reg.index()]) {
+            DPRINTF(JMDEVEL,
+                    "[tid:%i] "
+                    "[S] Found Stream Inst: "
+                    "Identified Source Streamed reg:%d\n",
+                    tid, src_reg.index());
+            // JMNOTE: IF Stream: First time create new phys register (call
+            // rename)
+            typename RenameMap::RenameInfo rename_result;
+            RegId flat_src_regid = tc->flattenRegId(src_reg);
+            // Check if this is really needed
+            flat_src_regid.setNumPinnedWrites(1);
 
-        //JMTODO: IF Stream: First time create new register (call rename)
-        //Then mark it as created (For first time flag)
-        //Add it to scoreboard as not ready
+            rename_result = map->rename(flat_src_regid);
 
-        //JMTODO: IF Stream: Do the same, and get data from Streaming Unit
-        //JMTODO: If data is complete: mark scoreboard as ready
+            DPRINTF(JMDEVEL,
+                    "[tid:%i] "
+                    "[S] Renaming arch reg %i (%s) to physical reg %i (%i).\n",
+                    tid, src_reg.index(), src_reg.className(),
+                    rename_result.first->index(),
+                    rename_result.first->flatIndex());
 
-        //Standard lookup behaviour applies to any register in the same way
+            inst->renameSrcReg(src_idx, rename_result.first);
+
+            // Mark it in the scoreboard as not ready
+            scoreboard->unsetReg(rename_result.first);
+
+            // Make reservation in the fifo. Set the physical register as
+            // destination of the data
+            assert(cpu->getSEICpuPtr()->reserve(src_reg.index(),
+                                                rename_result.first->index()));
+
+            // Check if data is ready in the fifo
+            if (cpu->getSEICpuPtr()->isReady(src_reg.index(),
+                                             rename_result.first->index())) {
+                scoreboard->setReg(rename_result.first);
+                inst->markSrcRegReady(src_reg.index());
+            } else {
+                DPRINTF(JMDEVEL,
+                        "[tid:%i] "
+                        "[S] Register %d (flat: %d) (%s) is not ready at "
+                        "rename.\n",
+                        tid, src_reg.index(), rename_result.first->flatIndex(),
+                        src_reg.className());
+            }
+
+            ++renameRenameLookups;
+            continue;
+        }
+
+        // Standard lookup behaviour applies to any register in the same way
         renamed_reg = map->lookup(tc->flattenRegId(src_reg));
         switch (src_reg.classValue()) {
           case IntRegClass:
@@ -1116,12 +1161,13 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
             panic("Invalid register class: %d.", src_reg.classValue());
         }
 
-        // if(src_reg.isVecReg() || src_reg.isVecPredReg())
-            // DPRINTF(JMDEVEL, "[tid:%i] "
-            //     "[S] Looking up %s arch reg %i, got phys reg %i (%s)\n",
-            //     tid,src_reg.className(), src_reg.index(),
-            //     renamed_reg->index(),
-            //     renamed_reg->flatIndex());
+        if (src_reg.isVecReg() || src_reg.isVecPredReg())
+            DPRINTF(
+                JMDEVEL,
+                "[tid:%i] "
+                "[S_debug] Looking up %s arch reg %i, got phys reg %i (%s)\n",
+                tid, src_reg.className(), src_reg.index(),
+                renamed_reg->index(), renamed_reg->flatIndex());
 
         DPRINTF(Rename,
                 "[tid:%i] "
@@ -1159,18 +1205,28 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
 
 template <class Impl>
 inline void
-DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
-{
+DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
     ThreadContext *tc = inst->tcBase();
     RenameMap *map = renameMap[tid];
     unsigned num_dest_regs = inst->numDestRegs();
 
-    //JMTODO: Rename destination register (Physical)
-    //Here is where the rename map is called to do the actual renaming
+    // JMTODO: Rename destination register (Physical)
+    // Here is where the rename map is called to do the actual renaming
+    if (inst->isStreamConfig()) {
+        DPRINTF(JMDEVEL,
+                "[tid:%i] "
+                "[D] Found Config Inst: "
+                "Setting stream %i\n",
+                tid, inst->getStreamRegister());
+
+        // In this case (StreamConfig) we don't do renaming.. just set the
+        // index of Our StreamTable
+        streamTable[inst->getStreamRegister()] = true;
+    }
 
     // Rename the destination registers.
     for (int dest_idx = 0; dest_idx < num_dest_regs; dest_idx++) {
-        const RegId& dest_reg = inst->destRegIdx(dest_idx);
+        const RegId &dest_reg = inst->destRegIdx(dest_idx);
         typename RenameMap::RenameInfo rename_result;
 
         RegId flat_dest_regid = tc->flattenRegId(dest_reg);
@@ -1182,12 +1238,13 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
 
         scoreboard->unsetReg(rename_result.first);
 
-        // if(flat_dest_regid.isVecReg() || flat_dest_regid.isVecPredReg())
-        //     DPRINTF(JMDEVEL, "[tid:%i] "
-        //         "[D] Renaming arch reg %i (%s) to physical reg %i (%i).\n",
-        //         tid,dest_reg.index(), dest_reg.className(),
-        //         rename_result.first->index(),
-        //         rename_result.first->flatIndex());
+        if (flat_dest_regid.isVecReg())
+            DPRINTF(JMDEVEL,
+                    "[tid:%i] "
+                    "[D] Renaming arch reg %i (%s) to physical reg %i (%i).\n",
+                    tid, dest_reg.index(), dest_reg.className(),
+                    rename_result.first->index(),
+                    rename_result.first->flatIndex());
 
         DPRINTF(Rename,
                 "[tid:%i] "
@@ -1198,14 +1255,14 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
 
         // Record the rename information so that a history can be kept.
         RenameHistory hb_entry(inst->seqNum, flat_dest_regid,
-                               rename_result.first,
-                               rename_result.second);
+                               rename_result.first, rename_result.second);
 
         historyBuffer[tid].push_front(hb_entry);
 
-        DPRINTF(Rename, "[tid:%i] [sn:%llu] "
+        DPRINTF(Rename,
+                "[tid:%i] [sn:%llu] "
                 "Adding instruction to history buffer (size=%i).\n",
-                tid,(*historyBuffer[tid].begin()).instSeqNum,
+                tid, (*historyBuffer[tid].begin()).instSeqNum,
                 historyBuffer[tid].size());
 
         // Tell the instruction to rename the appropriate destination
@@ -1213,8 +1270,7 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         // (rename_result.first), and record the previous physical
         // register that the same logical register was renamed to
         // (rename_result.second).
-        inst->renameDestReg(dest_idx,
-                            rename_result.first,
+        inst->renameDestReg(dest_idx, rename_result.first,
                             rename_result.second);
 
         ++renameRenamedOperands;

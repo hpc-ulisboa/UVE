@@ -85,23 +85,16 @@ SEInterface<Impl>::sendCommand(SECommand cmd){
     return engine->recvCommand(cmd);
 }
 
-// template <class Impl>
-// void
-// SEInterface<Impl>::configureStream(Stream stream, Dimension dim)
-// {
-//     //Create Request for Physical device (l.427 request.hh)
-//         //Address: StreamID + BaseAddress
-//     Addr req_addr = sengine_addr_range.start() + stream.getID();
-//     Flags req_flags = Request::Flags();
-//     MasterID req_mid = cpu->dataMasterId();
+template <class Impl>
+bool
+SEInterface<Impl>::reserve(StreamID sid, PhysRegIndex idx) {
+    return engine->ld_fifo.insert(sid, idx);
+}
 
-//     //There are no memflags.. just create an empty Flags object
-//     //JMFIXME: REQUEST for initiateAcc is created in lsq_impl.hh@pushRequest or dma_device
-//     Request request = Request(req_addr, 1, req_flags, req_mid);
-//     //Create Packet
-//     PacketPtr _packet = Packet::createWrite(request);
-//     //Send Packet
-// }
-
+template <class Impl>
+bool
+SEInterface<Impl>::isReady(StreamID sid, PhysRegIndex idx) {
+    return engine->ld_fifo.ready(sid, idx);
+}
 
 #endif // __CPU_O3_SE_INTERFACE_IMPL_HH__

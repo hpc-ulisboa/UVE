@@ -423,6 +423,9 @@ class DefaultRename
     /** The serialize instruction that rename has stalled on. */
     DynInstPtr serializeInst[Impl::MaxThreads];
 
+    // JMNOTE: StreamTable
+    bool streamTable[32];
+
     /** Records if rename needs to serialize on the next instruction for any
      * thread.
      */

@@ -13,54 +13,49 @@
 
 class DerivO3CPUParams;
 
-
 template <typename Impl>
-class SEInterface
+class SEInterface {
+   public:
+    typedef typename Impl::O3CPU O3CPU;
+    typedef typename Impl::CPUPol::IEW IEW;
+    typedef typename Impl::CPUPol::Decode Decode;
+    typedef typename Impl::CPUPol::Commit Commit;
 
-{
-    public:
-        typedef typename Impl::O3CPU O3CPU;
-        typedef typename Impl::CPUPol::IEW IEW;
-        typedef typename Impl::CPUPol::Decode Decode;
-        typedef typename Impl::CPUPol::Commit Commit;
+    SEInterface(O3CPU *cpu_ptr, Decode *dec_ptr, IEW *iew_ptr, Commit *cmt_ptr,
+                DerivO3CPUParams *params);
+    ~SEInterface(){};
 
-        SEInterface(O3CPU *cpu_ptr, Decode *dec_ptr, IEW *iew_ptr,
-                Commit *cmt_ptr, DerivO3CPUParams *params);
-        ~SEInterface() {};
+    void startupComponent();
 
-        void startupComponent();
+    bool recvTimingResp(PacketPtr pkt);
+    void recvTimingSnoopReq(PacketPtr pkt);
+    void recvReqRetry();
 
-        bool recvTimingResp(PacketPtr pkt);
-        void recvTimingSnoopReq(PacketPtr pkt);
-        void recvReqRetry();
+    // void configureStream(Stream stream, Dimension dim);
 
-        // void configureStream(Stream stream, Dimension dim);
+    bool sendCommand(SECommand cmd);
 
-        bool sendCommand(SECommand cmd);
+    bool reserve(StreamID sid, PhysRegIndex idx);
 
-        void tick(){engine->tick();}
+    bool isReady(StreamID sid, PhysRegIndex idx);
 
-    private:
-        /** Pointers for parent and sibling structures. */
-        O3CPU *cpu;
-        Decode *decStage;
-        IEW *iewStage;
-        Commit *cmtStage;
+    void tick() { engine->tick(); }
 
-        /* Pointer for communication port */
-        MasterPort *dcachePort;
+   private:
+    /** Pointers for parent and sibling structures. */
+    O3CPU *cpu;
+    Decode *decStage;
+    IEW *iewStage;
+    Commit *cmtStage;
 
-        /* Pointer for engine */
-        UVEStreamingEngine *engine;
+    /* Pointer for communication port */
+    MasterPort *dcachePort;
 
-        /* Addr range */
-        AddrRange sengine_addr_range;
+    /* Pointer for engine */
+    UVEStreamingEngine *engine;
 
+    /* Addr range */
+    AddrRange sengine_addr_range;
 };
 
-
-
-
-
-
-#endif //__CPU_O3_SE_INTERFACE_HH__
+#endif  //__CPU_O3_SE_INTERFACE_HH__

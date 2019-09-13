@@ -230,6 +230,9 @@ class InstructionQueue
     /** Wakes all dependents of a completed instruction. */
     int wakeDependents(const DynInstPtr &completed_inst);
 
+    /** JMNOTE: Wakes all dependents of a register. */
+    int wakeDependents(PhysRegIdPtr dest_reg);
+
     /** Adds a ready memory instruction to the ready list. */
     void addReadyMemInst(const DynInstPtr &ready_inst);
 

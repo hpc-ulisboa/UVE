@@ -545,6 +545,13 @@ class BaseDynInst : public ExecContext, public RefCounted
     bool isFirstMicroop() const { return staticInst->isFirstMicroop(); }
     bool isMicroBranch() const { return staticInst->isMicroBranch(); }
 
+    //JMNOTE: StreamConfig Flag
+    bool isStreamInst() const { return staticInst->isStreamInst(); }
+    bool isStreamConfig() const { return staticInst->isStreamConfig(); }
+    uint8_t getStreamRegister() const {
+        return staticInst->getStreamRegister();
+    }
+
     /** Temporarily sets this instruction as a serialize before instruction. */
     void setSerializeBefore() { status.set(SerializeBefore); }
 

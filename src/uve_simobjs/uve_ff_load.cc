@@ -23,7 +23,7 @@ UVELoadFifo::tick(){
 void
 UVELoadFifo::reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
                     bool last = false){
-    //Reserve space in fifo
+    // Reserve space in fifo. This reserve comes from the engine
     assert(!fifos[sid].full());
     fifos[sid].insert(size, ssid, width, last);
 }
@@ -60,8 +60,20 @@ UVELoadFifo::full(StreamID sid){
     return fifos[sid].full();
 }
 
+bool
+UVELoadFifo::reserve(StreamID sid, int physIdx) {
+    // Reserve space in fifo. This reserve comes from the cpu (rename phase)
+    assert(!fifos[sid].full());
+    fifos[sid].insert(physIdx);
+}
+
+bool
+UVELoadFifo::ready(StreamID sid, int physIdx) {
+    return fifos[sid].ready(physIdx);
+}
+
 SmartContainer
-UVELoadFifo::to_smart(FifoEntry entry){
+UVELoadFifo::to_smart(FifoEntry entry) {
     SmartContainer ret;
     ret.first = entry.as<uint8_t>();
     ret.second = entry.getEnable();
@@ -155,6 +167,14 @@ StreamFifo::ready() {
 }
 
 bool
+StreamFifo::ready(int physIdx) {
+    if (empty()) return false;
+
+    // Search for the physIdx in function
+    return true;
+}
+
+bool
 StreamFifo::full() {
     //Real size is the number of fully complete entries
     return this->real_size() == this->max_size;
@@ -176,6 +196,8 @@ StreamFifo::real_size() {
     return size;
 }
 
+void
+StreamFifo::insert(int physIdx) {}
 
 void
 FifoEntry::merge_data(uint8_t * data, uint16_t offset, uint16_t _size) {

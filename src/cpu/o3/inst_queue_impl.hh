@@ -1083,6 +1083,70 @@ InstructionQueue<Impl>::wakeDependents(const DynInstPtr &completed_inst)
     return dependents;
 }
 
+//JMNOTE: Wake dependents on the register that is ready
+#include "debug/UVEIQ.hh"
+template <class Impl>
+int
+InstructionQueue<Impl>::wakeDependents(PhysRegIdPtr dest_reg)
+{
+    int dependents = 0;
+
+    // Special case of uniq or control registers.  They are not
+    // handled by the IQ and thus have no dependency graph entry.
+    if (dest_reg->isFixedMapping()) {
+        DPRINTF(UVEIQ, "Reg %d [%s] is part of a fix mapping, skipping\n",
+                dest_reg->index(), dest_reg->className());
+        return 0;
+    }
+
+    // Avoid waking up dependents if the register is pinned
+    dest_reg->decrNumPinnedWritesToComplete();
+
+    if (dest_reg->getNumPinnedWritesToComplete() != 0) {
+        DPRINTF(UVEIQ, "Reg %d [%s] is pinned, skipping\n",
+                dest_reg->index(), dest_reg->className());
+        return 0;
+    }
+
+    DPRINTF(UVEIQ, "Waking any dependents on register %i (%s).\n",
+            dest_reg->index(),
+            dest_reg->className());
+
+    //Go through the dependency chain, marking the registers as
+    //ready within the waiting instructions.
+    DynInstPtr dep_inst = dependGraph.pop(dest_reg->flatIndex());
+
+    while (dep_inst) {
+        DPRINTF(UVEIQ, "Waking up a dependent instruction, [sn:%llu] "
+                "PC %s.\n", dep_inst->seqNum, dep_inst->pcState());
+
+        // Might want to give more information to the instruction
+        // so that it knows which of its source registers is
+        // ready.  However that would mean that the dependency
+        // graph entries would need to hold the src_reg_idx.
+        //JMTODO: Here is where the registers are marked as ready
+        // Note that markSrcRegReady does inst side marking
+        // And addIfReady puts the inst in the readyQueue, if it's ready
+        dep_inst->markSrcRegReady();
+
+        addIfReady(dep_inst);
+
+        dep_inst = dependGraph.pop(dest_reg->flatIndex());
+
+        ++dependents;
+    }
+
+    // Reset the head node now that all of its dependents have
+    // been woken up.
+    assert(dependGraph.empty(dest_reg->flatIndex()));
+    dependGraph.clearInst(dest_reg->flatIndex());
+
+    // Mark the scoreboard as having that register ready.
+    regScoreboard[dest_reg->flatIndex()] = true;
+
+    return dependents;
+}
+
 template <class Impl>
 void
 InstructionQueue<Impl>::addReadyMemInst(const DynInstPtr &ready_inst)

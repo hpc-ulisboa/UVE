@@ -55,7 +55,7 @@ let {{
              'tpl_args': tplArgs,
              'cmd_code': cmdCode,
              'op_class': 'UveStreamOp'},
-            ['IsNonSpeculative'])
+            ['IsNonSpeculative', 'IsStreamConfig'])
 
 
         header_output += UveStreamDeclareT.subst(StreamIop)
@@ -82,7 +82,7 @@ let {{
             {
              'cmd_code': cmdCode,
              'op_class': 'UveStreamOp'},
-            ['IsNonSpeculative'])
+            ['IsNonSpeculative', 'IsStreamConfig'])
 
 
         header_output += UveStreamDeclare.subst(StreamIop)

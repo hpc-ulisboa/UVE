@@ -202,6 +202,14 @@ class StaticInst : public RefCounted, public StaticInstFlags
     bool isMicroBranch() const { return flags[IsMicroBranch]; }
     //@}
 
+    //JMNOTE: StreamConfig Flag
+    bool isStreamConfig() const { return flags[IsStreamConfig]; }
+    bool isStreamInst() const { return flags[IsStreamInst]; }
+    virtual uint8_t getStreamRegister() const
+    {
+        panic("getStreamRegister not defined!");
+    }
+
     void setFirstMicroop() { flags[IsFirstMicroop] = true; }
     void setLastMicroop() { flags[IsLastMicroop] = true; }
     void setDelayedCommit() { flags[IsDelayedCommit] = true; }

@@ -244,7 +244,7 @@ let {{
              'memacc_code': loadMemAccCode,
              'ea_code' : eaCode,
              'set_update_base_address' : set_update_base_address},
-            ['IsMemRef', 'IsLoad'])
+            ['IsMemRef', 'IsLoad', 'IsStreamInst'])
         storeDupIop = InstObjParams('so.v.st',
             'UveMemStore' if not has_set_bit else 'UveMemStoreSet',
             'UveBaseMemStore',
@@ -253,7 +253,7 @@ let {{
              'memacc_code': storeMemAccCode,
              'ea_code' : eaCode,
              'set_update_base_address' : set_update_base_address},
-            ['IsMemRef', 'IsStore'])
+            ['IsMemRef', 'IsStore', 'IsStreamInst'])
 
 
         header_output += UveVectorLoadDeclare.subst(loadDupIop)
@@ -306,7 +306,7 @@ let {{
              'tpl_args': tplArgs,
              'ex_code' : dupCode,
              'op_class': 'SimdAluOp'},
-            [])
+            ['IsStreamInst'])
 
         MvsvIop = InstObjParams('so.v.mvsv',
             'UveVectorMoveSV',
@@ -315,7 +315,7 @@ let {{
              'tpl_args': tplArgs,
              'ex_code' : mvsvCode,
              'op_class': 'SimdAluOp'},
-            [])
+            ['IsStreamInst'])
 
         header_output += UveVectorDupDeclare.subst(DupIop)
         header_output += UveVectorDupDeclare.subst(MvsvIop)
@@ -367,7 +367,7 @@ let {{
              'tpl_args': tplArgs,
              'ex_code' : moveCode,
              'op_class': 'SimdAluOp'},
-            [])
+            ['IsStreamInst'])
 
         MoveTIop = InstObjParams('so.v.mvt',
             'UveVectorMoveT',
@@ -376,7 +376,7 @@ let {{
              'tpl_args': tplArgs,
              'ex_code' : moveTCode,
              'op_class': 'SimdAluOp'},
-            [])
+            ['IsStreamInst'])
 
         header_output += UveVectorMoveDeclare.subst(MoveIop)
         header_output += UveVectorMoveDeclare.subst(MoveTIop)
@@ -424,7 +424,7 @@ let {{
              'tpl_args': tplArgs,
              'ex_code' : moveVSCode,
              'op_class': 'SimdAluOp'},
-            [])
+            ['IsStreamInst'])
 
         header_output += UveVectorMoveVSDeclare.subst(MoveIop)
 
@@ -590,7 +590,7 @@ let {{
                 'tpl_args': tplArgs,
                 'ex_code' : eval(conv.lower() + "Conversion"),
                 'op_class': 'SimdAluOp'},
-                [])
+                ['IsStreamInst'])
 
 
             header_output += UveVectorConvDeclare.subst(Iop)
