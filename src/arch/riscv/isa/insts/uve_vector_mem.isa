@@ -223,8 +223,10 @@ let {{
         for (int i = 0; i < eCount; i++) {
             Vd_x[i] = memDataView[i];
         }
+        Vd_x <= width_converter<RegElemType>::width;
+        Vd_x <<= memAccessSize;
         '''
-
+        #JMTODO: Change this
         storeMemAccCode = '''
         for (int i = 0; i < eCount; i++) {
             memDataView[i] = Vs1_x[i];
@@ -345,6 +347,9 @@ let {{
             if(Ps2_x[i])
                 Vd_x[i] = Vs1_x[i];
         }
+        Vd_x <= Vs1_x.get_width();
+        Vd_x <<= Vs1_x.get_valid();
+        Vd_x &= Vs1_x.is_last();
         '''
 
         moveTCode = '''
@@ -358,6 +363,8 @@ let {{
         if(eCount%2==1){
             Vd_x[eCount/2+1] = Vs1_x[eCount/2+1];
         }
+        Vd_x <= Vs1_x.get_width();
+        Vd_x <<= Vs1_x.get_valid();
         '''
 
         MoveIop = InstObjParams('so.v.mv',

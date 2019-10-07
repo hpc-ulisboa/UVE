@@ -94,7 +94,7 @@ SimpleRenameMap::rename(const RegId& arch_reg)
         renamed_reg = prev_reg;
         renamed_reg->decrNumPinnedWrites();
     } else {
-        //JMTODO: Common renaming, change code here to load data from
+        // JMTODO: Common renaming
         renamed_reg = freeList->getReg();
         map[arch_reg.flatIndex()] = renamed_reg;
         renamed_reg->setNumPinnedWrites(arch_reg.getNumPinnedWrites());

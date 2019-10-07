@@ -865,6 +865,10 @@ class FullO3CPU : public BaseO3CPU
     SEInterface<Impl>* getSEICpuPtr(){
       return &sei;
     }
+
+    DefaultRename<Impl> *getRenameCpuPtr() { return &rename; }
+    PhysRegFile *getRegFileCpuPtr() { return &regFile; }
+    Scoreboard *getScoreboardCpuPtr() { return &scoreboard; }
 };
 
 #endif // __CPU_O3_CPU_HH__

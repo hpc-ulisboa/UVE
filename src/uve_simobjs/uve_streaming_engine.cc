@@ -1,16 +1,18 @@
 #include "uve_simobjs/uve_streaming_engine.hh"
 
-UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams *params) :
-  ClockedObject(params),
-  memoryPort(params->name + ".mem_side", this), memCore(params, this),
-  confCore(params, this), ld_fifo(params), confAddr(params->start_addr),
-  confSize(32)
-{
-  ld_fifo.init();
-  // memCore->setConfCore(confCore);
-  // confCore->setMemCore(memCore);
-  // confPort = new PioPort(this);
-  // memoryPort = new MemSidePort(params->name + ".mem_side", this);
+UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams* params)
+    : ClockedObject(params),
+      memoryPort(params->name + ".mem_side", this),
+      memCore(params, this),
+      confCore(params, this),
+      ld_fifo(params),
+      confAddr(params->start_addr),
+      confSize(32) {
+    ld_fifo.init();
+    // memCore->setConfCore(confCore);
+    // confCore->setMemCore(memCore);
+    // confPort = new PioPort(this);
+    // memoryPort = new MemSidePort(params->name + ".mem_side", this);
 }
 
 void
@@ -25,14 +27,6 @@ UVEStreamingEngine*
 UVEStreamingEngineParams::create()
 {
   return new UVEStreamingEngine(this);
-}
-
-Tick UVEStreamingEngine::read(PacketPtr pkt){
-  return 1;
-}
-
-Tick UVEStreamingEngine::write(PacketPtr pkt){
-  return 1;
 }
 
 AddrRangeList
@@ -96,10 +90,29 @@ UVEStreamingEngine::MemSidePort::recvRangeChange()
 void
 UVEStreamingEngine::tick(){
   memCore.tick();
-  ld_fifo.tick();
+  if (ld_fifo.tick()) {
+      for (auto elem : ld_fifo.get_data()) {
+          send_data_to_sei(elem.first, elem.second);
+      }
+  }
 }
 
 void
 UVEStreamingEngine::regStats(){
   ClockedObject::regStats();
+}
+
+void
+UVEStreamingEngine::set_callback(void (*_callback)(int, CoreContainer*)) {
+    DPRINTF(JMDEVEL, "Configuring Callback\n");
+    callback = _callback;
+}
+
+void
+UVEStreamingEngine::squash(uint16_t sid, int regIdx) {
+    if (ld_fifo.squash(sid, regIdx))
+        return;
+    else {
+        return;
+    }
 }

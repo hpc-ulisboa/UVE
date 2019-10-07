@@ -58,7 +58,7 @@ class OpClass(Enum):
             'SimdShaSigma3',
             'SimdPredAlu',
             'MemRead', 'MemWrite', 'FloatMemRead', 'FloatMemWrite',
-            'IprAccess', 'InstPrefetch', 'UveStream']
+            'IprAccess', 'InstPrefetch', 'UveStream', 'UveBranch']
 
 class OpDesc(SimObject):
     type = 'OpDesc'

@@ -1,0 +1,33 @@
+def template UveSBranchDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _VSrc1, uint64_t _imm)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _VSrc1, _imm)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
+def template UveSBranchExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+        Fault fault = NoFault;
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        DPRINTF(UVEBranch, "%(class_name)s->execute\n");
+
+        %(uve_code)s;
+        DPRINTF(JMDEVEL, "PC:%#x NPC:%#x\n", PC, NPC);
+        %(op_wb)s;
+        return fault;
+    }
+}};

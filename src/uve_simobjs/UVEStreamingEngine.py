@@ -10,7 +10,6 @@ class UVEStreamingEngine(ClockedObject):
 
     # Vector port example. Both the instruction and data ports connect to this
     # port which is automatically split out into two ports.
-    cpu_side = SlavePort("CPU side port, receives requests")
     mem_side = MasterPort("Memory side port, sends requests")
 
     latency = Param.Cycles(1, "Cycles taken on a hit or to resolve a miss")

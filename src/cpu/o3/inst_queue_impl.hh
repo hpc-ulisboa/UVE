@@ -1112,8 +1112,8 @@ InstructionQueue<Impl>::wakeDependents(PhysRegIdPtr dest_reg)
             dest_reg->index(),
             dest_reg->className());
 
-    //Go through the dependency chain, marking the registers as
-    //ready within the waiting instructions.
+    // Go through the dependency chain, marking the registers as
+    // ready within the waiting instructions.
     DynInstPtr dep_inst = dependGraph.pop(dest_reg->flatIndex());
 
     while (dep_inst) {
@@ -1361,6 +1361,23 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
                         !src_reg->isFixedMapping()) {
                         dependGraph.remove(src_reg->flatIndex(),
                                            squashed_inst);
+
+                        // JMNOTE: IF removing from dependGraph we need to
+                        // signal the streaming engine.
+                        // Make the engine remove the physReg slot
+                        // If it is not there:
+                        // It was already sent to the cpu, and in that case we
+                        // need to rewind execution
+                        if (squashed_inst->isStreamInst()) {
+                            if (src_reg->isVectorPhysReg()) {
+                                // Get sid from the arch register
+                                auto sid =
+                                    squashed_inst->srcRegIdx(src_reg_idx)
+                                        .index();
+                                auto regidx = src_reg->index();
+                                cpu->getSEICpuPtr()->squash(sid, regidx);
+                            }
+                        }
                     }
 
                     ++iqSquashedOperandsExamined;

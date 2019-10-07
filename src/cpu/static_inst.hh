@@ -205,6 +205,7 @@ class StaticInst : public RefCounted, public StaticInstFlags
     //JMNOTE: StreamConfig Flag
     bool isStreamConfig() const { return flags[IsStreamConfig]; }
     bool isStreamInst() const { return flags[IsStreamInst]; }
+    bool isStreamBranch() const { return flags[IsStreamBranch]; }
     virtual uint8_t getStreamRegister() const
     {
         panic("getStreamRegister not defined!");
@@ -367,6 +368,9 @@ class StaticInst : public RefCounted, public StaticInstFlags
      * buffer if there wasn't enough space.
      */
     virtual size_t asBytes(void *buf, size_t max_size) { return 0; }
+
+    // JMNOTE: UVE Branch
+    virtual uint8_t getUVEStream() const { panic("Not implemented"); }
 };
 
 #endif // __CPU_STATIC_INST_HH__

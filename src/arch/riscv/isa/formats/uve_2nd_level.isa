@@ -536,4 +536,20 @@ namespace Uve
 
 } // namespace Uve
 
+namespace Uve {
+    StaticInstPtr
+    decodeSBranchNC(ExtMachInst machInst)
+    {
+        uint8_t stream = (uint8_t) bits(machInst, 19, 15);
+        uint64_t immediate = ((uint64_t) bits(machInst, 28) << 12)      |
+                             ((uint64_t) bits(machInst, 7) << 11)       |
+                             ((uint64_t) bits(machInst, 27, 22) << 5)   |
+                             ((uint64_t) bits(machInst, 11, 8) << 1);
+
+        return new UveSBranchNC("so.b.nc", machInst, stream,
+                                sext<13>(immediate));
+
+    }  // decodeSBranchNC
+} // namespace Uve
+
 }};

@@ -38,6 +38,7 @@ class SEprocessing : SimObject
   protected:
     UVEStreamingEngine *parent;
     std::array<SEIterPtr,32> iterQueue;
+    std::array<int, 32> ssidArray;
     uint8_t pID;
 
   public:
@@ -83,8 +84,9 @@ class SEprocessing : SimObject
                       BaseTLB::Mode mode, uint8_t *data,
                       ThreadContext* tc);
     void recvData(PacketPtr pkt);
+    bool isCompleted(StreamID sid) { return iterQueue[sid]->ended(); }
 
-  private:
+   private:
     void emitRequest(SERequestInfo info);
     Addr pageAlign(Addr a)  { return (a & ~offsetMask); }
   public:
@@ -191,17 +193,15 @@ class UVEStreamingEngine : public ClockedObject
     Addr confAddr;
     Addr confSize;
     Tick cycler = 0;
+    std::function<void(int, CoreContainer *)> callback;
 
-  public:
-  /** constructor
-   */
+   public:
+    /** constructor
+     */
     UVEStreamingEngine(UVEStreamingEngineParams *params);
 
     void init();
 
-    //PioDevice Methods
-    Tick read(PacketPtr pkt);
-    Tick write(PacketPtr pkt);
     AddrRangeList getAddrRanges() const;
     void sendRangeChange() const;
 
@@ -222,9 +222,14 @@ class UVEStreamingEngine : public ClockedObject
     }
 
     void regStats() override;
-
-
+    void set_callback(void (*callback)(int, CoreContainer *));
+    void send_data_to_sei(int physIdx, CoreContainer *cnt) {
+        callback(physIdx, cnt);
+    }
+    void squash(uint16_t sid, int regIdx);
+    bool isFinished(uint16_t sid) {
+        return ld_fifo.isFinished(sid) && memCore.isCompleted(sid);
+    }
 };
-
 
 #endif // __UVE_STREAMING_ENGINE_HH__

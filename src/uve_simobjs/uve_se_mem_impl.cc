@@ -11,6 +11,7 @@ SEprocessing::SEprocessing(UVEStreamingEngineParams *params,
                 {
     parent = _parent;
     iterQueue.fill(new SEIter());
+    ssidArray.fill(-1);
 };
 
 void SEprocessing::tick(){
@@ -139,13 +140,9 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read)
         req = std::make_shared<Request>(
             gen.addr(), gen.size(), 0, 0);
 
-        auto ssid = ireq->substreamId();
+        auto ssid = ++ssidArray[sid];
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
-        //JMFIXME: This only works for now... need to update ssid in the
-        // iter object
-        //This is a real pain in the ass problem....
-        ireq->setSubStreamId(ssid + 1);
 
         if (!parent->ld_fifo.full(sid)){
             bool last_packet = (ended && gen.last());

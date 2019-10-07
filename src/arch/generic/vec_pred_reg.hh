@@ -44,8 +44,9 @@
 #include <cassert>
 #include <vector>
 
-#include "arch/generic/vec_reg.hh"
+// #include "arch/generic/vec_reg.hh"
 #include "base/cprintf.hh"
+#include "uve_vecreg/uve_vecreg.hh"
 
 template <size_t NumBits, bool Packed>
 class VecPredRegContainer;

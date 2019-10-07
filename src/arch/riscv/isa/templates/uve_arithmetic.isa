@@ -104,32 +104,18 @@ def template UveThreeVecPredicatedExecute {{
         Fault fault = NoFault;
         unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / sizeof(uint8_t);
-        uint8_t src1_vw = get_vector_width(xc, VSrc1);
-        uint8_t src2_vw = get_vector_width(xc, VSrc2);
-        uint16_t src1_vi = RiscvStaticInst::getUveValidIndex(
-            xc->tcBase(), VSrc1) / (1 << src1_vw);
-        uint16_t src2_vi = RiscvStaticInst::getUveValidIndex(
-            xc->tcBase(), VSrc2) / (1 << src2_vw);
-        unsigned iCount = eCount /  (1<<src1_vw);
-        uint16_t dest_vi = 0;
-        check_equal_src_widths(src1_vw, src2_vw);
-        dest_vi = get_dest_valid_index(src1_vi, src2_vi);
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
-        iCount = UVEMIN(iCount,dest_vi);
-        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
-        eCount, iCount);
 
         %(op_decl)s;
         %(op_rd)s;
 
         if (fault == NoFault) {
             %(ex_code)s;
-            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
-                src1_vw);
-            RiscvStaticInst::setUveValidIndex(xc->tcBase(), VDest,
-                iCount * (1 << src1_vw));
             %(op_wb)s;
+
+            DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)"
+            "\n", eCount, iCount);
         }
 
         return fault;
@@ -143,31 +129,23 @@ def template UveTwoVecPredicatedExecute {{
     Fault %(class_name)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
+
         Fault fault = NoFault;
         unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / sizeof(uint8_t);
-        uint8_t src1_vw = get_vector_width(xc, VSrc1);
-        uint16_t src1_vi = RiscvStaticInst::getUveValidIndex(
-            xc->tcBase(), VSrc1) / (1 << src1_vw);
-        unsigned iCount = eCount /  (1<<src1_vw);
-        iCount = UVEMIN(iCount,src1_vi);
 
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
-
-        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
-        eCount, iCount);
 
         %(op_decl)s;
         %(op_rd)s;
 
         if (fault == NoFault) {
             %(ex_code)s;
-            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
-                src1_vw);
-            RiscvStaticInst::setUveValidIndex(xc->tcBase(), VDest,
-                iCount * (1 << src1_vw));
             %(op_wb)s;
+
+            DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)"
+            "\n", eCount, iCount);
         }
 
         return fault;
@@ -185,18 +163,9 @@ def template UveTwoVec2ScaPredicatedExecute {{
         Fault fault = NoFault;
         unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / sizeof(uint8_t);
-        uint8_t src1_vw = get_vector_width(xc, VSrc1);
-        uint16_t src1_vi = RiscvStaticInst::getUveValidIndex(
-            xc->tcBase(), VSrc1) / (1 << src1_vw);
-        unsigned iCount = eCount /  (1<<src1_vw);
-        iCount = UVEMIN(iCount,src1_vi);
-
 
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
-
-        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
-        eCount, iCount);
 
         %(op_decl)s;
         %(op_rd)s;
@@ -204,6 +173,9 @@ def template UveTwoVec2ScaPredicatedExecute {{
         if (fault == NoFault) {
             %(ex_code)s;
             %(op_wb)s;
+
+            DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)"
+            "\n", eCount, iCount);
         }
 
         return fault;
@@ -220,28 +192,19 @@ def template UveVecScaPredicatedExecute {{
         Fault fault = NoFault;
         unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / sizeof(uint8_t);
-        uint8_t src1_vw = get_vector_width(xc, VSrc1);
-        uint16_t src1_vi = RiscvStaticInst::getUveValidIndex(
-            xc->tcBase(), VSrc1) / (1 << src1_vw);
-        unsigned iCount = eCount /  (1<<src1_vw);
-        iCount = UVEMIN(iCount,src1_vi);
 
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
 
-        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
-        eCount, iCount);
-
         %(op_decl)s;
         %(op_rd)s;
 
+
         if (fault == NoFault) {
             %(ex_code)s;
-            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
-                src1_vw);
-            RiscvStaticInst::setUveValidIndex(xc->tcBase(), VDest,
-                iCount * (1 << src1_vw));
             %(op_wb)s;
+            DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)
+            "\n", eCount, iCount);
         }
 
         return fault;

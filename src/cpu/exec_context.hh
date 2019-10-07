@@ -350,6 +350,8 @@ class ExecContext {
     {
         panic("sendSEIcmd not implemented");
     }
+
+    virtual InstSeqNum getSeqNum() { panic("Not Implemented"); }
 };
 
 #endif // __CPU_EXEC_CONTEXT_HH__

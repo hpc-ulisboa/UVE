@@ -52,6 +52,7 @@ output header {{
 #include "arch/riscv/insts/static_inst.hh"
 #include "arch/riscv/insts/unknown.hh"
 #include "arch/riscv/insts/uve_arithmetic.hh"
+#include "arch/riscv/insts/uve_branch.hh"
 #include "arch/riscv/insts/uve_predicate.hh"
 #include "arch/riscv/insts/uve_stream.hh"
 #include "arch/riscv/insts/uve_utils.hh"

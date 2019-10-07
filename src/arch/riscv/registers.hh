@@ -53,10 +53,11 @@
 
 #include "arch/generic/types.hh"
 #include "arch/generic/vec_pred_reg.hh"
-#include "arch/generic/vec_reg.hh"
+// #include "arch/generic/vec_reg.hh"
 #include "arch/isa_traits.hh"
 #include "arch/riscv/generated/max_inst_regs.hh"
 #include "base/types.hh"
+#include "uve_vecreg/uve_vecreg.hh"
 
 namespace RiscvISA {
 
@@ -67,11 +68,13 @@ using RiscvISAInst::MaxInstDestRegs;
 const int MaxMiscDestRegs = 1;
 
 // Not applicable to RISC-V
-//JMNOTE: Now applicable for Uve
+// JMNOTE: Now applicable for Uve
+// JMFIXME: Alterar o contentor para um criado por mim, Que contenha o enable
+// index, o tipo
 constexpr unsigned NumVecElemPerVecReg = MaxUveVecLenInDWords;
 using VecElem = uint64_t;
-using VecReg = ::VecRegT<VecElem,NumVecElemPerVecReg, false>;
-using ConstVecReg = ::VecRegT<VecElem,NumVecElemPerVecReg, true>;
+using VecReg = VecRegT<VecElem, NumVecElemPerVecReg, false>;
+using ConstVecReg = VecRegT<VecElem, NumVecElemPerVecReg, true>;
 using VecRegContainer = VecReg::Container;
 
 // Not applicable to RISC-V

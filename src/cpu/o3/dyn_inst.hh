@@ -442,6 +442,8 @@ class BaseO3DynInst : public BaseDynInst<Impl>
         auto cmd = *((SECommand*) cmd_ptr);
         return this->cpu->getSEICpuPtr()->sendCommand(cmd);
     }
+
+    InstSeqNum getSeqNum() { return this->seqNum; }
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

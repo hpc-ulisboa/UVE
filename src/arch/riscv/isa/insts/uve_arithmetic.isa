@@ -108,6 +108,14 @@ let {{
         genericArithThreeVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
         auto src2_vc = (TheISA::VecRegContainer)Vs2_x;
+        auto src1_vw = src1_vc.get_width();
+        auto src2_vw = src2_vc.get_width();
+        check_equal_src_widths(src1_vw, src2_vw);
+        auto src1_vi = src1_vc.get_valid() / (1 << src1_vw);
+        auto src2_vi = src2_vc.get_valid() / (1 << src1_vw);
+        unsigned iCount = eCount /  (1<<src1_vw);
+        auto dest_vi = get_dest_valid_index(src1_vi, src2_vi);
+        iCount = UVEMIN(iCount,dest_vi);
         auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
         %(inst)s;
         TheISA::VecRegContainer output;
@@ -170,6 +178,9 @@ let {{
         auto out = output.as<uint8_t>();
         for(int i=0;i<eCount;i++)
             Vd_x[i] = out[i];
+
+        Vd_x <= src1_vw;
+        Vd_x <<= iCount * (1 << src1_vw);
         '''
 
         generic_fixed_code = "out[i] = v1[i] %(op)s v2[i];"
@@ -232,6 +243,10 @@ let {{
 
         genericArithTwoVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        auto src1_vw = src1_vc.get_width();
+        auto src1_vi = src1_vc.get_valid() / (1 << src1_vw);
+        unsigned iCount = eCount /  (1<<src1_vw);
+        iCount = UVEMIN(iCount,src1_vi);
         auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
         TheISA::VecRegContainer output;
         switch(src1_vw){
@@ -285,6 +300,9 @@ let {{
         auto out = output.as<uint8_t>();
         for(int i=0;i<eCount;i++)
             Vd_x[i] = out[i];
+
+        Vd_x <= src1_vw;
+        Vd_x <<= iCount * (1 << src1_vw);
         '''
 
         generic_fixed_code = "out[i] = %(op)s(v1[i]);"
@@ -334,6 +352,10 @@ let {{
         genericArithTwoVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
         auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
+        auto src1_vw = src1_vc.get_width();
+        auto src1_vi = src1_vc.get_valid() / (1 << src1_vw);
+        unsigned iCount = eCount /  (1<<src1_vw);
+        iCount = UVEMIN(iCount,src1_vi);
         TheISA::VecRegContainer output;
         switch(src1_vw){
             case 0:{
@@ -386,6 +408,9 @@ let {{
         auto out = output.as<uint8_t>();
         for(int i=0;i<eCount;i++)
             Vd_x[i] = out[i];
+
+        Vd_x <= src1_vw;
+        Vd_x <<= iCount * (1 << src1_vw);
         '''
 
         generic_fixed_code = "out[i] = %(op)s(v1[i]);"
@@ -435,6 +460,10 @@ let {{
         genericArithThreeVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
         %(acc_type)s out = %(acc_initial_value)s;
+        auto src1_vw = src1_vc.get_width();
+        auto src1_vi = src1_vc.get_valid() / (1 << src1_vw);
+        unsigned iCount = eCount /  (1<<src1_vw);
+        iCount = UVEMIN(iCount,src1_vi);
         switch(src1_vw){
             case 0:{
                 auto v1 = src1_vc.as<%(type8)s>();
@@ -550,6 +579,10 @@ let {{
         genericArithThreeVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
         %(src2_inst)s;
+        auto src1_vw = src1_vc.get_width();
+        auto src1_vi = src1_vc.get_valid() / (1 << src1_vw);
+        unsigned iCount = eCount /  (1<<src1_vw);
+        iCount = UVEMIN(iCount,src1_vi);
         auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
         TheISA::VecRegContainer output;
         switch(src1_vw){
@@ -607,6 +640,8 @@ let {{
         auto out = output.as<uint8_t>();
         for(int i=0;i<eCount;i++)
             Vd_x[i] = out[i];
+        Vd_x <= src1_vw;
+        Vd_x <<= iCount * (1 << src1_vw);
         '''
         src2_ops = {
             "src2_inst": "auto src2_vc = (TheISA::VecRegContainer)Vs2_x;",
@@ -662,6 +697,10 @@ let {{
 
         genericArithThreeVecPredicated = '''
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        auto src1_vw = src1_vc.get_width();
+        uint16_t src1_vi = src1_vc.get_valid() / (1 << src1_vw);
+        unsigned iCount = eCount /  (1<<src1_vw);
+        iCount = UVEMIN(iCount,src1_vi);
         auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
         TheISA::VecRegContainer output;
         switch(src1_vw){
@@ -715,6 +754,9 @@ let {{
         auto out = output.as<uint8_t>();
         for(int i=0;i<eCount;i++)
             Vd_x[i] = out[i];
+
+        Vd_x <= src1_vw;
+        Vd_x <<= iCount * (1 << src1_vw);
         '''
 
         code_dict = TypeUnsigned if not int_types else TypeSigned
@@ -798,6 +840,8 @@ let {{
             aux = (typeCastToBits((%%(type)s)out) >> (8*i)) & 0xFF;
             Vd_x[i] = aux;
         }
+        Vd_x <= src1_vw;
+        Vd_x <<= iCount * (1 << src1_vw);
         ''',
         generic_code='''
         out = out + v1[i];
@@ -833,6 +877,8 @@ let {{
             aux = (typeCastToBits((%%(type)s)out) >> (8*i)) & 0xFF;
             Vd_x[i] = aux;
         }
+        Vd_x <= src1_vw;
+        Vd_x <<= iCount * (1 << src1_vw);
         ''',
         generic_code='''
         out = out + v1[i];

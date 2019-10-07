@@ -51,7 +51,7 @@
 #include <queue>
 
 #include "arch/generic/debugfaults.hh"
-#include "arch/generic/vec_reg.hh"
+// #include "arch/generic/vec_reg.hh"
 #include "arch/isa_traits.hh"
 #include "arch/locked_mem.hh"
 #include "arch/mmapped_ipr.hh"
@@ -61,6 +61,7 @@
 #include "debug/LSQUnit.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
+#include "uve_vecreg/uve_vecreg.hh"
 
 struct DerivO3CPUParams;
 #include "base/circular_queue.hh"

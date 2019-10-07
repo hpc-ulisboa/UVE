@@ -12,9 +12,6 @@
 
 using CoreContainer = RiscvISA::VecRegContainer;
 using ViewContainer = RiscvISA::VecReg;
-using EnableContainer = std::array<bool, CoreContainer::SIZE>;
-
-using SmartContainer = std::pair<CoreContainer, EnableContainer>;
 
 class UVELoadFifo;
 
@@ -24,23 +21,23 @@ class FifoEntry : public CoreContainer {
    private:
     typedef enum { Complete, NotComplete, Clean } States;
     States rstate, cstate;
-    EnableContainer enable_bits;
     uint16_t size, csize;
-    uint8_t width;
+    uint16_t config_size;
 
    public:
-    FifoEntry(uint8_t _width)
-        : CoreContainer(), size(0), csize(0), width(_width) {
+    FifoEntry(uint8_t width, uint16_t _cfg_sz)
+        : CoreContainer(),
+          size(0),
+          csize(0),
+          config_size(_cfg_sz / 8) {  // Config size to be used in bytes
         this->zero();
         rstate = States::NotComplete;
         cstate = States::Clean;
-        enable_bits.fill(false);
+        set_width(width);
     }
     bool complete() { return rstate == States::Complete; }
     bool ready() { return cstate == States::Complete; }
 
-    bool enabled(int i) { return enable_bits[i]; }
-    EnableContainer getEnable() { return enable_bits; };
     void merge_data(uint8_t *data, uint16_t offset, uint16_t size);
     uint16_t getSize() { return size; }
     bool reserve(uint16_t _size, bool last);
@@ -71,18 +68,31 @@ class StreamFifo : protected std::vector<FifoEntry> {
     uint8_t max_size;
     UVELoadFifo *owner;
     std::vector<MapStruct> map;
+    std::list<int> physRegStack;
+    uint16_t config_size;
+    SEIterationStatus status;
 
    public:
-    StreamFifo() : max_size(FIFO_DEPTH), owner(nullptr) { reserve(max_size); }
+    StreamFifo(uint16_t _cfg_sz)
+        : max_size(FIFO_DEPTH),
+          owner(nullptr),
+          physRegStack(),
+          config_size(_cfg_sz),
+          status(SEIterationStatus::Clean) {
+        reserve(max_size);
+    }
 
     void set_owner(UVELoadFifo *own) { owner = own; }
     void insert(uint16_t size, uint16_t ssid, uint8_t width, bool last);
     bool merge_data(uint16_t ssid, uint8_t *data);
     FifoEntry get();
+    FifoEntry get(int *physidx);
     bool full();
     bool ready();
     bool ready(int physidx);
+    bool squash(int physidx);
     bool empty();
+    bool complete() { return status == SEIterationStatus::Ended; }
 
     void insert(int physIdx);
 
@@ -93,27 +103,28 @@ class StreamFifo : protected std::vector<FifoEntry> {
 // This is the load fifo object that contains one fifo per stream
 class UVELoadFifo : public SimObject {
    private:
-    std::array<StreamFifo, 32> fifos;
+    std::vector<StreamFifo> fifos;
 
    public:
     uint16_t cacheLineSize;
+    UVEStreamingEngine *engine;
 
    public:
     UVELoadFifo(UVEStreamingEngineParams *params);
 
-    void tick();
+    bool tick();
+    std::vector<std::pair<int, CoreContainer *>> get_data();
     void init();
     bool insert(StreamID sid, uint32_t ssid, CoreContainer data);
     void reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
                  bool last);
-    bool fetch(StreamID sid, SmartContainer *cnt);
+    bool fetch(StreamID sid, CoreContainer **cnt);
     bool full(StreamID sid);
 
     bool reserve(StreamID sid, int physIdx);
     bool ready(StreamID sid, int physIdx);
-
-   private:
-    SmartContainer to_smart(FifoEntry entry);
+    bool squash(StreamID sid, int physIdx);
+    bool isFinished(StreamID sid);
 };
 
 #endif  //__UVE_SIMOBJS_FIFO_LOAD_HH__

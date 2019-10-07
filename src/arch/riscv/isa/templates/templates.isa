@@ -1,7 +1,8 @@
 // -*- mode:c++ -*-
 
 // Templates for UVE instructions
-##include "uve_vector_mem.isa"
-##include "uve_predicate.isa"
 ##include "uve_arithmetic.isa"
+##include "uve_branch.isa"
+##include "uve_predicate.isa"
 ##include "uve_stream.isa"
+##include "uve_vector_mem.isa"

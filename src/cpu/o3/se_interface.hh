@@ -16,6 +16,9 @@ class DerivO3CPUParams;
 template <typename Impl>
 class SEInterface {
    public:
+    static SEInterface *singleton;
+
+   public:
     typedef typename Impl::O3CPU O3CPU;
     typedef typename Impl::CPUPol::IEW IEW;
     typedef typename Impl::CPUPol::Decode Decode;
@@ -31,6 +34,12 @@ class SEInterface {
     void recvTimingSnoopReq(PacketPtr pkt);
     void recvReqRetry();
 
+    void sendData(int physIdx, TheISA::VecRegContainer *cnt);
+
+    static void sendDataToCPU(int physIdx, TheISA::VecRegContainer *cnt) {
+        SEInterface<Impl>::singleton->sendData(physIdx, cnt);
+    }
+
     // void configureStream(Stream stream, Dimension dim);
 
     bool sendCommand(SECommand cmd);
@@ -39,7 +48,19 @@ class SEInterface {
 
     bool isReady(StreamID sid, PhysRegIndex idx);
 
+    bool fetch(StreamID sid, TheISA::VecRegContainer **cnt);
+
     void tick() { engine->tick(); }
+
+    void squash(StreamID sid, int regidx) { engine->squash(sid, regidx); }
+
+    bool isFinished(StreamID sid) { return engine->isFinished(sid); }
+
+    void setCompleted(InstSeqNum seqNum, bool Complete) {
+        UVECondLookup[seqNum] = Complete;
+    }
+
+    bool isComplete(InstSeqNum seqNum) { return UVECondLookup.at(seqNum); }
 
    private:
     /** Pointers for parent and sibling structures. */
@@ -56,6 +77,9 @@ class SEInterface {
 
     /* Addr range */
     AddrRange sengine_addr_range;
+
+    /* Completion Lookup Table (Updated in rename phase) */
+    std::map<InstSeqNum, bool> UVECondLookup;
 };
 
 #endif  //__CPU_O3_SE_INTERFACE_HH__

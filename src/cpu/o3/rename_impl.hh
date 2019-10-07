@@ -1079,6 +1079,23 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
     RenameMap *map = renameMap[tid];
     unsigned num_src_regs = inst->numSrcRegs();
 
+    // JMNOTE: Handle the StreamBranches in order
+    // We do this by saving the conditional result in a lookup table
+    // This table is pointed by the instruction sequence number and
+    // contains the conditional result
+    // UVECondLookup[inst->seqnum] = true/false (is stream complete)
+    // This must occur here, as we don't use the vector register inside the
+    // code
+    // if (inst->isStreamBranch()) {
+    //     // Get the vec reg index
+    //     uint8_t sid = inst->staticInst->getUVEStream();
+    //     // Check for completion in fifo
+    //     bool completed = cpu->getSEICpuPtr()->isFinished(sid);
+    //     // Set result in Lookup table
+    //     // There is access to this lookup table in SEI
+    //     cpu->getSEICpuPtr()->setCompleted(inst->seqNum, completed);
+    // }
+
     // Get the architectual register numbers from the source and
     // operands, and redirect them to the right physical register.
     for (int src_idx = 0; src_idx < num_src_regs; src_idx++) {
@@ -1088,26 +1105,26 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
         // JMNOTE: Check if vector register is active stream
         if (inst->isStreamInst() && src_reg.isVecReg() &&
             streamTable[src_reg.index()]) {
-            DPRINTF(JMDEVEL,
-                    "[tid:%i] "
-                    "[S] Found Stream Inst: "
-                    "Identified Source Streamed reg:%d\n",
-                    tid, src_reg.index());
+            // DPRINTF(JMDEVEL,
+            //         "[tid:%i] "
+            //         "[S] Found Stream Inst: "
+            //         "Identified Source Streamed reg:%d\n",
+            //         tid, src_reg.index());
             // JMNOTE: IF Stream: First time create new phys register (call
             // rename)
             typename RenameMap::RenameInfo rename_result;
             RegId flat_src_regid = tc->flattenRegId(src_reg);
             // Check if this is really needed
-            flat_src_regid.setNumPinnedWrites(1);
+            flat_src_regid.setNumPinnedWrites(0);
 
             rename_result = map->rename(flat_src_regid);
 
-            DPRINTF(JMDEVEL,
-                    "[tid:%i] "
-                    "[S] Renaming arch reg %i (%s) to physical reg %i (%i).\n",
-                    tid, src_reg.index(), src_reg.className(),
-                    rename_result.first->index(),
-                    rename_result.first->flatIndex());
+            // DPRINTF(JMDEVEL,
+            //         "[tid:%i] "
+            //         "[S] Renaming arch reg %i (%s) to physical reg %i
+            //         (%i).\n", tid, src_reg.index(), src_reg.className(),
+            //         rename_result.first->index(),
+            //         rename_result.first->flatIndex());
 
             inst->renameSrcReg(src_idx, rename_result.first);
 
@@ -1116,6 +1133,8 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
 
             // Make reservation in the fifo. Set the physical register as
             // destination of the data
+            indexToRegIdVector[rename_result.first->index()] =
+                rename_result.first;
             assert(cpu->getSEICpuPtr()->reserve(src_reg.index(),
                                                 rename_result.first->index()));
 
@@ -1124,6 +1143,12 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
                                              rename_result.first->index())) {
                 scoreboard->setReg(rename_result.first);
                 inst->markSrcRegReady(src_reg.index());
+                // Insert data into the register file
+                TheISA::VecRegContainer **cnt =
+                    (TheISA::VecRegContainer **)malloc(
+                        sizeof(TheISA::VecRegContainer *));
+                cpu->getSEICpuPtr()->fetch(src_reg.index(), cnt);
+                cpu->setVecReg(rename_result.first, (**cnt));
             } else {
                 DPRINTF(JMDEVEL,
                         "[tid:%i] "
@@ -1161,13 +1186,13 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
             panic("Invalid register class: %d.", src_reg.classValue());
         }
 
-        if (src_reg.isVecReg() || src_reg.isVecPredReg())
-            DPRINTF(
-                JMDEVEL,
-                "[tid:%i] "
-                "[S_debug] Looking up %s arch reg %i, got phys reg %i (%s)\n",
-                tid, src_reg.className(), src_reg.index(),
-                renamed_reg->index(), renamed_reg->flatIndex());
+        // if (src_reg.isVecReg() || src_reg.isVecPredReg())
+        // DPRINTF(
+        //     JMDEVEL,
+        //     "[tid:%i] "
+        //     "[S_debug] Looking up %s arch reg %i, got phys reg %i (%s)\n",
+        //     tid, src_reg.className(), src_reg.index(),
+        //     renamed_reg->index(), renamed_reg->flatIndex());
 
         DPRINTF(Rename,
                 "[tid:%i] "
@@ -1213,11 +1238,11 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
     // JMTODO: Rename destination register (Physical)
     // Here is where the rename map is called to do the actual renaming
     if (inst->isStreamConfig()) {
-        DPRINTF(JMDEVEL,
-                "[tid:%i] "
-                "[D] Found Config Inst: "
-                "Setting stream %i\n",
-                tid, inst->getStreamRegister());
+        // DPRINTF(JMDEVEL,
+        //         "[tid:%i] "
+        //         "[D] Found Config Inst: "
+        //         "Setting stream %i\n",
+        //         tid, inst->getStreamRegister());
 
         // In this case (StreamConfig) we don't do renaming.. just set the
         // index of Our StreamTable
@@ -1238,13 +1263,13 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
 
         scoreboard->unsetReg(rename_result.first);
 
-        if (flat_dest_regid.isVecReg())
-            DPRINTF(JMDEVEL,
-                    "[tid:%i] "
-                    "[D] Renaming arch reg %i (%s) to physical reg %i (%i).\n",
-                    tid, dest_reg.index(), dest_reg.className(),
-                    rename_result.first->index(),
-                    rename_result.first->flatIndex());
+        // if (flat_dest_regid.isVecReg())
+        //     DPRINTF(JMDEVEL,
+        //             "[tid:%i] "
+        //             "[D] Renaming arch reg %i (%s) to physical reg %i
+        //             (%i).\n", tid, dest_reg.index(), dest_reg.className(),
+        //             rename_result.first->index(),
+        //             rename_result.first->flatIndex());
 
         DPRINTF(Rename,
                 "[tid:%i] "

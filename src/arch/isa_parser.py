@@ -1388,7 +1388,7 @@ commentRE = re.compile(r'(^)?[^\S\n]*/(?:\*(.*?)\*/[^\S\n]*|/[^\n]*)($)?',
 # destination.  basically we're looking for an '=' that's not '=='.
 # The heinous tangle before that handles the case where the operand
 # has an array subscript.
-assignRE = re.compile(r'(\[[^\]]+\])?\s*=(?!=)', re.MULTILINE)
+assignRE = re.compile(r'(\[[^\]]+\])?\s*<?<?&?=(?!=)', re.MULTILINE)
 
 def makeFlagConstructor(flag_list):
     if len(flag_list) == 0:
