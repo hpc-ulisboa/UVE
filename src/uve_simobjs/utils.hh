@@ -130,9 +130,25 @@ class SEStream
             }
             return _width;
         }
-        StreamMode getMode(){
-            return mode;
+        uint8_t getCompressedWidth() {
+            uint8_t _width = 0;
+            switch (width) {
+                case StreamWidth::byte:
+                    _width = 0;
+                    break;
+                case StreamWidth::half:
+                    _width = 1;
+                    break;
+                case StreamWidth::word:
+                    _width = 2;
+                    break;
+                case StreamWidth::dword:
+                    _width = 3;
+                    break;
+            }
+            return _width;
         }
+        StreamMode getMode() { return mode; }
         StreamType getType(){
             return type;
         }
@@ -214,9 +230,9 @@ class SECommand {
             return stream->getWidth();
         }
 
-        uint8_t getStreamID(){
-            return stream->getID();
-        }
+        uint8_t get_compressed_width() { return stream->getCompressedWidth(); }
+
+        uint8_t getStreamID() { return stream->getID(); }
 
         bool isDimension(){
             return true;
@@ -514,6 +530,25 @@ class SEIter: public SEList<DimensionObject> {
                         true : false;}
 
         uint8_t getWidth(){return width;}
+
+        uint8_t getCompressedWidth() {
+            uint8_t _width = 0;
+            switch (width) {
+                case 1:
+                    _width = 0;
+                    break;
+                case 2:
+                    _width = 1;
+                    break;
+                case 4:
+                    _width = 2;
+                    break;
+                case 8:
+                    _width = 3;
+                    break;
+            }
+            return _width;
+        }
 
         // returns true if it could not translate
         // paddr is passed by referenced, contains the translation result

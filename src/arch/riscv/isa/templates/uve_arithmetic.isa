@@ -203,7 +203,7 @@ def template UveVecScaPredicatedExecute {{
         if (fault == NoFault) {
             %(ex_code)s;
             %(op_wb)s;
-            DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)
+            DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)"
             "\n", eCount, iCount);
         }
 

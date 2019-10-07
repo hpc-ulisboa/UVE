@@ -13,7 +13,8 @@ namespace RiscvISA {
     std::string UveBaseStreamBranch::generateDisassembly(
         Addr pc, const SymbolTable *symtab) const {
         stringstream ss;
-        ss << mnemonic << registerName(_destRegIdx[0]) << ", " << (pc + imm);
+        ss << mnemonic << " " << registerName(_srcRegIdx[0]) << ", "
+           << std::hex << (int64_t)(pc + imm);
         return ss.str();
     }
 }  // namespace RiscvISA

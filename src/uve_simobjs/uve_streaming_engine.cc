@@ -91,7 +91,8 @@ void
 UVEStreamingEngine::tick(){
   memCore.tick();
   if (ld_fifo.tick()) {
-      for (auto elem : ld_fifo.get_data()) {
+      auto data_vec = ld_fifo.get_data();
+      for (auto elem : data_vec) {
           send_data_to_sei(elem.first, elem.second);
       }
   }

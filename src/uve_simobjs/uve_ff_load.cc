@@ -291,7 +291,7 @@ StreamFifo::insert(int physIdx) {
 void
 FifoEntry::merge_data(uint8_t * data, uint16_t offset, uint16_t _size) {
     auto my_data = this->raw_ptr<uint8_t>();
-    for (int i=0; i<size; i++){
+    for (int i = 0; i < _size; i++) {
         (my_data+offset)[i] =  data[i];
     }
     csize += _size;

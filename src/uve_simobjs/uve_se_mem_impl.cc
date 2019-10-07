@@ -124,7 +124,7 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read)
 
     RequestPtr req = NULL;
     auto sid = ireq->streamId();
-    auto width = iterQueue[sid]->getWidth();
+    auto width = iterQueue[sid]->getCompressedWidth();
     bool ended = iterQueue[sid]->ended();
 
     for (ChunkGenerator gen(ireq->getPaddr(), ireq->getSize(), cacheLineSize);
@@ -199,20 +199,20 @@ SEprocessing::recvData(PacketPtr pkt){
 
     switch(width){
         case 1:
-            DPRINTF(JMDEVEL, "Data(%d:%d)\n%s\n", sid, ssid,
-                v_print(memData.as<uint8_t>(), size));
+            DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                    v_print(memData.as<uint8_t>(), size));
             break;
         case 2:
-            DPRINTF(JMDEVEL, "Data(%d:%d)\n%s\n", sid, ssid,
-                v_print(memData.as<uint16_t>(), size));
+            DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                    v_print(memData.as<uint16_t>(), size));
             break;
         case 4:
-            DPRINTF(JMDEVEL, "Data(%d:%d)\n%s\n", sid, ssid,
-                v_print(memData.as<uint32_t>(), size));
+            DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                    v_print(memData.as<uint32_t>(), size));
             break;
         default:
-            DPRINTF(JMDEVEL, "Data(%d:%d)\n%s\n", sid, ssid,
-                v_print(memData.as<uint64_t>(), size));
+            DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                    v_print(memData.as<uint64_t>(), size));
     }
     //Insert data into fifo
     parent->ld_fifo.insert(sid, ssid, memData);
