@@ -75,24 +75,32 @@ class SEprocessing : SimObject
         return false;
       }
     }
+
+    bool isSinglePage(Addr addr, int size) {
+        return this->samePage(addr, addr + size - 1);
+    }
+
     void finishTranslation(WholeTranslationState *state);
     bool isSquashed() { return false; }
 
     void executeRequest(SERequestInfo info);
-    void sendData(RequestPtr req, uint8_t *data, bool read);
+    void sendData(RequestPtr req, uint8_t *data, bool read,
+                  bool split_not_last = false);
+    void sendSplitData(const RequestPtr &req1, const RequestPtr &req2,
+                       const RequestPtr &req, uint8_t *data, bool read);
     void accessMemory(Addr addr, int size, int sid, int ssid,
-                      BaseTLB::Mode mode, uint8_t *data,
-                      ThreadContext* tc);
+                      BaseTLB::Mode mode, uint8_t *data, ThreadContext *tc);
     void recvData(PacketPtr pkt);
     bool isCompleted(StreamID sid) { return iterQueue[sid]->ended(); }
 
    private:
     void emitRequest(SERequestInfo info);
     Addr pageAlign(Addr a)  { return (a & ~offsetMask); }
-  public:
-    bool samePage(Addr a, Addr b) { return (pageAlign(a)==pageAlign(b));}
-};
+    Addr splitAddressOnPage(Addr a, int sz) { return pageAlign(a + sz); }
 
+   public:
+    bool samePage(Addr a, Addr b) { return (pageAlign(a) == pageAlign(b)); }
+};
 
 /*
  * Config uCore Object

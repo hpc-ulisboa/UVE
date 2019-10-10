@@ -1079,22 +1079,8 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
     RenameMap *map = renameMap[tid];
     unsigned num_src_regs = inst->numSrcRegs();
 
-    // JMNOTE: Handle the StreamBranches in order
-    // We do this by saving the conditional result in a lookup table
-    // This table is pointed by the instruction sequence number and
-    // contains the conditional result
-    // UVECondLookup[inst->seqnum] = true/false (is stream complete)
-    // This must occur here, as we don't use the vector register inside the
-    // code
-    // if (inst->isStreamBranch()) {
-    //     // Get the vec reg index
-    //     uint8_t sid = inst->staticInst->getUVEStream();
-    //     // Check for completion in fifo
-    //     bool completed = cpu->getSEICpuPtr()->isFinished(sid);
-    //     // Set result in Lookup table
-    //     // There is access to this lookup table in SEI
-    //     cpu->getSEICpuPtr()->setCompleted(inst->seqNum, completed);
-    // }
+    // Make sure that we don't get the register data twice.. on the same inst
+    RegIndex streamedRegIdx = 0;
 
     // Get the architectual register numbers from the source and
     // operands, and redirect them to the right physical register.
@@ -1104,7 +1090,8 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
 
         // JMNOTE: Check if vector register is active stream
         if (inst->isStreamInst() && src_reg.isVecReg() &&
-            streamTable[src_reg.index()]) {
+            streamTable[src_reg.index()] &&
+            streamedRegIdx != src_reg.index()) {
             // DPRINTF(JMDEVEL,
             //         "[tid:%i] "
             //         "[S] Found Stream Inst: "
@@ -1138,25 +1125,8 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
             assert(cpu->getSEICpuPtr()->reserve(src_reg.index(),
                                                 rename_result.first->index()));
 
-            // Check if data is ready in the fifo
-            if (cpu->getSEICpuPtr()->isReady(src_reg.index(),
-                                             rename_result.first->index())) {
-                scoreboard->setReg(rename_result.first);
-                inst->markSrcRegReady(src_reg.index());
-                // Insert data into the register file
-                TheISA::VecRegContainer **cnt =
-                    (TheISA::VecRegContainer **)malloc(
-                        sizeof(TheISA::VecRegContainer *));
-                cpu->getSEICpuPtr()->fetch(src_reg.index(), cnt);
-                cpu->setVecReg(rename_result.first, (**cnt));
-            } else {
-                DPRINTF(JMDEVEL,
-                        "[tid:%i] "
-                        "[S] Register %d (flat: %d) (%s) is not ready at "
-                        "rename.\n",
-                        tid, src_reg.index(), rename_result.first->flatIndex(),
-                        src_reg.className());
-            }
+            // Save streamed register
+            streamedRegIdx = src_reg.index();
 
             ++renameRenameLookups;
             continue;

@@ -40,7 +40,7 @@ class FifoEntry : public CoreContainer {
 
     void merge_data(uint8_t *data, uint16_t offset, uint16_t size);
     uint16_t getSize() { return size; }
-    bool reserve(uint16_t _size, bool last);
+    bool reserve(uint16_t *_size, bool last);
 };
 
 // Each fifo is composed of FifoEntry objects, which themselfs insert the data
@@ -54,14 +54,35 @@ class StreamFifo : protected std::vector<FifoEntry> {
         uint16_t size;
         uint16_t offset;
         bool used;
+        bool split;
+        uint16_t id2;
+        uint16_t size2;
+        uint16_t offset2;
     } MapStruct;
 
+    // Simple MapStruct
     MapStruct create_MS(uint16_t id, uint16_t size, uint16_t offset) {
         MapStruct new_ms;
         new_ms.id = id;
         new_ms.size = size;
         new_ms.offset = offset;
         new_ms.used = false;
+        new_ms.split = false;
+        return new_ms;
+    }
+    // Split MapStruct (For vector alignement)
+    MapStruct create_MS(uint16_t id1, uint16_t id2, uint16_t size1,
+                        uint16_t size2, uint16_t offset1, uint16_t offset2) {
+        MapStruct new_ms;
+        new_ms.split = true;
+
+        new_ms.id = id1;
+        new_ms.size = size1;
+        new_ms.offset = offset1;
+        new_ms.used = false;
+        new_ms.id2 = id2;
+        new_ms.size2 = size2;
+        new_ms.offset2 = offset2;
         return new_ms;
     }
 

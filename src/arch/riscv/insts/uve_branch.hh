@@ -24,6 +24,11 @@ namespace RiscvISA {
         std::string generateDisassembly(Addr pc,
                                         const SymbolTable *symtab) const;
         uint8_t getUVEStream() const { return VSrc1; }
+
+        RiscvISA::PCState branchTarget(
+            const RiscvISA::PCState &branchPC) const override;
+
+        using StaticInst::branchTarget;
     };
 }  // namespace RiscvISA
 

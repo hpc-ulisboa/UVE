@@ -120,7 +120,7 @@ StreamFifo::insert(uint16_t size, uint16_t ssid, uint8_t width,
         //Create new entry
         this->push_back(FifoEntry(width, config_size));
         //Reserve space in entry
-        assert(this->back().reserve(size, last));
+        assert(this->back().reserve(&size, last));
         //First entry was created, set id to 0;
         this->map.push_back(create_MS(id,size,offset));
         return;
@@ -134,30 +134,39 @@ StreamFifo::insert(uint16_t size, uint16_t ssid, uint8_t width,
         //New entry was created, increment id;
         id = this->map.back().id + 1;
         //Here we absolutelly need to be able to reserve
-        assert(this->back().reserve(size, last));
+        assert(this->back().reserve(&size, last));
 
         this->map.push_back(create_MS(id, size, offset));
         return;
     }
-    //Reserve the space
-    bool result = back().reserve(size, last);
-    if (!result){
-        //Means that reserve is bigger than space:
-        //Create new entry
+    // Reserve the space -> When returns false the size is updated to the
+    // remaining size
+    uint16_t changeable_size = size;
+    bool result = back().reserve(&changeable_size, last);
+    if (!result) {
+        // Means that reserve is bigger than available space:
+        // Create new entry
         this->push_back(FifoEntry(width, config_size));
         //New entry was created, increment id;
-        id = this->map.back().id + 1;
+        id = this->map.back().id;
+        offset = this->map.back().offset + this->map.back().size;
 
-        assert(this->back().reserve(size, last));
+        assert(this->back().reserve(&changeable_size, last));
 
-        this->map.push_back(create_MS(id, size, offset));
+        this->map.push_back(create_MS(id, id + 1, size - changeable_size,
+                                      changeable_size, offset, 0));
         return;
     }
     else {
         //No new entry was created, mantain id, but increase offset
-        id = this->map.back().id;
-        offset = this->map.back().offset + this->map.back().size;
-        this->map.push_back(create_MS(id,size,offset));
+        if (this->map.back().split) {
+            id = this->map.back().id2;
+            offset = this->map.back().offset2 + this->map.back().size2;
+        } else {
+            id = this->map.back().id;
+            offset = this->map.back().offset + this->map.back().size;
+        }
+        this->map.push_back(create_MS(id, size, offset));
         return;
     }
 }
@@ -166,13 +175,19 @@ bool
 StreamFifo::merge_data(uint16_t ssid, uint8_t * data){
     assert(!empty());
     //Get corresponding fifo entry
-    assert(!this->map[ssid].used);
-    auto id = this->map[ssid].id;
-    auto offset = this->map[ssid].offset;
-    auto size = this->map[ssid].size;
-    auto entry = &this->at(id);
-    entry->merge_data(data, offset, size);
+    FifoEntry *entry;
     auto it = this->map.begin() + ssid;
+    auto mapping = *it;
+    assert(!mapping.used);
+
+    entry = &this->at(mapping.id);
+    entry->merge_data(data, mapping.offset, mapping.size);
+
+    if (mapping.split) {
+        entry = &this->at(mapping.id2);
+        entry->merge_data(data + mapping.size, mapping.offset2, mapping.size2);
+    }
+
     it->used = true;
 
     return true;
@@ -188,6 +203,7 @@ StreamFifo::get() {
     for (auto t = map.begin(); t != map.end(); ++t) {
         if (!t->used) {
             t->id--;
+            if (t->split) t->id2--;
         }
     }
     physRegStack.pop_front();
@@ -208,6 +224,7 @@ StreamFifo::get(int *physidx) {
     for (auto t = map.begin(); t != map.end(); ++t) {
         if (!t->used) {
             t->id--;
+            if (t->split) t->id2--;
         }
     }
     *physidx = physRegStack.front();
@@ -295,6 +312,7 @@ FifoEntry::merge_data(uint8_t * data, uint16_t offset, uint16_t _size) {
         (my_data+offset)[i] =  data[i];
     }
     csize += _size;
+    assert(!(csize > size));
     if (csize == size){
         cstate = States::Complete;
     }
@@ -302,19 +320,24 @@ FifoEntry::merge_data(uint8_t * data, uint16_t offset, uint16_t _size) {
 }
 
 bool
-FifoEntry::reserve(uint16_t _size, bool last = false) {
-    //In this case we are complete and this reservation does not belong here:
-    //Send false;
+FifoEntry::reserve(uint16_t *_size, bool last = false) {
+    // In this case we are complete it must be a bug
     assert(rstate != States::Complete);
-    if (size + _size > config_size) {
+    // Reservation do not fit entirelly
+    // Must reserve for what fits and the callee must send the remaining to the
+    // next entry
+    // Send false and update the _size value with the remaining space
+    if (size + *_size > config_size) {
         rstate = States::Complete;
+        *_size -= config_size - size;
+        size = config_size;
         set_valid(size);
         return false;
     }
     // Completion on point, the reservation belongs here
-    else if (size + _size == config_size) {
+    else if (size + *_size == config_size) {
         rstate = States::Complete;
-        size += _size;
+        size += *_size;
         set_valid(size);
         return true;
     }
@@ -322,12 +345,12 @@ FifoEntry::reserve(uint16_t _size, bool last = false) {
         if (last){
             set_last(true);
             rstate = States::Complete;
-            size += _size;
+            size += *_size;
             set_valid(size);
             return true;
         }
         rstate = States::NotComplete;
-        size += _size;
+        size += *_size;
         return true;
     }
 

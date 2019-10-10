@@ -75,23 +75,41 @@ SEprocessing::accessMemory(Addr addr, int size, int sid, int ssid,
         req->setVirt(0,addr,size,0,0,0);
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
-
         DPRINTF(JMDEVEL, "Translating for addr %#x\n", req->getVaddr());
 
-        WholeTranslationState *state =
-                    new WholeTranslationState(req, data, NULL, mode);
-        DataTranslation<SEprocessing*> *translation
-                = new DataTranslation<SEprocessing*>(this, state);
+        // Check if the data is only in one page:
+        if (!this->isSinglePage(addr, size)) {
+            // In this case we need to split the request in two
+            RequestPtr req1, req2;
+            req->splitOnVaddr(this->splitAddressOnPage(addr, size), req1,
+                              req2);
 
-        //This callsback finishTranslation;
-        tlb->translateTiming(req, tc, translation, mode);
+            WholeTranslationState *state = new WholeTranslationState(
+                req, req1, req2, new uint8_t[size], NULL, mode);
+            DataTranslation<SEprocessing *> *trans1 =
+                new DataTranslation<SEprocessing *>(this, state, 0);
+            DataTranslation<SEprocessing *> *trans2 =
+                new DataTranslation<SEprocessing *>(this, state, 1);
+
+            tlb->translateTiming(req1, tc, trans1, mode);
+            tlb->translateTiming(req2, tc, trans2, mode);
+        } else {
+            WholeTranslationState *state =
+                new WholeTranslationState(req, data, NULL, mode);
+            DataTranslation<SEprocessing *> *translation =
+                new DataTranslation<SEprocessing *>(this, state);
+
+            // This callsback finishTranslation;
+            tlb->translateTiming(req, tc, translation, mode);
+        }
+
     }
     else {
         //Create physical request
         RequestPtr req = std::make_shared<Request>(paddr, size, 0, 0);
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
-        sendData(req, data, mode);
+        sendData(req, data, mode == BaseTLB::Read);
     }
 }
 
@@ -104,23 +122,31 @@ SEprocessing::finishTranslation(WholeTranslationState *state)
             state->mainReq->getVaddr());
     }
 
-    DPRINTF(JMDEVEL, "Got response for translation. %#x -> %#x\n",
-            state->mainReq->getVaddr(), state->mainReq->getPaddr());
-
     //Save the physical addr in the iterator
     auto sid = state->mainReq->streamId();
     iterQueue[sid]->setPaddr(state->mainReq->getPaddr());
 
-    sendData(state->mainReq, state->data, state->mode == BaseTLB::Read);
+    if (!state->isSplit) {
+        DPRINTF(JMDEVEL, "Got response for translation. %#x -> %#x\n",
+                state->mainReq->getVaddr(), state->mainReq->getPaddr());
+        sendData(state->mainReq, state->data, state->mode == BaseTLB::Read);
+    } else {
+        DPRINTF(JMDEVEL,
+                "Got response for split translation. 1(%#x -> %#x) 2(%#x -> "
+                "%#x)\n",
+                state->sreqLow->getVaddr(), state->sreqLow->getPaddr(),
+                state->sreqHigh->getVaddr(), state->sreqHigh->getPaddr());
+        sendSplitData(state->sreqLow, state->sreqHigh, state->mainReq,
+                      state->data, state->mode == BaseTLB::Read);
+    }
 
     delete state;
 }
 
 void
-SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read)
-{
-    DPRINTF(JMDEVEL, "Sending request for addr [P%#x]\n",
-            ireq->getPaddr());
+SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read,
+                       bool split_not_last) {
+    DPRINTF(JMDEVEL, "Sending request for addr [P%#x]\n", ireq->getPaddr());
 
     RequestPtr req = NULL;
     auto sid = ireq->streamId();
@@ -145,9 +171,10 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read)
         req->setSubStreamId(ssid);
 
         if (!parent->ld_fifo.full(sid)){
-            bool last_packet = (ended && gen.last());
-            parent->ld_fifo.reserve(sid, ssid, gen.size(), width,
-                last_packet);
+            bool last_packet = (ended && gen.last() && !split_not_last);
+            if (last_packet)
+                DPRINTF(JMDEVEL, "Last packet for sid (%d)\n", sid);
+            parent->ld_fifo.reserve(sid, ssid, gen.size(), width, last_packet);
         }
         else {
             //JMTODO: Take action on reversing the processing
@@ -168,9 +195,22 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read)
     }
 }
 
+void
+SEprocessing::sendSplitData(const RequestPtr &req1, const RequestPtr &req2,
+                            const RequestPtr &req, uint8_t *data, bool read) {
+    DPRINTF(JMDEVEL, "Sending split request for addrs [P%#x] & [P%#x]\n",
+            req1->getPaddr(), req2->getPaddr());
+
+    sendData(req1, data, read, true);
+    sendData(req2, data + req1->getSize(), read, false);
+}
+
 template <typename T>
-std::string v_print(T data, int size=-1){
-    if (size == -1){return data.print();}
+std::string
+v_print(T data, int size = -1) {
+    if (size == -1) {
+        return data.print();
+    }
     std::stringstream stm;
     stm << "[";
 

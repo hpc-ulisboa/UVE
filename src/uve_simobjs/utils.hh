@@ -574,7 +574,8 @@ class SEIter: public SEList<DimensionObject> {
                 return true;
             }
             else {
-                //In this case it is not possible to infer the paddr
+                // In this case it is not possible to infer the paddr
+                // Data is in new page
                 return false;
             }
         }

@@ -17,9 +17,10 @@ UveBaseStream::generateDisassembly(Addr pc,
 const
 {
     stringstream ss;
-    ss << mnemonic << "\t" <<
-    registerName(_destRegIdx[0]) << ", " << registerName(_srcRegIdx[0]) <<
-    ", " << registerName(_srcRegIdx[1]) << ", " << registerName(_srcRegIdx[2]);
+    ss << mnemonic << "\t"
+       << "u" << (uint32_t)this->getStreamRegister() << ", "
+       << registerName(_srcRegIdx[0]) << ", " << registerName(_srcRegIdx[1])
+       << ", " << registerName(_srcRegIdx[2]);
     return ss.str();
 }
 

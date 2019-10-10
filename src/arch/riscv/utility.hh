@@ -163,7 +163,7 @@ registerName(RegId reg)
     } else {
         //JMNOTE: Here we are getting the name for the Uve registers
         std::stringstream str;
-        std::string type_str = reg.isVecReg() ? "v" : "p";
+        std::string type_str = reg.isVecReg() ? "u" : "p";
         str << type_str << reg.index();
         return str.str();
     }
