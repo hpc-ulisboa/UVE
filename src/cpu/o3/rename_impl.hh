@@ -698,12 +698,28 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         // Check here to make sure there are enough destination registers
         // to rename to.  Otherwise block.
-        if (!renameMap[tid]->canRename(inst->numIntDestRegs(),
-                                       inst->numFPDestRegs(),
-                                       inst->numVecDestRegs(),
-                                       inst->numVecElemDestRegs(),
-                                       inst->numVecPredDestRegs(),
-                                       inst->numCCDestRegs())) {
+        // JMNOTE: The streamed source registers must also be accounted for in
+        // the vec reg file
+        RegIndex streamedRegIdx = 0;
+        uint8_t numStreamedRegs = 0;
+        if (inst->isStreamInst()) {
+            for (int i = 0; i < inst->numSrcRegs(); i++) {
+                const RegId &src_reg = inst->srcRegIdx(i);
+                if (src_reg.isVecReg()) {
+                    if (streamTable[src_reg.index()]) {
+                        if (streamedRegIdx != src_reg.index())
+                            numStreamedRegs++;
+                        streamedRegIdx = src_reg.index();
+                    }
+                }
+            }
+        }
+        uint32_t necessaryPhysVecRegs =
+            inst->numVecDestRegs() + numStreamedRegs;
+        if (!renameMap[tid]->canRename(
+                inst->numIntDestRegs(), inst->numFPDestRegs(),
+                necessaryPhysVecRegs, inst->numVecElemDestRegs(),
+                inst->numVecPredDestRegs(), inst->numCCDestRegs())) {
             DPRINTF(Rename,
                     "Blocking due to "
                     " lack of free physical registers to rename to.\n");
@@ -1002,6 +1018,13 @@ DefaultRename<Impl>::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
 
             // Put the renamed physical register back on the free list.
             freeList->addReg(hb_it->newPhysReg);
+
+            // Need to squash in streaming engine
+            if (hb_it->archReg.isVecReg()) {
+                cpu->getSEICpuPtr()->squash(0, hb_it->newPhysReg->index());
+                cpu->getSEICpuPtr()->squashToBuffer(
+                    hb_it->newPhysReg->index());
+            }
         }
 
         // Notify potential listeners that the register mapping needs to be
@@ -1050,12 +1073,15 @@ DefaultRename<Impl>::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
     while (!historyBuffer[tid].empty() &&
            hb_it != historyBuffer[tid].end() &&
            hb_it->instSeqNum <= inst_seq_num) {
-
-        DPRINTF(Rename, "[tid:%i] Freeing up older rename of reg %i (%s), "
+        DPRINTF(Rename,
+                "[tid:%i] Freeing up older rename of reg %i (%s), "
                 "[sn:%llu].\n",
                 tid, hb_it->prevPhysReg->index(),
-                hb_it->prevPhysReg->className(),
-                hb_it->instSeqNum);
+                hb_it->prevPhysReg->className(), hb_it->instSeqNum);
+
+        if (hb_it->archReg.isVecReg()) {
+            cpu->getSEICpuPtr()->commitToBuffer(hb_it->prevPhysReg);
+        }
 
         // Don't free special phys regs like misc and zero regs, which
         // can be recognized because the new mapping is the same as
@@ -1106,30 +1132,29 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
 
             rename_result = map->rename(flat_src_regid);
 
-            // DPRINTF(JMDEVEL,
-            //         "[tid:%i] "
-            //         "[S] Renaming arch reg %i (%s) to physical reg %i
-            //         (%i).\n", tid, src_reg.index(), src_reg.className(),
-            //         rename_result.first->index(),
-            //         rename_result.first->flatIndex());
-
-            inst->renameSrcReg(src_idx, rename_result.first);
 
             // Mark it in the scoreboard as not ready
             scoreboard->unsetReg(rename_result.first);
 
             // Make reservation in the fifo. Set the physical register as
             // destination of the data
-            indexToRegIdVector[rename_result.first->index()] =
-                rename_result.first;
             assert(cpu->getSEICpuPtr()->reserve(src_reg.index(),
                                                 rename_result.first->index()));
 
             // Save streamed register
             streamedRegIdx = src_reg.index();
 
-            ++renameRenameLookups;
-            continue;
+            // Record the rename information so that a history can be kept.
+            RenameHistory hb_entry(inst->seqNum, flat_src_regid,
+                                   rename_result.first, rename_result.second);
+
+            historyBuffer[tid].push_front(hb_entry);
+
+            cpu->getSEICpuPtr()->addToBuffer(src_reg, rename_result.first);
+            // JMNOTE: Update the regScoreboard in instQueue
+            // JMTODO: Maybe change this in future to only happen in the
+            // dispatch phase
+            iew_ptr->instQueue.addStreamingPhysReg(rename_result.first);
         }
 
         // Standard lookup behaviour applies to any register in the same way
@@ -1233,13 +1258,6 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
 
         scoreboard->unsetReg(rename_result.first);
 
-        // if (flat_dest_regid.isVecReg())
-        //     DPRINTF(JMDEVEL,
-        //             "[tid:%i] "
-        //             "[D] Renaming arch reg %i (%s) to physical reg %i
-        //             (%i).\n", tid, dest_reg.index(), dest_reg.className(),
-        //             rename_result.first->index(),
-        //             rename_result.first->flatIndex());
 
         DPRINTF(Rename,
                 "[tid:%i] "

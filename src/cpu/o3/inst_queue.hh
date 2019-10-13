@@ -275,7 +275,12 @@ class InstructionQueue
     /** Debug function to print all instructions. */
     void printInsts();
 
-  private:
+    // JMNOTE: Reset regScoreboard for streamed registers
+    void addStreamingPhysReg(PhysRegIdPtr phys) {
+        regScoreboard[phys->flatIndex()] = false;
+    }
+
+   private:
     /** Does the actual squashing. */
     void doSquash(ThreadID tid);
 

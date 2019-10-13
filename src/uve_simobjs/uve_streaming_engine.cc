@@ -91,10 +91,11 @@ void
 UVEStreamingEngine::tick(){
   memCore.tick();
   if (ld_fifo.tick()) {
-      auto data_vec = ld_fifo.get_data();
-      for (auto elem : data_vec) {
-          send_data_to_sei(elem.first, elem.second);
-      }
+      // auto data_vec = ld_fifo.get_data();
+      signal_cpu();
+      // for (auto elem : data_vec) {
+      //     send_data_to_sei(elem.first, elem.second);
+      // }
   }
 }
 
@@ -104,7 +105,7 @@ UVEStreamingEngine::regStats(){
 }
 
 void
-UVEStreamingEngine::set_callback(void (*_callback)(int, CoreContainer*)) {
+UVEStreamingEngine::set_callback(void (*_callback)()) {
     DPRINTF(JMDEVEL, "Configuring Callback\n");
     callback = _callback;
 }
@@ -116,4 +117,9 @@ UVEStreamingEngine::squash(uint16_t sid, int regIdx) {
     else {
         return;
     }
+}
+
+CoreContainer*
+UVEStreamingEngine::getData(uint16_t sid, int regIdx) {
+    return ld_fifo.getData(sid, regIdx);
 }

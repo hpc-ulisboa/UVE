@@ -48,15 +48,16 @@
 #include "debug/PacketQueue.hh"
 
 PacketQueue::PacketQueue(EventManager& _em, const std::string& _label,
-                         const std::string& _sendEventName,
-                         bool force_order,
+                         const std::string& _sendEventName, bool force_order,
                          bool disable_sanity_check)
-    : em(_em), sendEvent([this]{ processSendEvent(); }, _sendEventName),
-      _disableSanityCheck(disable_sanity_check),
+    : em(_em),
+      sendEvent([this] { processSendEvent(); }, _sendEventName),
+      // JMFIXME: Solve THis!!!!!! the true is disable sanity check fifo over
+      // 100
+      _disableSanityCheck(true),
       forceOrder(force_order),
-      label(_label), waitingOnRetry(false)
-{
-}
+      label(_label),
+      waitingOnRetry(false) {}
 
 PacketQueue::~PacketQueue()
 {
@@ -238,9 +239,7 @@ PacketQueue::drain()
 ReqPacketQueue::ReqPacketQueue(EventManager& _em, MasterPort& _masterPort,
                                const std::string _label)
     : PacketQueue(_em, _label, name(_masterPort, _label)),
-      masterPort(_masterPort)
-{
-}
+      masterPort(_masterPort) {}
 
 bool
 ReqPacketQueue::sendTiming(PacketPtr pkt)

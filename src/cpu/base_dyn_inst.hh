@@ -600,6 +600,7 @@ class BaseDynInst : public ExecContext, public RefCounted
     int8_t numIntDestRegs() const { return staticInst->numIntDestRegs(); }
     int8_t numCCDestRegs() const { return staticInst->numCCDestRegs(); }
     int8_t numVecDestRegs() const { return staticInst->numVecDestRegs(); }
+    int8_t numStreamedRegs() const { return staticInst->numVecDestRegs(); }
     int8_t numVecElemDestRegs() const
     {
         return staticInst->numVecElemDestRegs();

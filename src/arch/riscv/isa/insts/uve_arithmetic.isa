@@ -885,18 +885,16 @@ let {{
         ''', op_class="ReduceAdd")
     emitUveArithTwoVecReductionPredicatedFPInsts("so.a.adds", "UveArithAdds",
         dest_code='''
-        Rd_ud = typeCastToBits((%(acc_type)s)out);
+        Fd_bits = typeCastToBits(out);
         ''',
         generic_code='''
         out = out + v1[i];
         ''', dest_scalar=True, op_class="ReduceAdd")
-    emitUveArithTwoVecReductionPredicatedFPInsts("so.a.adds",
+    emitUveArithTwoVecReductionPredicatedFPInsts("so.a.adds.acc",
         "UveArithAddsAcc",
         dest_code='''
-        %(acc_type)s src_aux = 0;
-        src_aux = (%(acc_type)s) castBitsToRetType<%(acc_type)s>(
-            Rd_merge_s_ud);
-        Rd_ud = typeCastToBits((%(acc_type)s)(src_aux + out));
+        %(acc_type)s src_aux = Fd_merge_df;
+        Fd_bits = typeCastToBits(src_aux + out);
         ''',
         generic_code='''
         out = out + v1[i];

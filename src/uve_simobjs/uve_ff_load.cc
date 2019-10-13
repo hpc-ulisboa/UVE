@@ -40,9 +40,20 @@ UVELoadFifo::get_data() {
     return data_vector;
 }
 
+CoreContainer *
+UVELoadFifo::getData(int sid, PhysRegIndex physIdx) {
+    // Check if fifo is ready and if so, organize data to the cpu;
+    if (fifos[sid].ready(physIdx)) {
+        auto entry = fifos[sid].get(&physIdx);
+        return new CoreContainer(entry);
+    } else {
+        return new CoreContainer();
+    }
+}
+
 void
 UVELoadFifo::reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
-                    bool last = false){
+                     bool last = false) {
     // Reserve space in fifo. This reserve comes from the engine
     assert(!fifos[sid].full());
     fifos[sid].insert(size, ssid, width, last);
@@ -96,7 +107,11 @@ UVELoadFifo::ready(StreamID sid, int physIdx) {
 
 bool
 UVELoadFifo::squash(StreamID sid, int physIdx) {
-    return fifos[sid].squash(physIdx);
+    // return fifos[sid].squash(physIdx);
+    for (auto &fifo : fifos) {
+        fifo.squash(physIdx);
+    }
+    return true;
 }
 
 bool
@@ -339,6 +354,7 @@ FifoEntry::reserve(uint16_t *_size, bool last = false) {
         rstate = States::Complete;
         size += *_size;
         set_valid(size);
+        set_last(last);
         return true;
     }
     else{

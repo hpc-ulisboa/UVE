@@ -1480,6 +1480,10 @@ InstructionQueue<Impl>::addToDependents(const DynInstPtr &new_inst)
 
                 dependGraph.insert(src_reg->flatIndex(), new_inst);
 
+                // Signal SEI that this register is in dependents
+                if (src_reg->isVectorPhysReg())
+                    cpu->getSEICpuPtr()->markOnBuffer(src_reg);
+
                 // Change the return value to indicate that something
                 // was added to the dependency graph.
                 return_val = true;

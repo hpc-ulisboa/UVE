@@ -425,13 +425,6 @@ class DefaultRename
 
     // JMNOTE: StreamTable
     bool streamTable[32];
-    // JMNOTE: Physical Register index to PhysRegIdPtr
-    std::array<PhysRegIdPtr, 1000> indexToRegIdVector;
-
-   public:
-    PhysRegIdPtr get_reg_id_by_index(int index) {
-        return indexToRegIdVector[index];
-    }
 
    private:
     /** Records if rename needs to serialize on the next instruction for any

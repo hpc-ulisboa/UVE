@@ -35,9 +35,14 @@ class SEInterface {
     void recvReqRetry();
 
     void sendData(int physIdx, TheISA::VecRegContainer *cnt);
+    void _signalEngineReady();
 
     static void sendDataToCPU(int physIdx, TheISA::VecRegContainer *cnt) {
         SEInterface<Impl>::singleton->sendData(physIdx, cnt);
+    }
+
+    static void signalEngineReady() {
+        SEInterface<Impl>::singleton->_signalEngineReady();
     }
 
     // void configureStream(Stream stream, Dimension dim);
@@ -62,6 +67,38 @@ class SEInterface {
 
     bool isComplete(InstSeqNum seqNum) { return UVECondLookup.at(seqNum); }
 
+    void squashToBuffer(PhysRegIndex idx) {
+        // panic("Not implemented\n");
+    }
+    void commitToBuffer(PhysRegIdPtr phys) {
+        if (!physRegBuffer.empty()) physRegBuffer.pop_back();
+    }
+    void addToBuffer(const RegId &arch, PhysRegIdPtr phys) {
+        physRegBuffer.push_front(std::make_tuple(arch, phys, false));
+        specRegBuffer.push_front(std::make_tuple(arch, phys, false));
+    }
+
+    void markOnBuffer(PhysRegIdPtr phys) {
+        auto it = specRegBuffer.begin();
+
+        while (it != specRegBuffer.end()) {
+            if (phys->index() == std::get<1>(*it)->index()) {
+                std::get<2>(*it) = true;
+            }
+            it++;
+        }
+    }
+
+    std::pair<RegId, PhysRegIdPtr> consumeOnBuffer() {
+        auto bk = specRegBuffer.back();
+        if (std::get<2>(bk)) {
+            auto retval = std::make_pair(std::get<0>(bk), std::get<1>(bk));
+            specRegBuffer.pop_back();
+            return retval;
+        }
+        return std::make_pair(RegId(), (PhysRegIdPtr)NULL);
+    }
+
    private:
     /** Pointers for parent and sibling structures. */
     O3CPU *cpu;
@@ -80,6 +117,9 @@ class SEInterface {
 
     /* Completion Lookup Table (Updated in rename phase) */
     std::map<InstSeqNum, bool> UVECondLookup;
+
+    std::list<std::tuple<RegId, PhysRegIdPtr, bool>> physRegBuffer,
+        specRegBuffer;
 };
 
 #endif  //__CPU_O3_SE_INTERFACE_HH__

@@ -132,9 +132,12 @@ class VecRegContainer {
     uint8_t width;
     uint16_t valid_index;
     bool last_request;
+    // DEBUG only flag
+    bool streaming;
 
    public:
-    VecRegContainer() : width(0), valid_index(0), last_request(false) {}
+    VecRegContainer()
+        : width(0), valid_index(0), last_request(false), streaming(false) {}
     VecRegContainer(const std::vector<uint8_t>& that) {
         assert(that.size() >= SIZE);
         std::memcpy(container.data(), &that[0], SIZE);
@@ -146,6 +149,8 @@ class VecRegContainer {
     uint8_t get_valid() const { return valid_index; }
     void set_last(bool last) { last_request = last; }
     bool is_last() const { return last_request; }
+    void set_streaming(bool _streaming) { streaming = _streaming; }
+    bool is_streaming() const { return streaming; }
 
     void zero() { memset(container.data(), 0, SIZE); }
 
@@ -155,6 +160,7 @@ class VecRegContainer {
         width = that.width;
         valid_index = that.valid_index;
         last_request = that.last_request;
+        streaming = that.streaming;
         return *this;
     }
 

@@ -99,6 +99,7 @@ def operands {{
     'Fp2_bits': ('FloatReg', 'ud', 'FP2 + 8', 'IsFloating', 2),
 
     # Rd_merge has special purpose on vector insts that accumulate
+    'Fd_merge': ('FloatReg', 'df', 'FD', 'IsFloating', 2),
     'Rd_merge': ('IntReg', 'ud', 'VDest', 'IsInteger', 2),
     'Rd_merge_s': ('IntReg', 'ud', 'RD', 'IsInteger', 2),
     'Rs1_merge': ('IntReg', 'ud', 'RS1', 'IsInteger', 2),

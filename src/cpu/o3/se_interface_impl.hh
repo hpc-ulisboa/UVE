@@ -45,7 +45,7 @@ SEInterface<Impl>::startupComponent()
              sengine_addr_range.to_string());
 
     DPRINTF(JMDEVEL, "Calling\n");
-    engine->set_callback(&sendDataToCPU);
+    engine->set_callback(&signalEngineReady);
 }
 
 template <class Impl>
@@ -113,13 +113,32 @@ void
 SEInterface<Impl>::sendData(int physIdx, TheISA::VecRegContainer *cnt) {
     // DPRINTF(JMDEVEL, "Send Data Here: idx: %d, cnt: %s\n", physIdx,
     //         cnt->print());
+    // // Get PhysRegIdPtr from index
+    // PhysRegIdPtr physReg =
+    //     cpu->getRenameCpuPtr()->get_reg_id_by_index(physIdx);
+    // // Set data in reg file
+    // cpu->setVecReg(physReg, *cnt);
+    // // Wake Dependents and set scoreboard
+    // iewStage->instQueue.wakeDependents(physReg);
+}
+
+template <class Impl>
+void
+SEInterface<Impl>::_signalEngineReady() {
+    // DPRINTF(JMDEVEL, "Send Data Here: idx: %d, cnt: %s\n", physIdx,
+    //         cnt->print());
     // Get PhysRegIdPtr from index
-    PhysRegIdPtr physReg =
-        cpu->getRenameCpuPtr()->get_reg_id_by_index(physIdx);
+    // Get Streamed Registers
+    auto regs = consumeOnBuffer();
+    if (regs.second == NULL) return;
+    // Ask Engine for the data
+    CoreContainer *cnt =
+        engine->getData(regs.first.index(), regs.second->index());
+    assert(cnt->is_streaming());
     // Set data in reg file
-    cpu->setVecReg(physReg, *cnt);
+    cpu->setVecReg(regs.second, *cnt);
     // Wake Dependents and set scoreboard
-    iewStage->instQueue.wakeDependents(physReg);
+    iewStage->instQueue.wakeDependents(regs.second);
 }
 
 #endif  // __CPU_O3_SE_INTERFACE_IMPL_HH__

@@ -34,6 +34,7 @@ class FifoEntry : public CoreContainer {
         rstate = States::NotComplete;
         cstate = States::Clean;
         set_width(width);
+        set_streaming(true);
     }
     bool complete() { return rstate == States::Complete; }
     bool ready() { return cstate == States::Complete; }
@@ -135,6 +136,7 @@ class UVELoadFifo : public SimObject {
 
     bool tick();
     std::vector<std::pair<int, CoreContainer *>> get_data();
+    CoreContainer *getData(int sid, PhysRegIndex physIdx);
     void init();
     bool insert(StreamID sid, uint32_t ssid, CoreContainer data);
     void reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,

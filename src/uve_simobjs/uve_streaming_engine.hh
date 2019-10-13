@@ -201,7 +201,7 @@ class UVEStreamingEngine : public ClockedObject
     Addr confAddr;
     Addr confSize;
     Tick cycler = 0;
-    std::function<void(int, CoreContainer *)> callback;
+    std::function<void()> callback;
 
    public:
     /** constructor
@@ -230,11 +230,13 @@ class UVEStreamingEngine : public ClockedObject
     }
 
     void regStats() override;
-    void set_callback(void (*callback)(int, CoreContainer *));
-    void send_data_to_sei(int physIdx, CoreContainer *cnt) {
-        callback(physIdx, cnt);
-    }
+    void set_callback(void (*callback)());
+    // void send_data_to_sei(int physIdx, CoreContainer *cnt) {
+    //     callback(physIdx, cnt);
+    // }
+    void signal_cpu() { callback(); }
     void squash(uint16_t sid, int regIdx);
+    CoreContainer *getData(uint16_t sid, int regIdx);
     bool isFinished(uint16_t sid) {
         return ld_fifo.isFinished(sid) && memCore.isCompleted(sid);
     }
