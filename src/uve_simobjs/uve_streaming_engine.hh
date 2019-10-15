@@ -41,7 +41,7 @@ class SEprocessing : SimObject
     std::array<int, 32> ssidArray;
     uint8_t pID;
 
-  public:
+   public:
     void tick();
 
   private:

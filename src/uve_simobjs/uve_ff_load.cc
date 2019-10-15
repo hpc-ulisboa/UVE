@@ -163,9 +163,13 @@ StreamFifo::insert(uint16_t size, uint16_t ssid, uint8_t width,
         // Create new entry
         this->push_back(FifoEntry(width, config_size));
         //New entry was created, increment id;
-        id = this->map.back().id;
-        offset = this->map.back().offset + this->map.back().size;
-
+        if (this->map.back().split) {
+            id = this->map.back().id2;
+            offset = this->map.back().offset2 + this->map.back().size2;
+        } else {
+            id = this->map.back().id;
+            offset = this->map.back().offset + this->map.back().size;
+        }
         assert(this->back().reserve(&changeable_size, last));
 
         this->map.push_back(create_MS(id, id + 1, size - changeable_size,

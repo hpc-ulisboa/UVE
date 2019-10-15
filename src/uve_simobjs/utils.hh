@@ -10,8 +10,7 @@
 #include "tree_utils.hh"
 
 #define MaximumStreams 32
-#define STOP_SIZE 1024
-
+#define STOP_SIZE 512
 
 template <typename T>
 T mult_all(std::vector<T> * vec){
@@ -337,12 +336,7 @@ class DimensionObject{
         }
 };
 
-typedef enum {
-    Ended,
-    Running,
-    Configured,
-    Clean
-} SEIterationStatus;
+typedef enum { Ended, Running, Configured, Clean, Stalled } SEIterationStatus;
 
 struct SERequestInfo{
     DimensionOffset initial_offset;
@@ -472,7 +466,8 @@ class SEIter: public SEList<DimensionObject> {
         SERequestInfo advance(){
             //Iterate until request is generated
             assert(status != SEIterationStatus::Ended &&
-                    status != SEIterationStatus::Clean );
+                   status != SEIterationStatus::Clean &&
+                   status != SEIterationStatus::Stalled);
 
             SERequestInfo request;
             bool result = false;
@@ -585,6 +580,9 @@ class SEIter: public SEList<DimensionObject> {
         bool ended(){return status == SEIterationStatus::Ended;}
         uint8_t get_end_ssid(){return end_ssid;}
 
+        void stall() { status = SEIterationStatus::Stalled; }
+        void resume() { status = SEIterationStatus::Running; }
+        bool stalled() { return status == SEIterationStatus::Stalled; }
 };
 
 using SEIterPtr = SEIter *;

@@ -16,8 +16,8 @@
 #include "base/logging.hh"
 #include "debug/UVECONTAINER.hh"
 
-// JMNOTE: PATCHED : Before 256 , Now 1024
-constexpr unsigned MaxVecRegLenInBytes = 1024;
+// JMNOTE: This number must aggree to types.hh MaxUveVeccLenInBits
+constexpr unsigned MaxVecRegLenInBytes = 256;
 
 template <size_t Sz>
 class VecRegContainer;
