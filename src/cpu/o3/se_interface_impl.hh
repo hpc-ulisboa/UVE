@@ -29,7 +29,7 @@ template<class Impl>
 void
 SEInterface<Impl>::startupComponent()
 {
-    //JMNOTE: Now that we have the port, get the address range.
+    // JMNOTE: Now that we have the port, get the address range.
     AddrRangeList sengine_addrs = dcachePort->getAddrRanges();
     Addr max_start_addr = 0;
     Addr max_end_addr = 0;
@@ -93,19 +93,25 @@ SEInterface<Impl>::sendCommand(SECommand cmd){
 template <class Impl>
 bool
 SEInterface<Impl>::reserve(StreamID sid, PhysRegIndex idx) {
-    return engine->ld_fifo.reserve(sid, idx);
+    auto renamed = stream_rename.getStream(sid);
+    assert(renamed.first || "Rename Should be true at this point");
+    return engine->ld_fifo.reserve(renamed.second, idx);
 }
 
 template <class Impl>
 bool
 SEInterface<Impl>::fetch(StreamID sid, TheISA::VecRegContainer **cnt) {
-    return engine->ld_fifo.fetch(sid, cnt);
+    auto renamed = stream_rename.getStream(sid);
+    assert(renamed.first || "Rename Should be true at this point");
+    return engine->ld_fifo.fetch(renamed.second, cnt);
 }
 
 template <class Impl>
 bool
 SEInterface<Impl>::isReady(StreamID sid, PhysRegIndex idx) {
-    return engine->ld_fifo.ready(sid, idx);
+    auto renamed = stream_rename.getStream(sid);
+    assert(renamed.first || "Rename Should be true at this point");
+    return engine->ld_fifo.ready(renamed.second, idx);
 }
 
 template <class Impl>
@@ -130,6 +136,8 @@ SEInterface<Impl>::_signalEngineReady() {
     // Get PhysRegIdPtr from index
     // Get Streamed Registers
     auto regs = consumeOnBuffer();
+
+    // JMFIXME: ADD rename
     if (regs.second == NULL) return;
     // Ask Engine for the data
     CoreContainer *cnt =

@@ -89,8 +89,6 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
         serializeOnNextInst[tid] = false;
     }
 
-    // JMNOTE: Fill StreamTable with falses
-    std::fill_n(streamTable, 32, false);
 }
 
 template <class Impl>
@@ -706,7 +704,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             for (int i = 0; i < inst->numSrcRegs(); i++) {
                 const RegId &src_reg = inst->srcRegIdx(i);
                 if (src_reg.isVecReg()) {
-                    if (streamTable[src_reg.index()]) {
+                    if (cpu->getSEICpuPtr()->isStream(src_reg.index())) {
                         if (streamedRegIdx != src_reg.index())
                             numStreamedRegs++;
                         streamedRegIdx = src_reg.index();
@@ -1022,8 +1020,8 @@ DefaultRename<Impl>::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
             // Need to squash in streaming engine
             if (hb_it->archReg.isVecReg()) {
                 cpu->getSEICpuPtr()->squash(0, hb_it->newPhysReg->index());
-                cpu->getSEICpuPtr()->squashToBuffer(
-                    hb_it->newPhysReg->index());
+                cpu->getSEICpuPtr()->squashToBuffer(hb_it->archReg,
+                                                    hb_it->newPhysReg);
             }
         }
 
@@ -1116,15 +1114,8 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
 
         // JMNOTE: Check if vector register is active stream
         if (inst->isStreamInst() && src_reg.isVecReg() &&
-            streamTable[src_reg.index()] &&
+            cpu->getSEICpuPtr()->isStream(src_reg.index()) &&
             streamedRegIdx != src_reg.index()) {
-            // DPRINTF(JMDEVEL,
-            //         "[tid:%i] "
-            //         "[S] Found Stream Inst: "
-            //         "Identified Source Streamed reg:%d\n",
-            //         tid, src_reg.index());
-            // JMNOTE: IF Stream: First time create new phys register (call
-            // rename)
             typename RenameMap::RenameInfo rename_result;
             RegId flat_src_regid = tc->flattenRegId(src_reg);
             // Check if this is really needed
@@ -1241,7 +1232,10 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
 
         // In this case (StreamConfig) we don't do renaming.. just set the
         // index of Our StreamTable
-        streamTable[inst->getStreamRegister()] = true;
+        auto rename_result =
+            cpu->getSEICpuPtr()->markConfigStream(inst->getStreamRegister());
+        assert(rename_result.first || "Could not rename!! Should have.");
+        inst->setPhysStream(rename_result.second);
     }
 
     // Rename the destination registers.

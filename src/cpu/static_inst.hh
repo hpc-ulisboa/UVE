@@ -210,6 +210,9 @@ class StaticInst : public RefCounted, public StaticInstFlags
     {
         panic("getStreamRegister not defined!");
     }
+    virtual void setPhysStream(uint8_t sid) {
+        panic("setPhysStream not defined!");
+    }
 
     void setFirstMicroop() { flags[IsFirstMicroop] = true; }
     void setLastMicroop() { flags[IsLastMicroop] = true; }

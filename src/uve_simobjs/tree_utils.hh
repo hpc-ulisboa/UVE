@@ -53,8 +53,8 @@ class SEList
 
 template <class Container>
 std::string SEList<Container>::to_string(){
-    std::string str = "●\n";
-    if(head != nullptr){
+    std::string str = "●(Head)\n";
+    if (head != nullptr) {
         str = to_string(head, str);
     }
     return str;

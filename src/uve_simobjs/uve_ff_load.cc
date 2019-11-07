@@ -2,7 +2,8 @@
 
 UVELoadFifo::UVELoadFifo(UVEStreamingEngineParams *params)
     : SimObject(params),
-      fifos(32, StreamFifo(params->width)),
+      fifos(32, StreamFifo(params->width, params->fifo_depth,
+                           params->max_request_size)),
       cacheLineSize(params->system->cacheLineSize()) {
     for (int i = 0; i < fifos.size(); i++) {
         fifos[i].set_owner(this);
@@ -95,7 +96,7 @@ UVELoadFifo::full(StreamID sid){
 bool
 UVELoadFifo::reserve(StreamID sid, int physIdx) {
     // Reserve space in fifo. This reserve comes from the cpu (rename phase)
-    assert(!fifos[sid].full());
+    // assert(!fifos[sid].full());
     fifos[sid].insert(physIdx);
     return true;
 }
@@ -121,9 +122,16 @@ UVELoadFifo::isFinished(StreamID sid) {
     return fifos[sid].complete();
 }
 
+uint16_t
+UVELoadFifo::getAvailableSpace(StreamID sid) {
+    // JMFIXME: Probably will not work (use start and end counter, keep state
+    // of configuration start and end)
+    return fifos[sid].availableSpace();
+}
+
 void
 StreamFifo::insert(uint16_t size, uint16_t ssid, uint8_t width,
-                 bool last = false){
+                   bool last = false) {
     //Dont just push back, need to interpolate;
     status = SEIterationStatus::Configured;
     uint16_t id = 0;
@@ -220,10 +228,8 @@ StreamFifo::get() {
     erase(begin());
     // Decrease by 1 all the id pointers in the map
     for (auto t = map.begin(); t != map.end(); ++t) {
-        if (!t->used) {
-            t->id--;
-            if (t->split) t->id2--;
-        }
+        t->id = t->id <= 0 ? 0 : t->id - 1;
+        if (t->split) t->id2 = t->id2 <= 0 ? 0 : t->id2 - 1;
     }
     physRegStack.pop_front();
     if (first_entry.is_last()) {
@@ -241,10 +247,8 @@ StreamFifo::get(int *physidx) {
     erase(begin());
     // Decrease by 1 all the id pointers in the map
     for (auto t = map.begin(); t != map.end(); ++t) {
-        if (!t->used) {
-            t->id--;
-            if (t->split) t->id2--;
-        }
+        t->id = t->id <= 0 ? 0 : t->id - 1;
+        if (t->split) t->id2 = t->id2 <= 0 ? 0 : t->id2 - 1;
     }
     *physidx = physRegStack.front();
     physRegStack.pop_front();
@@ -332,7 +336,7 @@ FifoEntry::merge_data(uint8_t * data, uint16_t offset, uint16_t _size) {
     }
     csize += _size;
     assert(!(csize > size));
-    if (csize == size){
+    if (csize == size && rstate == States::Complete) {
         cstate = States::Complete;
     }
     else cstate = States::NotComplete;

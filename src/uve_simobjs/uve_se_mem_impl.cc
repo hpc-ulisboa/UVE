@@ -17,27 +17,30 @@ SEprocessing::SEprocessing(UVEStreamingEngineParams *params,
 void SEprocessing::tick(){
     // DPRINTF(JMDEVEL, "SEprocessing::Tick()\n");
 
+    uint16_t max_advance_size;
     pID++;
     if (pID > 31) pID = 0;
     uint8_t auxID = pID + 1;
     if (auxID > 31) auxID = 0;
 
-    while ( iterQueue[auxID]->empty() ){
-        //One passage determines if no stream is configured
-        if (auxID == pID){
+    max_advance_size = parent->ld_fifo.getAvailableSpace(auxID);
+    while (iterQueue[auxID]->empty() || max_advance_size <= 0) {
+        // One passage determines if no stream is configured
+        if (auxID == pID) {
             // DPRINTF(JMDEVEL, "Blanck Tick\n");
             return;
         }
         auxID++;
         if (auxID > 31) auxID = 0;
+        max_advance_size = parent->ld_fifo.getAvailableSpace(auxID);
     }
 
     DPRINTF(JMDEVEL, "Settled on auxID:%d\n", auxID);
     pID = auxID;
-    SERequestInfo request_info = iterQueue[pID]->advance();
-    DPRINTF(UVESE,"Memory Request[%d]: [%d->%d] w(%d)\n",
-    request_info.sequence_number, request_info.initial_offset,
-    request_info.final_offset, request_info.width);
+    SERequestInfo request_info = iterQueue[pID]->advance(max_advance_size);
+    DPRINTF(UVESE, "Memory Request[%d]: [%d->%d] w(%d)\n",
+            request_info.sequence_number, request_info.initial_offset,
+            request_info.final_offset, request_info.width);
     if (request_info.status == SEIterationStatus::Ended)
         DPRINTF(UVESE,"Iteration on stream %d ended!\n", pID);
     //Create and send request to memory
@@ -110,6 +113,7 @@ SEprocessing::accessMemory(Addr addr, int size, int sid, int ssid,
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
         sendData(req, data, mode == BaseTLB::Read);
+        iterQueue[sid]->setPaddr(paddr, false);
     }
 }
 
@@ -118,18 +122,18 @@ void
 SEprocessing::finishTranslation(WholeTranslationState *state)
 {
     if (state->getFault() != NoFault) {
-        panic("Page fault in SEprocessing. Addr: %#x",
-            state->mainReq->getVaddr());
+        panic("Page fault in SEprocessing. Addr: %#x, Name: %s\n",
+              state->mainReq->getVaddr(), state->getFault()->name());
     }
 
     //Save the physical addr in the iterator
     auto sid = state->mainReq->streamId();
-    iterQueue[sid]->setPaddr(state->mainReq->getPaddr());
 
     if (!state->isSplit) {
         DPRINTF(JMDEVEL, "Got response for translation. %#x -> %#x\n",
                 state->mainReq->getVaddr(), state->mainReq->getPaddr());
         sendData(state->mainReq, state->data, state->mode == BaseTLB::Read);
+        iterQueue[sid]->setPaddr(state->mainReq->getPaddr(), false);
     } else {
         DPRINTF(JMDEVEL,
                 "Got response for split translation. 1(%#x -> %#x) 2(%#x -> "
@@ -138,6 +142,8 @@ SEprocessing::finishTranslation(WholeTranslationState *state)
                 state->sreqHigh->getVaddr(), state->sreqHigh->getPaddr());
         sendSplitData(state->sreqLow, state->sreqHigh, state->mainReq,
                       state->data, state->mode == BaseTLB::Read);
+        iterQueue[sid]->setPaddr(state->sreqHigh->getPaddr(), true,
+                                 state->sreqHigh->getVaddr());
     }
 
     delete state;
@@ -170,15 +176,14 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read,
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
 
-        if (!parent->ld_fifo.full(sid)){
-            bool last_packet = (ended && gen.last() && !split_not_last);
-            if (last_packet)
-                DPRINTF(JMDEVEL, "Last packet for sid (%d)\n", sid);
-            parent->ld_fifo.reserve(sid, ssid, gen.size(), width, last_packet);
-        }
-        else {
-            //JMTODO: Take action on reversing the processing
-        }
+        // if (!parent->ld_fifo.full(sid)){
+        bool last_packet = (ended && gen.last() && !split_not_last);
+        if (last_packet) DPRINTF(JMDEVEL, "Last packet for sid (%d)\n", sid);
+        parent->ld_fifo.reserve(sid, ssid, gen.size(), width, last_packet);
+        // }
+        // else {
+        //     //JMTODO: Take action on reversing the processing
+        // }
 
         req->taskId(ContextSwitchTaskId::DMA);
         PacketPtr pkt = read ? Packet::createRead(req) :
@@ -188,8 +193,8 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read,
         if (data)
             pkt->dataStatic(data + gen.complete());
 
-        DPRINTF(JMDEVEL, "--Queuing for addr: %#x size: %d\n", gen.addr(),
-                gen.size());
+        DPRINTF(JMDEVEL, "--Queuing for addr: %#x size: %d ssid[%d]\n",
+                gen.addr(), gen.size(), ssid);
         parent->getMemPort()->schedTimingReq(pkt,
                                 parent->nextAvailableCycle());
     }

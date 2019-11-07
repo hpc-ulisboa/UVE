@@ -261,17 +261,23 @@ class DimensionObject{
         DimensionOffset saved_offset = 0;
         uint8_t width;
         bool isHead;
+        bool isEnd;
+        bool isTerminated;
         uint8_t decrement;
 
     public:
-        DimensionObject(SEDimension * dimension, uint8_t _width,
-                    bool head = false):
-            counter(-1), offset(dimension->get_offset()),
-            size(dimension->get_size()), stride(dimension->get_stride()),
-            width(_width), isHead(head)
-        {
-            decrement = isHead ? 1 : 0;
-            saved_offset = isHead ? offset : offset*stride*width;
+     DimensionObject(SEDimension* dimension, uint8_t _width, bool head = false,
+                     bool end = false)
+         : counter(-1),
+           offset(dimension->get_offset()),
+           size(dimension->get_size()),
+           stride(dimension->get_stride()),
+           width(_width),
+           isHead(head),
+           isEnd(end),
+           isTerminated(false) {
+         decrement = isHead ? 2 : 1;
+         saved_offset = isHead ? offset : offset * stride * width;
         }
         ~DimensionObject(){}
 
@@ -280,11 +286,24 @@ class DimensionObject{
             if (dimensionEnded)
                 counter = -1;
             counter ++;
-            if(counter >= size - decrement){
+            if (counter > size - decrement) {
                 dimensionEnded = true;
             }
             else dimensionEnded = false;
             return dimensionEnded;
+        }
+
+        bool peek() {
+            int64_t aux_counter = counter;
+            bool aux_dimensionEnded = dimensionEnded;
+
+            if (aux_dimensionEnded) aux_counter = -1;
+            aux_counter++;
+            if (aux_counter > size - decrement) {
+                aux_dimensionEnded = true;
+            } else
+                aux_dimensionEnded = false;
+            return aux_dimensionEnded;
         }
 
         int64_t get_counter() {return counter;}
@@ -334,6 +353,12 @@ class DimensionObject{
         to_string(){
             return csprintf("S(%d):O(%d):St(%d)", size, offset, stride);
         }
+
+        bool hasBottomEnded() {
+            bool res = isEnd && isTerminated;
+            isTerminated = true;
+            return res;
+        }
 };
 
 typedef enum { Ended, Running, Configured, Clean, Stalled } SEIterationStatus;
@@ -367,6 +392,8 @@ class SEIter: public SEList<DimensionObject> {
         SERequestInfo cur_request;
         SERequestInfo last_request;
         ThreadContext * tc;
+        bool page_jump;
+        Addr page_jump_vaddr;
         typedef enum {
             BufferFull,
             DimensionSwap,
@@ -382,7 +409,6 @@ class SEIter: public SEList<DimensionObject> {
             //Validate all commands
             //Create iteration tree
             //Empty Stack
-            bool first_iteration = true;
             status = SEIterationStatus::Configured;
             DPRINTF(JMDEVEL, "SEIter constructor\n");
 
@@ -392,12 +418,18 @@ class SEIter: public SEList<DimensionObject> {
             tc = cmd.get_tc();
             sid = cmd.getStreamID();
 
-            while(!cmds->empty()){
+            insert_dim(new DimensionObject(cmd.get_dimension(), width, true));
+            cmds->pop();
+
+            DimensionObject* dimobj;
+            while (!cmds->empty()) {
                 cmd = cmds->front();
-                DimensionObject * dimobj =
-                    new DimensionObject(cmd.get_dimension(), width,
-                                        first_iteration);
-                first_iteration = false;
+                if (cmds->size() == 1) {
+                    dimobj = new DimensionObject(cmd.get_dimension(), width,
+                                                 false, true);
+                } else {
+                    dimobj = new DimensionObject(cmd.get_dimension(), width);
+                }
 
                 DPRINTF(JMDEVEL, "Inserting command: %s\n", cmd.to_string());
 
@@ -463,7 +495,7 @@ class SEIter: public SEList<DimensionObject> {
             //Create results with this
         };
 
-        SERequestInfo advance(){
+        SERequestInfo advance(uint16_t max_size) {
             //Iterate until request is generated
             assert(status != SEIterationStatus::Ended &&
                    status != SEIterationStatus::Clean &&
@@ -474,7 +506,7 @@ class SEIter: public SEList<DimensionObject> {
             status = SEIterationStatus::Running;
             StopReason sres = StopReason::BufferFull;
 
-            while (elem_counter < STOP_SIZE / width){
+            while (elem_counter < max_size / (width * 8)) {
                 assert(current_dim != nullptr);
 
                 result = current_dim->content->advance();
@@ -487,6 +519,19 @@ class SEIter: public SEList<DimensionObject> {
                     }
                     current_dim = current_dim->next;
                     current_dim->content->lower_ended();
+
+                    // Do a peek to assure it is not the last iteration
+                    auto aux_dim = current_dim;
+                    while (aux_dim != nullptr) {
+                        if (aux_dim->content->peek()) {
+                            aux_dim = aux_dim->next;
+                        } else
+                            break;
+                    };
+                    if (aux_dim == nullptr) {
+                        status = SEIterationStatus::Ended;
+                        sres = StopReason::End;
+                    }
                     break;
                 }
                 else {
@@ -494,6 +539,7 @@ class SEIter: public SEList<DimensionObject> {
                         //We are not in the lowest dimension
                         // Need to go back to the lower dimension
                         current_dim = current_dim->prev;
+                        continue;
                     }
                     else if(head_stride != 1){
                         sres = StopReason::NonCoallescing;
@@ -512,9 +558,10 @@ class SEIter: public SEList<DimensionObject> {
             request.sid = sid;
             request.sequence_number = ++sequence_number;
             if (status == SEIterationStatus::Ended){
-                end_ssid = sequence_number;
+                end_ssid = sequence_number - 1;
             }
             initial_offset = request.final_offset;
+            last_request = cur_request;
             cur_request = request;
             stats(request, sres);
             return request;
@@ -556,26 +603,37 @@ class SEIter: public SEList<DimensionObject> {
             }
 
             //Check if the page is mantained between last and current request
-            if ( pageFunction(last_request.initial_offset,
-                             last_request.final_offset) &&
-                pageFunction(cur_request.initial_offset,
+            if (pageFunction(cur_request.initial_offset,
                              cur_request.final_offset) &&
                 pageFunction(last_request.initial_offset,
-                             cur_request.initial_offset) )
-            {
-                *paddr = last_request.initial_paddr +
-                        (cur_request.initial_offset -
-                        last_request.initial_offset);
+                             cur_request.initial_offset) &&
+                pageFunction(last_request.initial_offset,
+                             last_request.final_offset)) {
+                *paddr =
+                    last_request.initial_paddr +
+                    (cur_request.initial_offset - last_request.initial_offset);
                 return true;
-            }
-            else {
+
+                // If the page is not mantained see if the current one is and
+                // check that the last translation targets a new page
+            } else if (pageFunction(cur_request.initial_offset,
+                                    cur_request.final_offset) &&
+                       page_jump) {
+                *paddr = last_request.initial_paddr +
+                         (cur_request.initial_offset - page_jump_vaddr);
+                return true;
+            } else {
                 // In this case it is not possible to infer the paddr
                 // Data is in new page
                 return false;
             }
         }
 
-        void setPaddr(Addr paddr){ last_request.initial_paddr = paddr;}
+        void setPaddr(Addr paddr, bool new_page = false, Addr vaddr = 0) {
+            cur_request.initial_paddr = paddr;
+            page_jump_vaddr = vaddr;
+            page_jump = new_page;
+        }
 
         bool ended(){return status == SEIterationStatus::Ended;}
         uint8_t get_end_ssid(){return end_ssid;}

@@ -88,19 +88,22 @@ class StreamFifo : protected std::vector<FifoEntry> {
     }
 
     uint8_t max_size;
+    uint32_t max_request_size;
     UVELoadFifo *owner;
-    std::vector<MapStruct> map;
     std::list<int> physRegStack;
     uint16_t config_size;
     SEIterationStatus status;
+    std::vector<MapStruct> map;
 
    public:
-    StreamFifo(uint16_t _cfg_sz)
-        : max_size(FIFO_DEPTH),
+    StreamFifo(uint16_t _cfg_sz, uint8_t depth, uint32_t _max_request_size)
+        : max_size(depth),
+          max_request_size(_max_request_size),
           owner(nullptr),
           physRegStack(),
           config_size(_cfg_sz),
-          status(SEIterationStatus::Clean) {
+          status(SEIterationStatus::Clean),
+          map() {
         reserve(max_size);
     }
 
@@ -117,6 +120,13 @@ class StreamFifo : protected std::vector<FifoEntry> {
     bool complete() { return status == SEIterationStatus::Ended; }
 
     void insert(int physIdx);
+    uint16_t availableSpace() {
+        uint16_t space = max_size * config_size;
+        for (auto it = begin(); it != end(); it++) {
+            space -= it->getSize() * 8;
+        }
+        return space > max_request_size ? max_request_size : space;
+    }
 
    private:
     uint16_t real_size();
@@ -148,6 +158,7 @@ class UVELoadFifo : public SimObject {
     bool ready(StreamID sid, int physIdx);
     bool squash(StreamID sid, int physIdx);
     bool isFinished(StreamID sid);
+    uint16_t getAvailableSpace(StreamID sid);
 };
 
 #endif  //__UVE_SIMOBJS_FIFO_LOAD_HH__

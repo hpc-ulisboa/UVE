@@ -13,6 +13,73 @@
 
 class DerivO3CPUParams;
 
+typedef struct stream_rename_map {
+    StreamID renamed;
+    bool used;
+    StreamID last_rename;
+    bool last_used;
+} StreamRenameMap;
+
+class StreamRename {
+   private:
+    StreamRenameMap makeSRM() {
+        StreamRenameMap srm;
+        srm.used = false;
+        srm.renamed = 0;
+        srm.last_rename = 0;
+        srm.last_used = false;
+        return srm;
+    }
+    using Arch2PhysMap = std::vector<StreamRenameMap>;
+    Arch2PhysMap map;
+    using FreePool = std::queue<StreamID>;
+    FreePool pool;
+
+   public:
+    StreamRename() : map(32, makeSRM()) {
+        for (int i = 0; i < 32; i++) {
+            freeStream(i);
+        }
+    };
+    ~StreamRename(){};
+
+   private:
+    StreamID getFreeStream() {
+        auto retval = pool.front();
+        pool.pop();
+        return retval;
+    }
+    bool anyStream() { return pool.size() != 0; }
+    void freeStream(StreamID sid) { pool.push(sid); }
+
+   public:
+    std::pair<bool, StreamID> renameStream(StreamID sid) {
+        if (anyStream()) {
+            auto available_stream = getFreeStream();
+            map[sid].last_used = map[sid].used;
+            map[sid].last_rename = map[sid].renamed;
+            map[sid].used = true;
+            map[sid].renamed = available_stream;
+            DPRINTF(UVESEI, "Rename: Stream %d was renamed to %d\n", sid,
+                    available_stream);
+            return std::make_pair(true, available_stream);
+        } else {
+            DPRINTF(
+                UVESEI,
+                "Rename: Stream %d was not renamed, no streams available.\n",
+                sid);
+            return std::make_pair(false, (StreamID)0);
+        }
+    }
+
+    std::pair<bool, StreamID> getStream(StreamID sid) {
+        if (map[sid].used)
+            DPRINTF(UVESEI, "Lookup: Stream %d points to %d.\n", sid,
+                    map[sid].renamed);
+        return std::make_pair(map[sid].used, map[sid].renamed);
+    }
+};
+
 template <typename Impl>
 class SEInterface {
    public:
@@ -67,8 +134,9 @@ class SEInterface {
 
     bool isComplete(InstSeqNum seqNum) { return UVECondLookup.at(seqNum); }
 
-    void squashToBuffer(PhysRegIndex idx) {
-        // panic("Not implemented\n");
+    void squashToBuffer(const RegId &arch, PhysRegIdPtr phys) {
+        if (isStream(arch.index()))
+            squashedBuffer.push_front(std::make_tuple(arch, phys, true));
     }
     void commitToBuffer(PhysRegIdPtr phys) {
         if (!physRegBuffer.empty()) physRegBuffer.pop_back();
@@ -76,6 +144,9 @@ class SEInterface {
     void addToBuffer(const RegId &arch, PhysRegIdPtr phys) {
         physRegBuffer.push_front(std::make_tuple(arch, phys, false));
         specRegBuffer.push_front(std::make_tuple(arch, phys, false));
+        // make sure not to repeat
+        physRegBuffer.unique();
+        specRegBuffer.unique();
     }
 
     void markOnBuffer(PhysRegIdPtr phys) {
@@ -89,14 +160,46 @@ class SEInterface {
         }
     }
 
-    std::pair<RegId, PhysRegIdPtr> consumeOnBuffer() {
+    std::tuple<RegId, PhysRegIdPtr, bool> consumeOnBuffer() {
+        if (!squashedBuffer.empty()) {
+            bool success = false;
+            auto bk = squashedBuffer.back();
+            auto stream = std::get<0>(bk);
+            squashedBuffer.pop_back();
+            auto it = specRegBuffer.end();
+            while (it != specRegBuffer.begin()) {
+                it--;
+                if (std::get<0>(*it) == stream && std::get<2>(*it)) {
+                    success = true;
+                    break;
+                }
+            }
+            if (!success)
+                return std::make_tuple(RegId(), (PhysRegIdPtr)NULL, false);
+        }
+
         auto bk = specRegBuffer.back();
         if (std::get<2>(bk)) {
-            auto retval = std::make_pair(std::get<0>(bk), std::get<1>(bk));
+            auto retval =
+                std::make_tuple(std::get<0>(bk), std::get<1>(bk), false);
             specRegBuffer.pop_back();
             return retval;
         }
-        return std::make_pair(RegId(), (PhysRegIdPtr)NULL);
+        return std::make_tuple(RegId(), (PhysRegIdPtr)NULL, false);
+    }
+
+    void undoConsumeOnBuffer(std::tuple<RegId, PhysRegIdPtr, bool> elem) {
+        squashedBuffer.push_back(elem);
+    }
+
+    std::pair<bool, StreamID> markConfigStream(StreamID sid) {
+        return stream_rename.renameStream(sid);
+    }
+
+    bool isStream(StreamID sid) { return stream_rename.getStream(sid).first; }
+
+    StreamID getStream(StreamID sid) {
+        return stream_rename.getStream(sid).second;
     }
 
    private:
@@ -119,7 +222,9 @@ class SEInterface {
     std::map<InstSeqNum, bool> UVECondLookup;
 
     std::list<std::tuple<RegId, PhysRegIdPtr, bool>> physRegBuffer,
-        specRegBuffer;
+        specRegBuffer, squashedBuffer;
+
+    StreamRename stream_rename;
 };
 
 #endif  //__CPU_O3_SE_INTERFACE_HH__

@@ -14,7 +14,10 @@ class UVEStreamingEngine(ClockedObject):
 
     latency = Param.Cycles(1, "Cycles taken on a hit or to resolve a miss")
 
-    size = Param.Int(8, "The depth of the queue")
+    fifo_depth = Param.Int(8, "The depth of the data fifo")
+
+    max_request_size = Param.Int(512, "The max size per memory request,"
+    + "per iteration")
 
     width = Param.Int(1024, "Width in bits of the queue (Vector Width)")
 

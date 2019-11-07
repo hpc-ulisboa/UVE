@@ -552,6 +552,7 @@ class BaseDynInst : public ExecContext, public RefCounted
     uint8_t getStreamRegister() const {
         return staticInst->getStreamRegister();
     }
+    void setPhysStream(uint8_t sid) { return staticInst->setPhysStream(sid); }
 
     /** Temporarily sets this instruction as a serialize before instruction. */
     void setSerializeBefore() { status.set(SerializeBefore); }
