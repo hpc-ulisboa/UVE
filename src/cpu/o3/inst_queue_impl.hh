@@ -1368,18 +1368,15 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
                         // If it is not there:
                         // It was already sent to the cpu, and in that case we
                         // need to rewind execution
-                        if (squashed_inst->isStreamInst()) {
-                            if (src_reg->isVectorPhysReg()) {
-                                // Get sid from the arch register
-                                auto sid =
-                                    squashed_inst->srcRegIdx(src_reg_idx)
-                                        .index();
-                                auto regidx = src_reg->index();
-                                cpu->getSEICpuPtr()->squash(sid, regidx);
+                        RegId arch = squashed_inst->srcRegIdx(src_reg_idx);
+                        if (squashed_inst->isStreamInst() &&
+                            src_reg->isVectorPhysReg() &&
+                            cpu->getSEICpuPtr()->isStream(arch.index())) {
+                            cpu->getSEICpuPtr()->squashToBuffer(
+                                squashed_inst->srcRegIdx(src_reg_idx),
+                                src_reg);
                             }
-                        }
                     }
-
                     ++iqSquashedOperandsExamined;
                 }
 
@@ -1481,8 +1478,10 @@ InstructionQueue<Impl>::addToDependents(const DynInstPtr &new_inst)
                 dependGraph.insert(src_reg->flatIndex(), new_inst);
 
                 // Signal SEI that this register is in dependents
-                if (src_reg->isVectorPhysReg())
-                    cpu->getSEICpuPtr()->markOnBuffer(src_reg);
+                if (src_reg->isVectorPhysReg()) {
+                    auto sid = new_inst->srcRegIdx(src_reg_idx).index();
+                    cpu->getSEICpuPtr()->markOnBuffer(sid, src_reg);
+                }
 
                 // Change the return value to indicate that something
                 // was added to the dependency graph.

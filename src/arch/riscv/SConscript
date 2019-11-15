@@ -80,6 +80,7 @@ if env['TARGET_ISA'] == 'riscv':
     DebugFlag('UVEPredic')
     DebugFlag('UVEUtils')
     DebugFlag('JMDEVEL')
+    DebugFlag('UVEFifo')
     DebugFlag('UVEIQ')
     DebugFlag('dUVEStream')
     DebugFlag('UVEBranch')

@@ -15,7 +15,9 @@ SEInterface<Impl>::SEInterface(O3CPU *cpu_ptr, Decode *dec_ptr, IEW *iew_ptr,
       decStage(dec_ptr),
       iewStage(iew_ptr),
       cmtStage(cmt_ptr),
-      UVECondLookup() {
+      UVECondLookup(),
+      registerBuffer(32),
+      speculationPointer(32) {
     dcachePort = &(cpu_ptr->getDataPort());
     if (params->streamEngine.size() == 1) {
         engine = params->streamEngine[0];
@@ -23,6 +25,11 @@ SEInterface<Impl>::SEInterface(O3CPU *cpu_ptr, Decode *dec_ptr, IEW *iew_ptr,
         engine = nullptr;
     }
     SEInterface<Impl>::singleton = this;
+
+    for (int i = 0; i < 32; i++) {
+        registerBuffer[i] = new RegBufferList();
+        speculationPointer[i] = SpecBufferIter(registerBuffer[i]);
+    }
 }
 
 template<class Impl>
@@ -92,14 +99,6 @@ SEInterface<Impl>::sendCommand(SECommand cmd){
 
 template <class Impl>
 bool
-SEInterface<Impl>::reserve(StreamID sid, PhysRegIndex idx) {
-    auto renamed = stream_rename.getStream(sid);
-    assert(renamed.first || "Rename Should be true at this point");
-    return engine->ld_fifo.reserve(renamed.second, idx);
-}
-
-template <class Impl>
-bool
 SEInterface<Impl>::fetch(StreamID sid, TheISA::VecRegContainer **cnt) {
     auto renamed = stream_rename.getStream(sid);
     assert(renamed.first || "Rename Should be true at this point");
@@ -108,10 +107,10 @@ SEInterface<Impl>::fetch(StreamID sid, TheISA::VecRegContainer **cnt) {
 
 template <class Impl>
 bool
-SEInterface<Impl>::isReady(StreamID sid, PhysRegIndex idx) {
+SEInterface<Impl>::isReady(StreamID sid) {
     auto renamed = stream_rename.getStream(sid);
     assert(renamed.first || "Rename Should be true at this point");
-    return engine->ld_fifo.ready(renamed.second, idx);
+    return engine->ld_fifo.ready(renamed.second);
 }
 
 template <class Impl>
@@ -130,23 +129,31 @@ SEInterface<Impl>::sendData(int physIdx, TheISA::VecRegContainer *cnt) {
 
 template <class Impl>
 void
-SEInterface<Impl>::_signalEngineReady() {
+SEInterface<Impl>::_signalEngineReady(CallbackInfo info) {
     // DPRINTF(JMDEVEL, "Send Data Here: idx: %d, cnt: %s\n", physIdx,
     //         cnt->print());
     // Get PhysRegIdPtr from index
     // Get Streamed Registers
-    auto regs = consumeOnBuffer();
+    for (int i = 0; i < info.psids_size; i++) {
+        StreamID psid = info.psids[i];
 
-    // JMFIXME: ADD rename
-    if (regs.second == NULL) return;
-    // Ask Engine for the data
-    CoreContainer *cnt =
-        engine->getData(regs.first.index(), regs.second->index());
-    assert(cnt->is_streaming());
-    // Set data in reg file
-    cpu->setVecReg(regs.second, *cnt);
-    // Wake Dependents and set scoreboard
-    iewStage->instQueue.wakeDependents(regs.second);
+        auto phys_lookup_result = stream_rename.reverseLookup(psid);
+        assert(phys_lookup_result.first ||
+               "Reverse lookup should always be true");
+
+        auto regs = consumeOnBuffer(phys_lookup_result.second);
+        if (regs.second == NULL) continue;
+        // Ask Engine for the data
+        auto lookup_result = getStream(regs.first.index());
+        CoreContainer *cnt = engine->getData(lookup_result);
+        assert(cnt->is_streaming());
+        // Set data in reg file
+        cpu->setVecReg(regs.second, *cnt);
+        // Wake Dependents and set scoreboard
+        iewStage->instQueue.wakeDependents(regs.second);
+        return;
+    }
+    assert(false || "Code should be unreacheable");
 }
 
 #endif  // __CPU_O3_SE_INTERFACE_IMPL_HH__

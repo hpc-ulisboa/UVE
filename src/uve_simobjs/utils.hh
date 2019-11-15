@@ -21,6 +21,12 @@ T mult_all(std::vector<T> * vec){
     return (T)result;
 }
 
+typedef enum {
+    END = 1,
+    OK = 2,
+    NOK = -1,
+} ReturnCode;
+
 typedef uint64_t DimensionSize;
 typedef uint64_t DimensionOffset;
 typedef uint64_t DimensionStride;
@@ -74,6 +80,11 @@ typedef enum  {
     simple = 'i'
 }StreamType;
 typedef uint8_t StreamID;
+
+typedef struct {
+    StreamID psids[32];
+    int8_t psids_size;
+} CallbackInfo;
 
 class SEStream
 {

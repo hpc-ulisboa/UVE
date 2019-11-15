@@ -90,9 +90,10 @@ UVEStreamingEngine::MemSidePort::recvRangeChange()
 void
 UVEStreamingEngine::tick(){
   memCore.tick();
-  if (ld_fifo.tick()) {
+  CallbackInfo res;
+  if (ld_fifo.tick(&res)) {
       // auto data_vec = ld_fifo.get_data();
-      signal_cpu();
+      signal_cpu(res);
       // for (auto elem : data_vec) {
       //     send_data_to_sei(elem.first, elem.second);
       // }
@@ -105,21 +106,32 @@ UVEStreamingEngine::regStats(){
 }
 
 void
-UVEStreamingEngine::set_callback(void (*_callback)()) {
+UVEStreamingEngine::set_callback(void (*_callback)(CallbackInfo info)) {
     DPRINTF(JMDEVEL, "Configuring Callback\n");
     callback = _callback;
 }
 
 void
-UVEStreamingEngine::squash(uint16_t sid, int regIdx) {
-    if (ld_fifo.squash(sid, regIdx))
-        return;
-    else {
-        return;
-    }
+UVEStreamingEngine::squash(uint16_t sid) {
+    ld_fifo.squash(sid);
+    return;
+}
+
+void
+UVEStreamingEngine::commit(uint16_t sid) {
+    ld_fifo.commit(sid);
+    return;
 }
 
 CoreContainer*
-UVEStreamingEngine::getData(uint16_t sid, int regIdx) {
-    return ld_fifo.getData(sid, regIdx);
+UVEStreamingEngine::getData(uint16_t sid) {
+    return ld_fifo.getData(sid);
+}
+
+void
+UVEStreamingEngine::endStream(StreamID sid) {
+    // Clear Fifo
+    ld_fifo.clear(sid);
+    // Clear Processing
+    memCore.clear(sid);
 }

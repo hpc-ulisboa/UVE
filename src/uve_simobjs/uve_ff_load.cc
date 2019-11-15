@@ -2,11 +2,13 @@
 
 UVELoadFifo::UVELoadFifo(UVEStreamingEngineParams *params)
     : SimObject(params),
-      fifos(32, StreamFifo(params->width, params->fifo_depth,
-                           params->max_request_size)),
-      cacheLineSize(params->system->cacheLineSize()) {
+      fifos(32),
+      cacheLineSize(params->system->cacheLineSize()),
+      confParams(params) {
     for (int i = 0; i < fifos.size(); i++) {
-        fifos[i].set_owner(this);
+        fifos[i] = new StreamFifo(confParams->width, confParams->fifo_depth,
+                                  confParams->max_request_size, i);
+        fifos[i]->set_owner(this);
     }
 }
 
@@ -16,36 +18,26 @@ UVELoadFifo::init(){
 }
 
 bool
-UVELoadFifo::tick() {
+UVELoadFifo::tick(CallbackInfo *info) {
     // Check if fifo is ready and answer true if it is
-    for (auto fifo : fifos) {
-        if (fifo.ready()) {
-            return true;
+    int8_t k = -1;
+    for (int i = 0; i < fifos.size(); i++) {
+        if (fifos[i]->ready()) {
+            info->psids[++k] = i;
         }
+    }
+    if (k != -1) {
+        info->psids_size = k + 1;
+        return true;
     }
     return false;
 }
 
-std::vector<std::pair<int, CoreContainer *>>
-UVELoadFifo::get_data() {
-    // Check if fifo is ready and if so, organize data to the cpu;
-    std::vector<std::pair<int, CoreContainer *>> data_vector;
-    for (auto &fifo : fifos) {
-        if (fifo.ready()) {
-            int physIdx = -1;
-            auto entry = fifo.get(&physIdx);
-            data_vector.push_back(
-                std::make_pair(physIdx, new CoreContainer(entry)));
-        }
-    }
-    return data_vector;
-}
-
 CoreContainer *
-UVELoadFifo::getData(int sid, PhysRegIndex physIdx) {
+UVELoadFifo::getData(int sid) {
     // Check if fifo is ready and if so, organize data to the cpu;
-    if (fifos[sid].ready(physIdx)) {
-        auto entry = fifos[sid].get(&physIdx);
+    if (fifos[sid]->ready()) {
+        auto entry = fifos[sid]->get();
         return new CoreContainer(entry);
     } else {
         return new CoreContainer();
@@ -56,8 +48,8 @@ void
 UVELoadFifo::reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
                      bool last = false) {
     // Reserve space in fifo. This reserve comes from the engine
-    assert(!fifos[sid].full());
-    fifos[sid].insert(size, ssid, width, last);
+    assert(!fifos[sid]->full());
+    fifos[sid]->insert(size, ssid, width, last);
 }
 
 bool
@@ -66,9 +58,9 @@ UVELoadFifo::insert(StreamID sid, uint32_t ssid, CoreContainer data){
     //  Not Succeded: Create new entry
     //      If full: Warn no more space
     //      Else: Create new entry
-    assert(!fifos[sid].empty());
+    assert(!fifos[sid]->empty());
 
-    if (fifos[sid].merge_data(ssid, data.raw_ptr<uint8_t>())){
+    if (fifos[sid]->merge_data(ssid, data.raw_ptr<uint8_t>())) {
         return true;
     }
     return false;
@@ -76,9 +68,9 @@ UVELoadFifo::insert(StreamID sid, uint32_t ssid, CoreContainer data){
 
 bool
 UVELoadFifo::fetch(StreamID sid, CoreContainer **cnt) {
-    if (fifos[sid].ready()){
+    if (fifos[sid]->ready()) {
         // cnt = new SmartContainer(to_smart(fifos[sid].get()));
-        auto entry = fifos[sid].get();
+        auto entry = fifos[sid]->get();
         *cnt = new CoreContainer(entry);
         return true;
     }
@@ -90,43 +82,45 @@ UVELoadFifo::fetch(StreamID sid, CoreContainer **cnt) {
 
 bool
 UVELoadFifo::full(StreamID sid){
-    return fifos[sid].full();
+    return fifos[sid]->full();
 }
 
 bool
-UVELoadFifo::reserve(StreamID sid, int physIdx) {
-    // Reserve space in fifo. This reserve comes from the cpu (rename phase)
-    // assert(!fifos[sid].full());
-    fifos[sid].insert(physIdx);
-    return true;
+UVELoadFifo::ready(StreamID sid) {
+    return fifos[sid]->ready();
 }
 
 bool
-UVELoadFifo::ready(StreamID sid, int physIdx) {
-    return fifos[sid].ready(physIdx);
+UVELoadFifo::squash(StreamID sid) {
+    return fifos[sid]->squash();
 }
 
 bool
-UVELoadFifo::squash(StreamID sid, int physIdx) {
-    // return fifos[sid].squash(physIdx);
-    for (auto &fifo : fifos) {
-        fifo.squash(physIdx);
-    }
-    return true;
+UVELoadFifo::commit(StreamID sid) {
+    return fifos[sid]->commit();
+}
+
+void
+UVELoadFifo::clear(StreamID sid) {
+    delete fifos[sid];
+    fifos[sid] = new StreamFifo(confParams->width, confParams->fifo_depth,
+                                confParams->max_request_size, sid);
+    fifos[sid]->set_owner(this);
+    return;
 }
 
 bool
 UVELoadFifo::isFinished(StreamID sid) {
     // JMFIXME: Probably will not work (use start and end counter, keep state
     // of configuration start and end)
-    return fifos[sid].complete();
+    return fifos[sid]->complete();
 }
 
 uint16_t
 UVELoadFifo::getAvailableSpace(StreamID sid) {
     // JMFIXME: Probably will not work (use start and end counter, keep state
     // of configuration start and end)
-    return fifos[sid].availableSpace();
+    return fifos[sid]->availableSpace();
 }
 
 void
@@ -141,23 +135,28 @@ StreamFifo::insert(uint16_t size, uint16_t ssid, uint8_t width,
     //First insertion case:
     if (this->empty()){
         //Create new entry
-        this->push_back(FifoEntry(width, config_size));
+        fifo_container->push_front(FifoEntry(width, config_size));
+        speculationPointer++;
+        DPRINTF(UVEFifo, "Inserted on back of fifo[%d] ssid[%d]: Was empty\n",
+                my_id, ssid);
         //Reserve space in entry
-        assert(this->back().reserve(&size, last));
+        assert(fifo_container->front().reserve(&size, last));
         //First entry was created, set id to 0;
         this->map.push_back(create_MS(id,size,offset));
         return;
     }
     //Get last entry: this should be the place where to put data;
     //This insert is called in order
-    if (this->back().complete()){
+    if (fifo_container->front().complete()) {
         assert(!this->full());
         //Create new entry due to the last one being complete
-        this->push_back(FifoEntry(width, config_size));
+        fifo_container->push_front(FifoEntry(width, config_size));
+        DPRINTF(UVEFifo, "Inserted on back of fifo[%d] ssid[%d]. Size[%d]\n",
+                my_id, ssid, fifo_container->size());
         //New entry was created, increment id;
         id = this->map.back().id + 1;
         //Here we absolutelly need to be able to reserve
-        assert(this->back().reserve(&size, last));
+        assert(fifo_container->front().reserve(&size, last));
 
         this->map.push_back(create_MS(id, size, offset));
         return;
@@ -165,12 +164,15 @@ StreamFifo::insert(uint16_t size, uint16_t ssid, uint8_t width,
     // Reserve the space -> When returns false the size is updated to the
     // remaining size
     uint16_t changeable_size = size;
-    bool result = back().reserve(&changeable_size, last);
+    bool result = fifo_container->front().reserve(&changeable_size, last);
     if (!result) {
         // Means that reserve is bigger than available space:
         // Create new entry
-        this->push_back(FifoEntry(width, config_size));
-        //New entry was created, increment id;
+        fifo_container->push_front(FifoEntry(width, config_size));
+        DPRINTF(UVEFifo, "Inserted on back of fifo[%d] ssid[%d]. Size[%d]\n",
+                my_id, ssid, fifo_container->size());
+        // Restore pointer
+        // New entry was created, increment id;
         if (this->map.back().split) {
             id = this->map.back().id2;
             offset = this->map.back().offset2 + this->map.back().size2;
@@ -178,7 +180,7 @@ StreamFifo::insert(uint16_t size, uint16_t ssid, uint8_t width,
             id = this->map.back().id;
             offset = this->map.back().offset + this->map.back().size;
         }
-        assert(this->back().reserve(&changeable_size, last));
+        assert(fifo_container->front().reserve(&changeable_size, last));
 
         this->map.push_back(create_MS(id, id + 1, size - changeable_size,
                                       changeable_size, offset, 0));
@@ -202,17 +204,19 @@ bool
 StreamFifo::merge_data(uint16_t ssid, uint8_t * data){
     assert(!empty());
     //Get corresponding fifo entry
-    FifoEntry *entry;
     auto it = this->map.begin() + ssid;
     auto mapping = *it;
     assert(!mapping.used);
 
-    entry = &this->at(mapping.id);
-    entry->merge_data(data, mapping.offset, mapping.size);
+    auto list_it = fifo_container->rbegin();
+    advance(list_it, mapping.id);
+    list_it->merge_data(data, mapping.offset, mapping.size);
 
     if (mapping.split) {
-        entry = &this->at(mapping.id2);
-        entry->merge_data(data + mapping.size, mapping.offset2, mapping.size2);
+        list_it = fifo_container->rbegin();
+        advance(list_it, mapping.id2);
+        list_it->merge_data(data + mapping.size, mapping.offset2,
+                            mapping.size2);
     }
 
     it->used = true;
@@ -224,80 +228,57 @@ FifoEntry
 StreamFifo::get() {
     assert(!empty());
 
-    FifoEntry first_entry = front();
-    erase(begin());
-    // Decrease by 1 all the id pointers in the map
-    for (auto t = map.begin(); t != map.end(); ++t) {
-        t->id = t->id <= 0 ? 0 : t->id - 1;
-        if (t->split) t->id2 = t->id2 <= 0 ? 0 : t->id2 - 1;
-    }
-    physRegStack.pop_front();
-    if (first_entry.is_last()) {
+    FifoEntry specEntry = *speculationPointer;
+    speculationPointer++;
+    DPRINTF(UVEFifo, "Get of fifo[%d]. Size[%d]\n", my_id,
+            fifo_container->size());
+    if (specEntry.is_last()) {
         // Set state as complete
         status = SEIterationStatus::Ended;
     }
-    return first_entry;
-}
-
-FifoEntry
-StreamFifo::get(int *physidx) {
-    assert(!empty());
-
-    FifoEntry first_entry = front();
-    erase(begin());
-    // Decrease by 1 all the id pointers in the map
-    for (auto t = map.begin(); t != map.end(); ++t) {
-        t->id = t->id <= 0 ? 0 : t->id - 1;
-        if (t->split) t->id2 = t->id2 <= 0 ? 0 : t->id2 - 1;
-    }
-    *physidx = physRegStack.front();
-    physRegStack.pop_front();
-    if (first_entry.is_last()) {
-        // Set state as complete
-        status = SEIterationStatus::Ended;
-    }
-    return first_entry;
+    return specEntry;
 }
 
 bool
 StreamFifo::ready() {
     if (empty()) return false;
-    if (physRegStack.empty()) return false;
-    FifoEntry first_entry = front();
+    if (!speculationPointer.valid()) return false;
+    FifoEntry first_entry = *speculationPointer;
     return first_entry.ready();
 }
 
 bool
-StreamFifo::ready(int physIdx) {
-    assert(!physRegStack.empty());
-
+StreamFifo::commit() {
     if (empty()) return false;
-    // Search for the physIdx
-    auto top_reg = physRegStack.front();
-    if (top_reg == physIdx && ready())
+
+    auto elem = fifo_container->back();
+
+    fifo_container->pop_back();
+    DPRINTF(UVEFifo, "Commit on fifo[%d]. Size[%d]\n", my_id,
+            fifo_container->size());
+    speculationPointer--;
+    // Decrease by 1 all the id pointers in the map
+    for (auto t = map.begin(); t != map.end(); ++t) {
+        t->id = t->id <= 0 ? 0 : t->id - 1;
+        if (t->split) t->id2 = t->id2 <= 0 ? 0 : t->id2 - 1;
+    }
+
+    if (elem.is_last()) {
+        // Stream Ended
+        // Return End Code
         return true;
-    else
-        return false;
+    }
+
+    return true;
 }
 
 bool
-StreamFifo::squash(int physIdx) {
+StreamFifo::squash() {
     if (empty()) return false;
-    if (physRegStack.empty()) return false;
-    // Search for the physIdx
-    int regIdx = -1;
-    auto it = physRegStack.end();
-    it--;
-
-    while (it != physRegStack.begin()) {
-        regIdx = *it;
-        if (regIdx == physIdx) {
-            physRegStack.erase(it);
-            return true;
-        }
-        it--;
-    }
-    return false;
+    speculationPointer--;
+    DPRINTF(UVEFifo, "Squash on fifo[%d]. Size[%d]\n", my_id,
+            fifo_container->size());
+    return true;
 }
 
 bool
@@ -308,24 +289,18 @@ StreamFifo::full() {
 
 bool
 StreamFifo::empty() {
-    return this->size() == 0;
+    return fifo_container->size() == 0;
 }
 
 uint16_t
 StreamFifo::real_size() {
     uint16_t size = 0;
-    auto it = this->begin();
-    while (it!=this->end()){
+    auto it = fifo_container->begin();
+    while (it != fifo_container->end()) {
         if (it->complete()) size ++;
         it++;
     }
     return size;
-}
-
-void
-StreamFifo::insert(int physIdx) {
-    // Insert in the stack of physical registers
-    physRegStack.push_back(physIdx);
 }
 
 void

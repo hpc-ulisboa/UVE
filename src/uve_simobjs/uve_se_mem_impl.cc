@@ -10,7 +10,9 @@ SEprocessing::SEprocessing(UVEStreamingEngineParams *params,
                 cacheLineSize(params->system->cacheLineSize())
                 {
     parent = _parent;
-    iterQueue.fill(new SEIter());
+    for (int i = 0; i < 32; i++) {
+        iterQueue[i] = new SEIter();
+    }
     ssidArray.fill(-1);
 };
 

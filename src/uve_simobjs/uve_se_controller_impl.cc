@@ -21,7 +21,11 @@ Tick SEcontroller::recvCommand(SECommand cmd){
         SEStack * que = &cmdQueue[sID];
         SEIterPtr stream_iterator = new SEIter(que);
         //Send iterator to processing engine
-        memCore->setIterator(sID, stream_iterator);
+        if (!memCore->setIterator(sID, stream_iterator)) {
+            DPRINTF(UVESE, "Starting Stream: Stream %d is not available.\n",
+                    sID);
+            delete stream_iterator;
+        }
     }
     return 1;
 }

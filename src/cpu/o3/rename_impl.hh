@@ -1018,10 +1018,10 @@ DefaultRename<Impl>::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
             freeList->addReg(hb_it->newPhysReg);
 
             // Need to squash in streaming engine
-            if (hb_it->archReg.isVecReg()) {
-                cpu->getSEICpuPtr()->squash(0, hb_it->newPhysReg->index());
-                cpu->getSEICpuPtr()->squashToBuffer(hb_it->archReg,
-                                                    hb_it->newPhysReg);
+            if (hb_it->archReg.isVecReg() &&
+                cpu->getSEICpuPtr()->isStream(hb_it->archReg.index())) {
+                cpu->getSEICpuPtr()->squashDestToBuffer(hb_it->archReg,
+                                                        hb_it->newPhysReg);
             }
         }
 
@@ -1077,10 +1077,6 @@ DefaultRename<Impl>::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
                 tid, hb_it->prevPhysReg->index(),
                 hb_it->prevPhysReg->className(), hb_it->instSeqNum);
 
-        if (hb_it->archReg.isVecReg()) {
-            cpu->getSEICpuPtr()->commitToBuffer(hb_it->prevPhysReg);
-        }
-
         // Don't free special phys regs like misc and zero regs, which
         // can be recognized because the new mapping is the same as
         // the old one.
@@ -1129,8 +1125,7 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
 
             // Make reservation in the fifo. Set the physical register as
             // destination of the data
-            assert(cpu->getSEICpuPtr()->reserve(src_reg.index(),
-                                                rename_result.first->index()));
+            cpu->getSEICpuPtr()->addToBuffer(src_reg, rename_result.first);
 
             // Save streamed register
             streamedRegIdx = src_reg.index();
@@ -1141,7 +1136,6 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
 
             historyBuffer[tid].push_front(hb_entry);
 
-            cpu->getSEICpuPtr()->addToBuffer(src_reg, rename_result.first);
             // JMNOTE: Update the regScoreboard in instQueue
             // JMTODO: Maybe change this in future to only happen in the
             // dispatch phase

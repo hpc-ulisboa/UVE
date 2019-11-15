@@ -1321,6 +1321,15 @@ DefaultCommit<Impl>::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
     // Finally clear the head ROB entry.
     rob->retireHead(tid);
 
+    // JMNOTE: Send commit signal to streaming engine
+    for (int src_reg_idx = 0; src_reg_idx < head_inst->numSrcRegs();
+         src_reg_idx++) {
+        PhysRegIdPtr src_reg = head_inst->renamedSrcRegIdx(src_reg_idx);
+        if (head_inst->isStreamInst() && src_reg->isVectorPhysReg())
+            cpu->getSEICpuPtr()->commitToBuffer(
+                head_inst->srcRegIdx(src_reg_idx), src_reg);
+    }
+
 #if TRACING_ON
     if (DTRACE(O3PipeView)) {
         head_inst->commitTick = curTick() - head_inst->fetchTick;

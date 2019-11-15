@@ -3,6 +3,7 @@
 #define __CPU_O3_SE_INTERFACE_HH__
 
 #include "cpu/utils.hh"
+#include "debug/UVERename.hh"
 #include "debug/UVESEI.hh"
 #include "mem/port.hh"
 #include "sim/sim_object.hh"
@@ -50,6 +51,8 @@ class StreamRename {
         return retval;
     }
     bool anyStream() { return pool.size() != 0; }
+
+   public:
     void freeStream(StreamID sid) { pool.push(sid); }
 
    public:
@@ -78,6 +81,21 @@ class StreamRename {
                     map[sid].renamed);
         return std::make_pair(map[sid].used, map[sid].renamed);
     }
+
+    std::pair<bool, StreamID> reverseLookup(StreamID psid) {
+        for (int sid = 0; sid < 32; sid++) {
+            if (map[sid].used && map[sid].renamed == psid) {
+                return std::make_pair(true, sid);
+            }
+        }
+        return std::make_pair(false, 0);
+    }
+
+    std::pair<bool, StreamID> undo(StreamID sid) {
+        if (!map[sid].last_used) return std::make_pair(false, 0);
+        map[sid].last_used = false;
+        return std::make_pair(true, map[sid].last_rename);
+    }
 };
 
 template <typename Impl>
@@ -102,29 +120,25 @@ class SEInterface {
     void recvReqRetry();
 
     void sendData(int physIdx, TheISA::VecRegContainer *cnt);
-    void _signalEngineReady();
+    void _signalEngineReady(CallbackInfo info);
 
     static void sendDataToCPU(int physIdx, TheISA::VecRegContainer *cnt) {
         SEInterface<Impl>::singleton->sendData(physIdx, cnt);
     }
 
-    static void signalEngineReady() {
-        SEInterface<Impl>::singleton->_signalEngineReady();
+    static void signalEngineReady(CallbackInfo info) {
+        SEInterface<Impl>::singleton->_signalEngineReady(info);
     }
 
     // void configureStream(Stream stream, Dimension dim);
 
     bool sendCommand(SECommand cmd);
 
-    bool reserve(StreamID sid, PhysRegIndex idx);
-
-    bool isReady(StreamID sid, PhysRegIndex idx);
+    bool isReady(StreamID sid);
 
     bool fetch(StreamID sid, TheISA::VecRegContainer **cnt);
 
     void tick() { engine->tick(); }
-
-    void squash(StreamID sid, int regidx) { engine->squash(sid, regidx); }
 
     bool isFinished(StreamID sid) { return engine->isFinished(sid); }
 
@@ -135,24 +149,59 @@ class SEInterface {
     bool isComplete(InstSeqNum seqNum) { return UVECondLookup.at(seqNum); }
 
     void squashToBuffer(const RegId &arch, PhysRegIdPtr phys) {
-        if (isStream(arch.index()))
-            squashedBuffer.push_front(std::make_tuple(arch, phys, true));
+        StreamID sid = arch.index();
+        if (!registerBuffer[sid]->empty()) {
+            if (std::get<1>(registerBuffer[sid]->back()) == phys &&
+                std::get<0>(registerBuffer[sid]->back()) == arch) {
+                DPRINTF(UVERename, "SquashToBuffer: %d, %p\n", arch.index(),
+                        phys);
+                registerBuffer[sid]->pop_back();
+                speculationPointer[sid]--;
+                auto lookup_stream = stream_rename.getStream(arch.index());
+                engine->squash(lookup_stream.second);
+            }
+        }
     }
-    void commitToBuffer(PhysRegIdPtr phys) {
-        if (!physRegBuffer.empty()) physRegBuffer.pop_back();
+
+    void squashDestToBuffer(const RegId &arch, PhysRegIdPtr phys) {
+        // Set the old renames
+        StreamID sid = arch.index();
+        auto result = stream_rename.undo(sid);
+        if (result.first) {
+            // registerBuffer[result.first]->clear();
+            // speculationPointer[result.first].clear();
+            stream_rename.freeStream(result.first);
+            DPRINTF(UVERename, "SquashDestToBuffer: %d, %p\n", result.first,
+                    phys);
+        }
+    }
+
+    void commitToBuffer(const RegId &arch, PhysRegIdPtr phys) {
+        StreamID sid = arch.index();
+        auto bufferEnd = registerBuffer[sid]->back();
+        if (std::get<2>(bufferEnd)) {
+            if (std::get<1>(bufferEnd) == phys &&
+                std::get<0>(bufferEnd) == arch) {
+                DPRINTF(UVERename, "CommitToBuffer: %d, %p\n", sid, phys);
+                registerBuffer[sid]->pop_back();
+                speculationPointer[sid]--;
+                auto lookup_stream =
+                    stream_rename.getStream(std::get<0>(bufferEnd).index());
+                engine->commit(lookup_stream.second);
+            }
+        }
     }
     void addToBuffer(const RegId &arch, PhysRegIdPtr phys) {
-        physRegBuffer.push_front(std::make_tuple(arch, phys, false));
-        specRegBuffer.push_front(std::make_tuple(arch, phys, false));
-        // make sure not to repeat
-        physRegBuffer.unique();
-        specRegBuffer.unique();
+        StreamID sid = arch.index();
+        DPRINTF(UVERename, "AddToBuffer: %d, %p\n", sid, phys);
+        if (registerBuffer[sid]->empty()) speculationPointer[sid]++;
+        registerBuffer[sid]->push_front(std::make_tuple(arch, phys, false));
     }
 
-    void markOnBuffer(PhysRegIdPtr phys) {
-        auto it = specRegBuffer.begin();
-
-        while (it != specRegBuffer.end()) {
+    void markOnBuffer(StreamID sid, PhysRegIdPtr phys) {
+        // DPRINTF(UVERename, "MarkOnBuffer: %p\n",phys);
+        RegBufferIter it = registerBuffer[sid]->begin();
+        while (it != registerBuffer[sid]->end()) {
             if (phys->index() == std::get<1>(*it)->index()) {
                 std::get<2>(*it) = true;
             }
@@ -160,71 +209,62 @@ class SEInterface {
         }
     }
 
-    std::tuple<RegId, PhysRegIdPtr, bool> consumeOnBuffer() {
-        if (!squashedBuffer.empty()) {
-            bool success = false;
-            auto bk = squashedBuffer.back();
-            auto stream = std::get<0>(bk);
-            squashedBuffer.pop_back();
-            auto it = specRegBuffer.end();
-            while (it != specRegBuffer.begin()) {
-                it--;
-                if (std::get<0>(*it) == stream && std::get<2>(*it)) {
-                    success = true;
-                    break;
-                }
+    std::pair<RegId, PhysRegIdPtr> consumeOnBuffer(StreamID sid) {
+        if (!registerBuffer[sid]->empty() && speculationPointer[sid].valid()) {
+            if (std::get<2>(*speculationPointer[sid])) {
+                auto retval =
+                    std::make_pair(std::get<0>(*speculationPointer[sid]),
+                                   std::get<1>(*speculationPointer[sid]));
+                DPRINTF(UVERename, "ConsumeOnBuffer: %d, %p\n", sid,
+                        std::get<1>(*speculationPointer[sid]));
+                speculationPointer[sid]++;
+
+                return retval;
             }
-            if (!success)
-                return std::make_tuple(RegId(), (PhysRegIdPtr)NULL, false);
+            return std::make_pair(RegId(), (PhysRegIdPtr)NULL);
+        }
+        return std::make_pair(RegId(), (PhysRegIdPtr)NULL);
         }
 
-        auto bk = specRegBuffer.back();
-        if (std::get<2>(bk)) {
-            auto retval =
-                std::make_tuple(std::get<0>(bk), std::get<1>(bk), false);
-            specRegBuffer.pop_back();
-            return retval;
+        std::pair<bool, StreamID> markConfigStream(StreamID sid) {
+            return stream_rename.renameStream(sid);
         }
-        return std::make_tuple(RegId(), (PhysRegIdPtr)NULL, false);
-    }
 
-    void undoConsumeOnBuffer(std::tuple<RegId, PhysRegIdPtr, bool> elem) {
-        squashedBuffer.push_back(elem);
-    }
+        bool isStream(StreamID sid) {
+            return stream_rename.getStream(sid).first;
+        }
 
-    std::pair<bool, StreamID> markConfigStream(StreamID sid) {
-        return stream_rename.renameStream(sid);
-    }
+        StreamID getStream(StreamID sid) {
+            return stream_rename.getStream(sid).second;
+        }
 
-    bool isStream(StreamID sid) { return stream_rename.getStream(sid).first; }
+       private:
+        /** Pointers for parent and sibling structures. */
+        O3CPU *cpu;
+        Decode *decStage;
+        IEW *iewStage;
+        Commit *cmtStage;
 
-    StreamID getStream(StreamID sid) {
-        return stream_rename.getStream(sid).second;
-    }
+        /* Pointer for communication port */
+        MasterPort *dcachePort;
 
-   private:
-    /** Pointers for parent and sibling structures. */
-    O3CPU *cpu;
-    Decode *decStage;
-    IEW *iewStage;
-    Commit *cmtStage;
+        /* Pointer for engine */
+        UVEStreamingEngine *engine;
 
-    /* Pointer for communication port */
-    MasterPort *dcachePort;
+        /* Addr range */
+        AddrRange sengine_addr_range;
 
-    /* Pointer for engine */
-    UVEStreamingEngine *engine;
+        /* Completion Lookup Table (Updated in rename phase) */
+        std::map<InstSeqNum, bool> UVECondLookup;
 
-    /* Addr range */
-    AddrRange sengine_addr_range;
+        using RegBufferList = std::list<std::tuple<RegId, PhysRegIdPtr, bool>>;
+        using RegBufferIter = RegBufferList::iterator;
+        using SpecBufferIter = DumbIterator<RegBufferList>;
 
-    /* Completion Lookup Table (Updated in rename phase) */
-    std::map<InstSeqNum, bool> UVECondLookup;
+        std::vector<RegBufferList *> registerBuffer;
+        std::vector<SpecBufferIter> speculationPointer;
 
-    std::list<std::tuple<RegId, PhysRegIdPtr, bool>> physRegBuffer,
-        specRegBuffer, squashedBuffer;
-
-    StreamRename stream_rename;
+        StreamRename stream_rename;
 };
 
 #endif  //__CPU_O3_SE_INTERFACE_HH__

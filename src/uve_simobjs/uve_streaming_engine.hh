@@ -62,16 +62,15 @@ class SEprocessing : SimObject
                 UVEStreamingEngine *_parent);
 
     bool setIterator(StreamID sid, SEIterPtr iterator){
-      //JMFIXME: Clean memory on past iterators;
       iterator->setCompareFunction(
         [=](Addr a, Addr b){return this->samePage(a,b);}
         );
-      if (iterQueue[sid]->empty()){
-        iterQueue[sid] = iterator;
-        return true;
+      if (iterQueue[sid]->empty()) {
+          delete iterQueue[sid];
+          iterQueue[sid] = iterator;
+          return true;
       }
       else {
-        iterQueue[sid] = iterator;
         return false;
       }
     }
@@ -100,6 +99,10 @@ class SEprocessing : SimObject
 
    public:
     bool samePage(Addr a, Addr b) { return (pageAlign(a) == pageAlign(b)); }
+    void clear(StreamID sid) {
+        delete iterQueue[sid];
+        iterQueue[sid] = new SEIter();
+    }
 };
 
 /*
@@ -201,7 +204,7 @@ class UVEStreamingEngine : public ClockedObject
     Addr confAddr;
     Addr confSize;
     Tick cycler = 0;
-    std::function<void()> callback;
+    std::function<void(CallbackInfo)> callback;
 
    public:
     /** constructor
@@ -230,16 +233,18 @@ class UVEStreamingEngine : public ClockedObject
     }
 
     void regStats() override;
-    void set_callback(void (*callback)());
+    void set_callback(void (*callback)(CallbackInfo info));
     // void send_data_to_sei(int physIdx, CoreContainer *cnt) {
     //     callback(physIdx, cnt);
     // }
-    void signal_cpu() { callback(); }
-    void squash(uint16_t sid, int regIdx);
-    CoreContainer *getData(uint16_t sid, int regIdx);
+    void signal_cpu(CallbackInfo info) { callback(info); }
+    void squash(uint16_t sid);
+    void commit(uint16_t sid);
+    CoreContainer *getData(uint16_t sid);
     bool isFinished(uint16_t sid) {
         return ld_fifo.isFinished(sid) && memCore.isCompleted(sid);
     }
+    void endStream(StreamID sid);
 };
 
 #endif // __UVE_STREAMING_ENGINE_HH__

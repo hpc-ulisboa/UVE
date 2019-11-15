@@ -4,6 +4,7 @@
 #include "arch/riscv/registers.hh"
 #include "base/circlebuf.hh"
 #include "debug/JMDEVEL.hh"
+#include "debug/UVEFifo.hh"
 #include "params/UVEStreamingEngine.hh"
 #include "sim/clocked_object.hh"
 #include "sim/system.hh"
@@ -48,8 +49,10 @@ class FifoEntry : public CoreContainer {
 // and verify themselfs as destination.
 // If the data is not for the current entries, create another entry.
 // StreamFifo only redirects the data, and gives statistics on how full it is
-class StreamFifo : protected std::vector<FifoEntry> {
+class StreamFifo {
    private:
+    using FifoContainer = std::list<FifoEntry>;
+    using SpeculativeIter = DumbIterator<FifoContainer>;
     typedef struct mapEntry {
         uint16_t id;
         uint16_t size;
@@ -87,42 +90,47 @@ class StreamFifo : protected std::vector<FifoEntry> {
         return new_ms;
     }
 
+    FifoContainer *fifo_container;
     uint8_t max_size;
     uint32_t max_request_size;
     UVELoadFifo *owner;
-    std::list<int> physRegStack;
     uint16_t config_size;
     SEIterationStatus status;
-    std::vector<MapStruct> map;
+    using MapVector = std::vector<MapStruct>;
+    MapVector map;
+
+    SpeculativeIter speculationPointer;
+    int my_id;
 
    public:
-    StreamFifo(uint16_t _cfg_sz, uint8_t depth, uint32_t _max_request_size)
+    StreamFifo(uint16_t _cfg_sz, uint8_t depth, uint32_t _max_request_size,
+               int id)
         : max_size(depth),
           max_request_size(_max_request_size),
           owner(nullptr),
-          physRegStack(),
           config_size(_cfg_sz),
           status(SEIterationStatus::Clean),
-          map() {
-        reserve(max_size);
+          map(),
+          my_id(id) {
+        fifo_container = new FifoContainer();
+        speculationPointer = SpeculativeIter(fifo_container);
     }
 
     void set_owner(UVELoadFifo *own) { owner = own; }
     void insert(uint16_t size, uint16_t ssid, uint8_t width, bool last);
     bool merge_data(uint16_t ssid, uint8_t *data);
     FifoEntry get();
-    FifoEntry get(int *physidx);
     bool full();
     bool ready();
-    bool ready(int physidx);
-    bool squash(int physidx);
+    bool squash();
+    bool commit();
     bool empty();
     bool complete() { return status == SEIterationStatus::Ended; }
 
-    void insert(int physIdx);
     uint16_t availableSpace() {
         uint16_t space = max_size * config_size;
-        for (auto it = begin(); it != end(); it++) {
+        for (auto it = fifo_container->begin(); it != fifo_container->end();
+             it++) {
             space -= it->getSize() * 8;
         }
         return space > max_request_size ? max_request_size : space;
@@ -135,28 +143,28 @@ class StreamFifo : protected std::vector<FifoEntry> {
 // This is the load fifo object that contains one fifo per stream
 class UVELoadFifo : public SimObject {
    private:
-    std::vector<StreamFifo> fifos;
+    std::vector<StreamFifo *> fifos;
 
    public:
     uint16_t cacheLineSize;
     UVEStreamingEngine *engine;
+    UVEStreamingEngineParams *confParams;
 
    public:
     UVELoadFifo(UVEStreamingEngineParams *params);
 
-    bool tick();
-    std::vector<std::pair<int, CoreContainer *>> get_data();
-    CoreContainer *getData(int sid, PhysRegIndex physIdx);
+    bool tick(CallbackInfo *res);
+    CoreContainer *getData(int sid);
     void init();
     bool insert(StreamID sid, uint32_t ssid, CoreContainer data);
     void reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
                  bool last);
     bool fetch(StreamID sid, CoreContainer **cnt);
     bool full(StreamID sid);
-
-    bool reserve(StreamID sid, int physIdx);
-    bool ready(StreamID sid, int physIdx);
-    bool squash(StreamID sid, int physIdx);
+    bool ready(StreamID sid);
+    bool squash(StreamID sid);
+    bool commit(StreamID sid);
+    void clear(StreamID sid);
     bool isFinished(StreamID sid);
     uint16_t getAvailableSpace(StreamID sid);
 };
