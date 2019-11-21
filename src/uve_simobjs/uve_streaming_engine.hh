@@ -90,7 +90,7 @@ class SEprocessing : SimObject
     void accessMemory(Addr addr, int size, int sid, int ssid,
                       BaseTLB::Mode mode, uint8_t *data, ThreadContext *tc);
     void recvData(PacketPtr pkt);
-    bool isCompleted(StreamID sid) { return iterQueue[sid]->ended(); }
+    SmartReturn isCompleted(StreamID sid) { return iterQueue[sid]->ended(); }
 
    private:
     void emitRequest(SERequestInfo info);
@@ -99,9 +99,11 @@ class SEprocessing : SimObject
 
    public:
     bool samePage(Addr a, Addr b) { return (pageAlign(a) == pageAlign(b)); }
-    void clear(StreamID sid) {
+    SmartReturn clear(StreamID sid) {
         delete iterQueue[sid];
         iterQueue[sid] = new SEIter();
+        this->ssidArray[sid] = -1;
+        return SmartReturn::ok();
     }
 };
 
@@ -118,14 +120,13 @@ class SEcontroller
 
   public:
     // JMTODO: Define methods for Pio Port
-    Tick recvCommand(SECommand command);
+   SmartReturn recvCommand(SECommand command);
 
-    void setMemCore(SEprocessing * memCorePtr);
+   void setMemCore(SEprocessing *memCorePtr);
 
-    /** constructor
-     */
-    SEcontroller(UVEStreamingEngineParams *params,
-                UVEStreamingEngine *_parent);
+   /** constructor
+    */
+   SEcontroller(UVEStreamingEngineParams *params, UVEStreamingEngine *_parent);
 };
 
 /*
@@ -219,7 +220,7 @@ class UVEStreamingEngine : public ClockedObject
     Port& getPort(const std::string& if_name, PortID idx) override;
     MemSidePort * getMemPort(){return &memoryPort;}
 
-    bool recvCommand(SECommand cmd);
+    SmartReturn recvCommand(SECommand cmd);
     Tick nextAvailableCycle(){
       if (cycler < curTick()){
         cycler = nextCycle();
@@ -238,13 +239,15 @@ class UVEStreamingEngine : public ClockedObject
     //     callback(physIdx, cnt);
     // }
     void signal_cpu(CallbackInfo info) { callback(info); }
-    void squash(uint16_t sid);
-    void commit(uint16_t sid);
-    CoreContainer *getData(uint16_t sid);
-    bool isFinished(uint16_t sid) {
-        return ld_fifo.isFinished(sid) && memCore.isCompleted(sid);
+    SmartReturn squash(uint16_t sid);
+    SmartReturn shouldSquash(uint16_t sid);
+    SmartReturn commit(uint16_t sid);
+    SmartReturn getData(uint16_t sid);
+    void synchronizeLists(uint16_t sid);
+    SmartReturn isFinished(uint16_t sid) {
+        return ld_fifo.isFinished(sid).AND(memCore.isCompleted(sid));
     }
-    void endStream(StreamID sid);
+    SmartReturn endStream(StreamID sid);
 };
 
 #endif // __UVE_STREAMING_ENGINE_HH__

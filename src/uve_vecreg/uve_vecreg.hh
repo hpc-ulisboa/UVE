@@ -132,12 +132,19 @@ class VecRegContainer {
     uint8_t width;
     uint16_t valid_index;
     bool last_request;
-    // DEBUG only flag
+    // DEBUG only flags/vars
     bool streaming;
+    int64_t ssid;
+    int sid;
 
    public:
     VecRegContainer()
-        : width(0), valid_index(0), last_request(false), streaming(false) {}
+        : width(0),
+          valid_index(0),
+          last_request(false),
+          streaming(false),
+          ssid(-1),
+          sid(-1) {}
     VecRegContainer(const std::vector<uint8_t>& that) {
         assert(that.size() >= SIZE);
         std::memcpy(container.data(), &that[0], SIZE);
@@ -151,6 +158,10 @@ class VecRegContainer {
     bool is_last() const { return last_request; }
     void set_streaming(bool _streaming) { streaming = _streaming; }
     bool is_streaming() const { return streaming; }
+    void set_sid(int _sid) { sid = _sid; }
+    void set_ssid(int64_t _ssid) { ssid = _ssid; }
+    int64_t get_ssid() { return ssid; }
+    int get_sid() { return sid; }
 
     void zero() { memset(container.data(), 0, SIZE); }
 
@@ -161,6 +172,8 @@ class VecRegContainer {
         valid_index = that.valid_index;
         last_request = that.last_request;
         streaming = that.streaming;
+        sid = that.sid;
+        ssid = that.ssid;
         return *this;
     }
 

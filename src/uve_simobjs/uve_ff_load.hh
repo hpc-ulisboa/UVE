@@ -26,7 +26,7 @@ class FifoEntry : public CoreContainer {
     uint16_t config_size;
 
    public:
-    FifoEntry(uint8_t width, uint16_t _cfg_sz)
+    FifoEntry(uint8_t width, uint16_t _cfg_sz, int sid, int64_t ssid)
         : CoreContainer(),
           size(0),
           csize(0),
@@ -36,6 +36,8 @@ class FifoEntry : public CoreContainer {
         cstate = States::Clean;
         set_width(width);
         set_streaming(true);
+        set_sid(sid);
+        set_ssid(ssid);
     }
     bool complete() { return rstate == States::Complete; }
     bool ready() { return cstate == States::Complete; }
@@ -118,14 +120,18 @@ class StreamFifo {
 
     void set_owner(UVELoadFifo *own) { owner = own; }
     void insert(uint16_t size, uint16_t ssid, uint8_t width, bool last);
-    bool merge_data(uint16_t ssid, uint8_t *data);
+    SmartReturn merge_data(uint16_t ssid, uint8_t *data);
     FifoEntry get();
-    bool full();
-    bool ready();
-    bool squash();
-    bool commit();
-    bool empty();
-    bool complete() { return status == SEIterationStatus::Ended; }
+    SmartReturn full();
+    SmartReturn ready();
+    SmartReturn squash();
+    SmartReturn shouldSquash();
+    void synchronizeLists();
+    SmartReturn commit();
+    SmartReturn empty();
+    SmartReturn complete() {
+        return SmartReturn::compare(status == SEIterationStatus::Ended);
+    }
 
     uint16_t availableSpace() {
         uint16_t space = max_size * config_size;
@@ -154,18 +160,20 @@ class UVELoadFifo : public SimObject {
     UVELoadFifo(UVEStreamingEngineParams *params);
 
     bool tick(CallbackInfo *res);
-    CoreContainer *getData(int sid);
+    SmartReturn getData(int sid);
     void init();
-    bool insert(StreamID sid, uint32_t ssid, CoreContainer data);
+    SmartReturn insert(StreamID sid, uint32_t ssid, CoreContainer data);
     void reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
                  bool last);
-    bool fetch(StreamID sid, CoreContainer **cnt);
-    bool full(StreamID sid);
-    bool ready(StreamID sid);
-    bool squash(StreamID sid);
-    bool commit(StreamID sid);
-    void clear(StreamID sid);
-    bool isFinished(StreamID sid);
+    SmartReturn fetch(StreamID sid, CoreContainer **cnt);
+    SmartReturn full(StreamID sid);
+    SmartReturn ready(StreamID sid);
+    SmartReturn squash(StreamID sid);
+    SmartReturn shouldSquash(StreamID sid);
+    SmartReturn commit(StreamID sid);
+    void synchronizeLists(StreamID sid);
+    SmartReturn clear(StreamID sid);
+    SmartReturn isFinished(StreamID sid);
     uint16_t getAvailableSpace(StreamID sid);
 };
 

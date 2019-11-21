@@ -1361,21 +1361,21 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
                         !src_reg->isFixedMapping()) {
                         dependGraph.remove(src_reg->flatIndex(),
                                            squashed_inst);
+                    }
 
-                        // JMNOTE: IF removing from dependGraph we need to
-                        // signal the streaming engine.
-                        // Make the engine remove the physReg slot
-                        // If it is not there:
-                        // It was already sent to the cpu, and in that case we
-                        // need to rewind execution
-                        RegId arch = squashed_inst->srcRegIdx(src_reg_idx);
-                        if (squashed_inst->isStreamInst() &&
-                            src_reg->isVectorPhysReg() &&
-                            cpu->getSEICpuPtr()->isStream(arch.index())) {
-                            cpu->getSEICpuPtr()->squashToBuffer(
-                                squashed_inst->srcRegIdx(src_reg_idx),
-                                src_reg);
-                            }
+                    // JMNOTE: IF removing from dependGraph we need to
+                    // signal the streaming engine.
+                    // Make the engine remove the physReg slot
+                    // If it is not there:
+                    // It was already sent to the cpu, and in that case we
+                    // need to rewind execution
+                    RegId arch = squashed_inst->srcRegIdx(src_reg_idx);
+                    if (squashed_inst->isStreamInst() &&
+                        src_reg->isVectorPhysReg() &&
+                        cpu->getSEICpuPtr()->isStream(arch.index())) {
+                        cpu->getSEICpuPtr()->squashToBuffer(
+                            squashed_inst->srcRegIdx(src_reg_idx), src_reg,
+                            squashed_inst->getSeqNum());
                     }
                     ++iqSquashedOperandsExamined;
                 }
@@ -1479,8 +1479,9 @@ InstructionQueue<Impl>::addToDependents(const DynInstPtr &new_inst)
 
                 // Signal SEI that this register is in dependents
                 if (src_reg->isVectorPhysReg()) {
-                    auto sid = new_inst->srcRegIdx(src_reg_idx).index();
-                    cpu->getSEICpuPtr()->markOnBuffer(sid, src_reg);
+                    auto arch_src_reg = new_inst->srcRegIdx(src_reg_idx);
+                    cpu->getSEICpuPtr()->markOnBuffer(arch_src_reg, src_reg,
+                                                      new_inst->getSeqNum());
                 }
 
                 // Change the return value to indicate that something

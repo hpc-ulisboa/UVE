@@ -1030,6 +1030,14 @@ DefaultCommit<Impl>::commitInsts()
 
             // Record that the number of ROB entries has changed.
             changedROBNumEntries[tid] = true;
+
+            // JMNOTE: Squash instruction in stream engine (only for stream
+            // config)
+            // JMFIXME: Make all the processes uniform...
+            if (head_inst->isStreamConfig()) {
+                cpu->getSEICpuPtr()->squashStreamConfig(
+                    head_inst->getStreamRegister(), head_inst->getSeqNum());
+            }
         } else {
             pc[tid] = head_inst->pcState();
 
@@ -1327,7 +1335,8 @@ DefaultCommit<Impl>::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
         PhysRegIdPtr src_reg = head_inst->renamedSrcRegIdx(src_reg_idx);
         if (head_inst->isStreamInst() && src_reg->isVectorPhysReg())
             cpu->getSEICpuPtr()->commitToBuffer(
-                head_inst->srcRegIdx(src_reg_idx), src_reg);
+                head_inst->srcRegIdx(src_reg_idx), src_reg,
+                head_inst->getSeqNum());
     }
 
 #if TRACING_ON

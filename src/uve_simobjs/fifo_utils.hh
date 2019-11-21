@@ -29,6 +29,19 @@ class DumbIterator {
             return *aux;
         }
     }
+
+    typename BaseContainer::value_type *operator->() {
+        if (reverse) {
+            auto aux = container->rbegin();
+            advance(aux, it);
+            return &(*aux);
+        } else {
+            auto aux = container->begin();
+            advance(aux, it);
+            return &(*aux);
+        }
+    }
+
     DumbIterator<BaseContainer> &operator++(int a) {
         it++;
         if (it > container->size()) it = container->size();
@@ -43,6 +56,9 @@ class DumbIterator {
         return !(it == -1 || it == container->size());
     }
     void clear() { it = -1; }
+    void forceUpdate() {
+        if (it == -1 && container->size() > 0) it = 0;
+    }
 };
 
 #endif //__UVE_SIMOBJS_FIFO_UTILS_HH__

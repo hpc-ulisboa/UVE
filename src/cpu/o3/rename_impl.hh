@@ -1021,7 +1021,8 @@ DefaultRename<Impl>::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
             if (hb_it->archReg.isVecReg() &&
                 cpu->getSEICpuPtr()->isStream(hb_it->archReg.index())) {
                 cpu->getSEICpuPtr()->squashDestToBuffer(hb_it->archReg,
-                                                        hb_it->newPhysReg);
+                                                        hb_it->newPhysReg,
+                                                        hb_it->instSeqNum);
             }
         }
 
@@ -1125,7 +1126,8 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
 
             // Make reservation in the fifo. Set the physical register as
             // destination of the data
-            cpu->getSEICpuPtr()->addToBuffer(src_reg, rename_result.first);
+            cpu->getSEICpuPtr()->addToBuffer(src_reg, rename_result.first,
+                                             inst->getSeqNum());
 
             // Save streamed register
             streamedRegIdx = src_reg.index();
@@ -1226,8 +1228,8 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
 
         // In this case (StreamConfig) we don't do renaming.. just set the
         // index of Our StreamTable
-        auto rename_result =
-            cpu->getSEICpuPtr()->markConfigStream(inst->getStreamRegister());
+        auto rename_result = cpu->getSEICpuPtr()->initializeStream(
+            inst->getStreamRegister(), inst->getSeqNum());
         assert(rename_result.first || "Could not rename!! Should have.");
         inst->setPhysStream(rename_result.second);
     }

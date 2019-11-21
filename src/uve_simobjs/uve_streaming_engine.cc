@@ -54,11 +54,9 @@ Port& UVEStreamingEngine::getPort(const std::string& if_name,
   }
 }
 
-bool
-UVEStreamingEngine::recvCommand(SECommand cmd)
-{
-  confCore.recvCommand(cmd);
-  return true;
+SmartReturn
+UVEStreamingEngine::recvCommand(SECommand cmd) {
+    return confCore.recvCommand(cmd);
 }
 
 bool
@@ -111,27 +109,48 @@ UVEStreamingEngine::set_callback(void (*_callback)(CallbackInfo info)) {
     callback = _callback;
 }
 
-void
+SmartReturn
 UVEStreamingEngine::squash(uint16_t sid) {
-    ld_fifo.squash(sid);
-    return;
+    return ld_fifo.squash(sid);
+}
+
+SmartReturn
+UVEStreamingEngine::shouldSquash(uint16_t sid) {
+    return ld_fifo.shouldSquash(sid);
+}
+
+SmartReturn
+UVEStreamingEngine::commit(uint16_t sid) {
+    auto result = ld_fifo.commit(sid);
+    if (result.isEnd()) {
+        // Time to eliminate this sid
+        auto clear_result = endStream(sid);
+        return clear_result.isOk()
+                   ? SmartReturn::end()
+                   : SmartReturn::error("Could not clear stream footprint");
+    }
+    return result;
 }
 
 void
-UVEStreamingEngine::commit(uint16_t sid) {
-    ld_fifo.commit(sid);
+UVEStreamingEngine::synchronizeLists(uint16_t sid) {
+    ld_fifo.synchronizeLists(sid);
     return;
 }
 
-CoreContainer*
+SmartReturn
 UVEStreamingEngine::getData(uint16_t sid) {
     return ld_fifo.getData(sid);
 }
 
-void
+SmartReturn
 UVEStreamingEngine::endStream(StreamID sid) {
+    SmartReturn result = SmartReturn::ok();
     // Clear Fifo
-    ld_fifo.clear(sid);
+    result = ld_fifo.clear(sid);
+    if (!result.isOk()) return result;
     // Clear Processing
-    memCore.clear(sid);
+    result = memCore.clear(sid);
+
+    return result;
 }

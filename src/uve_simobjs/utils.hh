@@ -3,10 +3,13 @@
 
 #include <queue>
 
+#include <boost/serialization/strong_typedef.hpp>
+
 #include "base/cprintf.hh"
 #include "cpu/thread_context.hh"
 #include "debug/JMDEVEL.hh"
 #include "sim/sim_object.hh"
+#include "smart_return.hh"
 #include "tree_utils.hh"
 
 #define MaximumStreams 32
@@ -20,12 +23,6 @@ T mult_all(std::vector<T> * vec){
     }
     return (T)result;
 }
-
-typedef enum {
-    END = 1,
-    OK = 2,
-    NOK = -1,
-} ReturnCode;
 
 typedef uint64_t DimensionSize;
 typedef uint64_t DimensionOffset;
@@ -80,6 +77,8 @@ typedef enum  {
     simple = 'i'
 }StreamType;
 typedef uint8_t StreamID;
+BOOST_STRONG_TYPEDEF(StreamID, ArchStreamID)
+BOOST_STRONG_TYPEDEF(StreamID, PhysStreamID)
 
 typedef struct {
     StreamID psids[32];
@@ -646,7 +645,9 @@ class SEIter: public SEList<DimensionObject> {
             page_jump = new_page;
         }
 
-        bool ended(){return status == SEIterationStatus::Ended;}
+        SmartReturn ended() {
+            return SmartReturn::compare(status == SEIterationStatus::Ended);
+        }
         uint8_t get_end_ssid(){return end_ssid;}
 
         void stall() { status = SEIterationStatus::Stalled; }

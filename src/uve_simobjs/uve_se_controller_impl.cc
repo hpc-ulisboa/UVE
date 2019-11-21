@@ -9,7 +9,8 @@ SEcontroller::SEcontroller(UVEStreamingEngineParams *params,
     memCore = &_parent->memCore;
 }
 
-Tick SEcontroller::recvCommand(SECommand cmd){
+SmartReturn
+SEcontroller::recvCommand(SECommand cmd) {
     //Parse command (switch case)
     //Handle request, return time
     DPRINTF(UVESE, "recvCommand %s\n", cmd.to_string());
@@ -27,5 +28,5 @@ Tick SEcontroller::recvCommand(SECommand cmd){
             delete stream_iterator;
         }
     }
-    return 1;
+    return SmartReturn::ok();
 }

@@ -159,7 +159,7 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read,
     RequestPtr req = NULL;
     auto sid = ireq->streamId();
     auto width = iterQueue[sid]->getCompressedWidth();
-    bool ended = iterQueue[sid]->ended();
+    bool ended = iterQueue[sid]->ended().isOk();
 
     for (ChunkGenerator gen(ireq->getPaddr(), ireq->getSize(), cacheLineSize);
         !gen.done(); gen.next()) {

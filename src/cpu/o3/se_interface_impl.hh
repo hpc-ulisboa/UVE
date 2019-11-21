@@ -17,7 +17,8 @@ SEInterface<Impl>::SEInterface(O3CPU *cpu_ptr, Decode *dec_ptr, IEW *iew_ptr,
       cmtStage(cmt_ptr),
       UVECondLookup(),
       registerBuffer(32),
-      speculationPointer(32) {
+      speculationPointer(32),
+      inst_validator() {
     dcachePort = &(cpu_ptr->getDataPort());
     if (params->streamEngine.size() == 1) {
         engine = params->streamEngine[0];
@@ -88,13 +89,14 @@ void
 SEInterface<Impl>::recvReqRetry()
 {
     iewStage->ldstQueue.recvReqRetry();
-    //JMFIXME: For now leave as this, but this must me addressed
 }
 
 template <class Impl>
 bool
 SEInterface<Impl>::sendCommand(SECommand cmd){
-    return engine->recvCommand(cmd);
+    SmartReturn result = engine->recvCommand(cmd);
+    if (result.isError()) panic("Error" + result.estr());
+    return result.isOk();
 }
 
 template <class Impl>
@@ -102,7 +104,9 @@ bool
 SEInterface<Impl>::fetch(StreamID sid, TheISA::VecRegContainer **cnt) {
     auto renamed = stream_rename.getStream(sid);
     assert(renamed.first || "Rename Should be true at this point");
-    return engine->ld_fifo.fetch(renamed.second, cnt);
+    SmartReturn result = engine->ld_fifo.fetch(renamed.second, cnt);
+    if (result.isError()) panic("Error" + result.estr());
+    return result.isOk();
 }
 
 template <class Impl>
@@ -110,21 +114,9 @@ bool
 SEInterface<Impl>::isReady(StreamID sid) {
     auto renamed = stream_rename.getStream(sid);
     assert(renamed.first || "Rename Should be true at this point");
-    return engine->ld_fifo.ready(renamed.second);
-}
-
-template <class Impl>
-void
-SEInterface<Impl>::sendData(int physIdx, TheISA::VecRegContainer *cnt) {
-    // DPRINTF(JMDEVEL, "Send Data Here: idx: %d, cnt: %s\n", physIdx,
-    //         cnt->print());
-    // // Get PhysRegIdPtr from index
-    // PhysRegIdPtr physReg =
-    //     cpu->getRenameCpuPtr()->get_reg_id_by_index(physIdx);
-    // // Set data in reg file
-    // cpu->setVecReg(physReg, *cnt);
-    // // Wake Dependents and set scoreboard
-    // iewStage->instQueue.wakeDependents(physReg);
+    SmartReturn result = engine->ld_fifo.ready(renamed.second);
+    if (result.isError()) panic("Error" + result.estr());
+    return result.isOk();
 }
 
 template <class Impl>
@@ -137,15 +129,13 @@ SEInterface<Impl>::_signalEngineReady(CallbackInfo info) {
     for (int i = 0; i < info.psids_size; i++) {
         StreamID psid = info.psids[i];
 
-        auto phys_lookup_result = stream_rename.reverseLookup(psid);
-        assert(phys_lookup_result.first ||
-               "Reverse lookup should always be true");
-
-        auto regs = consumeOnBuffer(phys_lookup_result.second);
+        auto regs = consumeOnBuffer(psid);
         if (regs.second == NULL) continue;
         // Ask Engine for the data
         auto lookup_result = getStream(regs.first.index());
-        CoreContainer *cnt = engine->getData(lookup_result);
+        SmartReturn result = engine->getData(lookup_result);
+        result.ASSERT();
+        CoreContainer *cnt = (CoreContainer *)result.getData();
         assert(cnt->is_streaming());
         // Set data in reg file
         cpu->setVecReg(regs.second, *cnt);
