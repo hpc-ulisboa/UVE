@@ -37,7 +37,9 @@
 #include "arch/riscv/registers.hh"
 #include "base/bitfield.hh"
 #include "cpu/base.hh"
+#include "debug/JMDEVEL.hh"
 #include "debug/RiscvMisc.hh"
+#include "insts/uve_utils.hh"
 #include "params/RiscvISA.hh"
 #include "sim/core.hh"
 #include "sim/pseudo_inst.hh"
@@ -149,175 +151,173 @@ ISA::readMiscReg(int misc_reg, ThreadContext *tc)
         }
       case MISCREG_TIME:
         if (hpmCounterEnabled(MISCREG_TIME)) {
-            DPRINTF(RiscvMisc, "Wall-clock counter at: %llu.\n",
-                    std::time(nullptr));
-            return std::time(nullptr);
+            // DPRINTF(RiscvMisc, "Wall-clock counter at: %llu.\n",
+            //         std::time(nullptr));
+            // return std::time(nullptr);
+            // JMNOTE: Changed this
+            double retval = (double)tc->getCpuPtr()->curCycle() /
+                            ((double)getClockFrequency());
+            DPRINTF(JMDEVEL, "Seconds from clock: %f\t ClockFreq:%d\n", retval,
+                    getClockFrequency());
+            return typeCastToBits(retval);
         } else {
             warn("Wall clock disabled.\n");
             return 0;
         }
       case MISCREG_INSTRET:
-        if (hpmCounterEnabled(MISCREG_INSTRET)) {
-            DPRINTF(RiscvMisc, "Instruction counter at: %llu.\n",
-                    tc->getCpuPtr()->totalInsts());
-            return tc->getCpuPtr()->totalInsts();
-        } else {
-            warn("Instruction counter disabled.\n");
-            return 0;
-        }
+          if (hpmCounterEnabled(MISCREG_INSTRET)) {
+              DPRINTF(RiscvMisc, "Instruction counter at: %llu.\n",
+                      tc->getCpuPtr()->totalInsts());
+              return tc->getCpuPtr()->totalInsts();
+          } else {
+              warn("Instruction counter disabled.\n");
+              return 0;
+          }
       case MISCREG_IP:
-        return tc->getCpuPtr()->getInterruptController(tc->threadId())
-                              ->readIP();
+          return tc->getCpuPtr()
+              ->getInterruptController(tc->threadId())
+              ->readIP();
       case MISCREG_IE:
-        return tc->getCpuPtr()->getInterruptController(tc->threadId())
-                              ->readIE();
+          return tc->getCpuPtr()
+              ->getInterruptController(tc->threadId())
+              ->readIE();
       default:
-        // Try reading HPM counters
-        // As a placeholder, all HPM counters are just cycle counters
-        if (misc_reg >= MISCREG_HPMCOUNTER03 &&
-                misc_reg <= MISCREG_HPMCOUNTER31) {
-            if (hpmCounterEnabled(misc_reg)) {
-                DPRINTF(RiscvMisc, "HPM counter %d: %llu.\n",
-                        misc_reg - MISCREG_CYCLE, tc->getCpuPtr()->curCycle());
-                return tc->getCpuPtr()->curCycle();
-            } else {
-                warn("HPM counter %d disabled.\n", misc_reg - MISCREG_CYCLE);
-                return 0;
+          // Try reading HPM counters
+          // As a placeholder, all HPM counters are just cycle counters
+          if (misc_reg >= MISCREG_HPMCOUNTER03 &&
+              misc_reg <= MISCREG_HPMCOUNTER31) {
+              if (hpmCounterEnabled(misc_reg)) {
+                  DPRINTF(RiscvMisc, "HPM counter %d: %llu.\n",
+                          misc_reg - MISCREG_CYCLE,
+                          tc->getCpuPtr()->curCycle());
+                  return tc->getCpuPtr()->curCycle();
+              } else {
+                  warn("HPM counter %d disabled.\n", misc_reg - MISCREG_CYCLE);
+                  return 0;
+              }
+          }
+          return readMiscRegNoEffect(misc_reg);
+        }
+    }
+
+    void ISA::setMiscRegNoEffect(int misc_reg, RegVal val) {
+        if (misc_reg > NumMiscRegs || misc_reg < 0) {
+            // Illegal CSR
+            panic("Illegal CSR index %#x\n", misc_reg);
+        }
+        DPRINTF(RiscvMisc, "Setting MiscReg %d to %#x.\n", misc_reg, val);
+        miscRegFile[misc_reg] = val;
+    }
+
+    void ISA::setMiscReg(int misc_reg, RegVal val, ThreadContext *tc) {
+        if (misc_reg >= MISCREG_CYCLE && misc_reg <= MISCREG_HPMCOUNTER31) {
+            // Ignore writes to HPM counters for now
+            warn("Ignoring write to %s.\n", CSRData.at(misc_reg).name);
+        } else {
+            switch (misc_reg) {
+                case MISCREG_IP:
+                    return tc->getCpuPtr()
+                        ->getInterruptController(tc->threadId())
+                        ->setIP(val);
+                case MISCREG_IE:
+                    return tc->getCpuPtr()
+                        ->getInterruptController(tc->threadId())
+                        ->setIE(val);
+                default:
+                    setMiscRegNoEffect(misc_reg, val);
             }
         }
-        return readMiscRegNoEffect(misc_reg);
     }
-}
 
-void
-ISA::setMiscRegNoEffect(int misc_reg, RegVal val)
-{
-    if (misc_reg > NumMiscRegs || misc_reg < 0) {
-        // Illegal CSR
-        panic("Illegal CSR index %#x\n", misc_reg);
+    // JMNOTE: Set UVE Vector Type
+    void ISA::setUveVecType(ThreadContext *tc, uint8_t vector_register_id,
+                            uint8_t width) {
+        auto vector_type = tc->readMiscReg(MISCREG_UVEVT);
+        uint8_t shift_amt = vector_register_id * 2;
+
+        vector_type &= ~(0b11 << shift_amt);
+        vector_type |= width << shift_amt;
+        DPRINTF(UVEMem, "Set Uve Type: V(%d) Requested(%d) Final(%#x)\n",
+                vector_register_id, width, vector_type);
+
+        tc->setMiscReg(MISCREG_UVEVT, vector_type);
     }
-    DPRINTF(RiscvMisc, "Setting MiscReg %d to %#x.\n", misc_reg, val);
-    miscRegFile[misc_reg] = val;
-}
 
-void
-ISA::setMiscReg(int misc_reg, RegVal val, ThreadContext *tc)
-{
-    if (misc_reg >= MISCREG_CYCLE && misc_reg <= MISCREG_HPMCOUNTER31) {
-        // Ignore writes to HPM counters for now
-        warn("Ignoring write to %s.\n", CSRData.at(misc_reg).name);
-    } else {
-        switch (misc_reg) {
-          case MISCREG_IP:
-            return tc->getCpuPtr()->getInterruptController(tc->threadId())
-                                  ->setIP(val);
-          case MISCREG_IE:
-            return tc->getCpuPtr()->getInterruptController(tc->threadId())
-                                  ->setIE(val);
-          default:
-            setMiscRegNoEffect(misc_reg, val);
-        }
+    // JMNOTE: Set UVE Vector Type
+    // template <class WidthSize>
+    void ISA::setUvePVecType(ThreadContext *tc, uint8_t vector_register_id,
+                             uint8_t width) {
+        auto vector_type = tc->readMiscReg(MISCREG_UVEPVT);
+        uint8_t shift_amt = vector_register_id * 2;
+
+        vector_type &= ~(0b11 << shift_amt);
+        vector_type |= width << shift_amt;
+        DPRINTF(UVEMem,
+                "Set Uve PredicateType: P(%d) Requested(%d) Final(%#x)\n",
+                vector_register_id, width, vector_type);
+
+        tc->setMiscReg(MISCREG_UVEPVT, vector_type);
     }
-}
 
+    uint8_t ISA::getUveVecType(ThreadContext *tc, uint8_t vector_register_id) {
+        auto vector_type = tc->readMiscReg(MISCREG_UVEVT);
+        uint8_t shift_amt = vector_register_id * 2;
 
-//JMNOTE: Set UVE Vector Type
-void
-ISA::setUveVecType(ThreadContext *tc, uint8_t vector_register_id,
-    uint8_t width)
-{
-    auto vector_type = tc->readMiscReg(MISCREG_UVEVT);
-    uint8_t shift_amt = vector_register_id * 2;
+        vector_type &= 0b11 << shift_amt;
 
-    vector_type &= ~(0b11 << shift_amt);
-    vector_type |= width << shift_amt;
-    DPRINTF(UVEMem, "Set Uve Type: V(%d) Requested(%d) Final(%#x)\n",
-        vector_register_id, width,vector_type);
+        return vector_type >> shift_amt;
+    }
 
-    tc->setMiscReg(MISCREG_UVEVT,vector_type);
-}
+    uint8_t ISA::getUvePVecType(ThreadContext *tc,
+                                uint8_t vector_register_id) {
+        auto vector_type = tc->readMiscReg(MISCREG_UVEPVT);
+        uint8_t shift_amt = vector_register_id * 2;
 
-//JMNOTE: Set UVE Vector Type
-// template <class WidthSize>
-void
-ISA::setUvePVecType(ThreadContext *tc, uint8_t vector_register_id,
-    uint8_t width)
-{
-    auto vector_type = tc->readMiscReg(MISCREG_UVEPVT);
-    uint8_t shift_amt = vector_register_id * 2;
+        vector_type &= 0b11 << shift_amt;
 
-    vector_type &= ~(0b11 << shift_amt);
-    vector_type |= width << shift_amt;
-    DPRINTF(UVEMem, "Set Uve PredicateType: P(%d) Requested(%d) Final(%#x)\n",
-        vector_register_id, width,vector_type);
+        return vector_type >> shift_amt;
+    }
 
-    tc->setMiscReg(MISCREG_UVEPVT,vector_type);
-}
+    // JMNOTE: Set UVE Vector Valid Index
+    void ISA::setUveValidIndex(ThreadContext *tc, uint8_t vector_register_id,
+                               uint16_t valid_index) {
+        // 4 is number of vec reg per misc_reg
+        uint8_t misc_reg_index = vector_register_id / 4;
+        uint8_t shift_amt = (vector_register_id % 4) * 16;
 
-uint8_t
-ISA::getUveVecType(ThreadContext *tc, uint8_t vector_register_id)
-{
-    auto vector_type = tc->readMiscReg(MISCREG_UVEVT);
-    uint8_t shift_amt = vector_register_id * 2;
+        auto vector_index_info =
+            tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
+        vector_index_info &= ~(((uint64_t)0xFFFF) << shift_amt);
+        vector_index_info |= ((uint64_t)valid_index) << shift_amt;
+        DPRINTF(UVEMem,
+                "Set Uve Valid: V(%d) Requested(%dby) Final(%#x) in"
+                " Reg(%d)\n",
+                vector_register_id, valid_index, vector_index_info,
+                misc_reg_index);
 
-    vector_type &= 0b11 << shift_amt;
+        tc->setMiscReg(MISCREG_UVEVI0 + misc_reg_index, vector_index_info);
+    }
 
-    return vector_type >> shift_amt;
-}
+    uint16_t ISA::getUveValidIndex(ThreadContext *tc,
+                                   uint8_t vector_register_id) {
+        // 4 is number of vec reg per misc_reg
+        uint8_t misc_reg_index = vector_register_id / 4;
+        uint8_t shift_amt = (vector_register_id % 4) * 16;
 
-uint8_t
-ISA::getUvePVecType(ThreadContext *tc, uint8_t vector_register_id)
-{
-    auto vector_type = tc->readMiscReg(MISCREG_UVEPVT);
-    uint8_t shift_amt = vector_register_id * 2;
+        auto vector_index_info =
+            tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
+        vector_index_info &= (0xFFFFLL << shift_amt);
+        DPRINTF(UVEMem, "Get Uve Valid: V(%d) Got(%dby) in Reg(%d)\n",
+                vector_register_id,
+                (((uint64_t)vector_index_info) >> shift_amt), misc_reg_index);
+        return (((uint64_t)vector_index_info) >> shift_amt);
+    }
 
-    vector_type &= 0b11 << shift_amt;
-
-    return vector_type >> shift_amt;
-}
-
-//JMNOTE: Set UVE Vector Valid Index
-void
-ISA::setUveValidIndex(ThreadContext *tc, uint8_t vector_register_id,
-    uint16_t valid_index)
-{
-    //4 is number of vec reg per misc_reg
-    uint8_t misc_reg_index = vector_register_id / 4;
-    uint8_t shift_amt = (vector_register_id % 4) * 16;
-
-    auto vector_index_info = tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
-    vector_index_info &= ~(((uint64_t)0xFFFF) << shift_amt);
-    vector_index_info |= ((uint64_t)valid_index) << shift_amt;
-    DPRINTF(UVEMem, "Set Uve Valid: V(%d) Requested(%dby) Final(%#x) in"
-        " Reg(%d)\n",vector_register_id, valid_index,vector_index_info,
-        misc_reg_index);
-
-    tc->setMiscReg(MISCREG_UVEVI0 + misc_reg_index, vector_index_info);
-}
-
-uint16_t
-ISA::getUveValidIndex(ThreadContext *tc, uint8_t vector_register_id)
-{
-    //4 is number of vec reg per misc_reg
-    uint8_t misc_reg_index = vector_register_id / 4;
-    uint8_t shift_amt = (vector_register_id % 4) * 16;
-
-    auto vector_index_info = tc->readMiscReg(MISCREG_UVEVI0 + misc_reg_index);
-    vector_index_info &= (0xFFFFLL << shift_amt);
-    DPRINTF(UVEMem, "Get Uve Valid: V(%d) Got(%dby) in Reg(%d)\n",
-        vector_register_id,(((uint64_t)vector_index_info) >> shift_amt),
-            misc_reg_index);
-    return (((uint64_t)vector_index_info) >> shift_amt);
-}
-
-// JMNOTE: Get UVE Vector Length in bytes
-int
-ISA::getCurUveVecLen() const
-{
-    uint64_t len = miscRegFile[MISCREG_UVEVS];
-    return len >> 3;
-}
-
+    // JMNOTE: Get UVE Vector Length in bytes
+    int ISA::getCurUveVecLen() const {
+        uint64_t len = miscRegFile[MISCREG_UVEVS];
+        return len >> 3;
+    }
 
 } //JMNOTE: End namespace Riscv
 
