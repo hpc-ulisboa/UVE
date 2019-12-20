@@ -1277,6 +1277,18 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
                             rename_result.second);
 
         ++renameRenamedOperands;
+
+        // JMNOTE: Check if vector register is active stream
+        if (inst->isStreamInst() && dest_reg.isVecReg() &&
+            cpu->getSEICpuPtr()->isStream(dest_reg.index())) {
+            // Set register as stream destination, will be used later to
+            // simplify logic
+            inst->setDestRegStreaming(dest_idx);
+            // Make reservation in the fifo. Set the physical register as
+            // destination of the data
+            // cpu->getSEICpuPtr()->addToBuffer(dest_reg, rename_result.first,
+            //                                  inst->getSeqNum(), false);
+        }
     }
 }
 

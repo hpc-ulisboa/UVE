@@ -100,51 +100,52 @@ class BaseDynInst : public ExecContext, public RefCounted
     };
 
   protected:
-    enum Status {
-        IqEntry,                 /// Instruction is in the IQ
-        RobEntry,                /// Instruction is in the ROB
-        LsqEntry,                /// Instruction is in the LSQ
-        Completed,               /// Instruction has completed
-        ResultReady,             /// Instruction has its result
-        CanIssue,                /// Instruction can issue and execute
-        Issued,                  /// Instruction has issued
-        Executed,                /// Instruction has executed
-        CanCommit,               /// Instruction can commit
-        AtCommit,                /// Instruction has reached commit
-        Committed,               /// Instruction has committed
-        Squashed,                /// Instruction is squashed
-        SquashedInIQ,            /// Instruction is squashed in the IQ
-        SquashedInLSQ,           /// Instruction is squashed in the LSQ
-        SquashedInROB,           /// Instruction is squashed in the ROB
-        PinnedRegsRenamed,       /// Pinned registers are renamed
-        PinnedRegsWritten,       /// Pinned registers are written back
-        PinnedRegsSquashDone,    /// Regs pinning status updated after squash
-        RecoverInst,             /// Is a recover instruction
-        BlockingInst,            /// Is a blocking instruction
-        ThreadsyncWait,          /// Is a thread synchronization instruction
-        SerializeBefore,         /// Needs to serialize on
-                                 /// instructions ahead of it
-        SerializeAfter,          /// Needs to serialize instructions behind it
-        SerializeHandled,        /// Serialization has been handled
-        NumStatus
-    };
+   enum Status {
+       IqEntry,               /// Instruction is in the IQ
+       RobEntry,              /// Instruction is in the ROB
+       LsqEntry,              /// Instruction is in the LSQ
+       Completed,             /// Instruction has completed
+       ResultReady,           /// Instruction has its result
+       CanIssue,              /// Instruction can issue and execute
+       Issued,                /// Instruction has issued
+       Executed,              /// Instruction has executed
+       CanCommit,             /// Instruction can commit
+       AtCommit,              /// Instruction has reached commit
+       Committed,             /// Instruction has committed
+       Squashed,              /// Instruction is squashed
+       SquashedInIQ,          /// Instruction is squashed in the IQ
+       SquashedInLSQ,         /// Instruction is squashed in the LSQ
+       SquashedInROB,         /// Instruction is squashed in the ROB
+       PinnedRegsRenamed,     /// Pinned registers are renamed
+       PinnedRegsWritten,     /// Pinned registers are written back
+       PinnedRegsSquashDone,  /// Regs pinning status updated after squash
+       RecoverInst,           /// Is a recover instruction
+       BlockingInst,          /// Is a blocking instruction
+       ThreadsyncWait,        /// Is a thread synchronization instruction
+       SerializeBefore,       /// Needs to serialize on
+                              /// instructions ahead of it
+       SerializeAfter,        /// Needs to serialize instructions behind it
+       SerializeHandled,      /// Serialization has been handled
+       DestRegStreaming,  /// JMNOTE: Dest register is streaming status flag
+       NumStatus
+   };
 
-    enum Flags {
-        NotAnInst,
-        TranslationStarted,
-        TranslationCompleted,
-        PossibleLoadViolation,
-        HitExternalSnoop,
-        EffAddrValid,
-        RecordResult,
-        Predicate,
-        MemAccPredicate,
-        PredTaken,
-        IsStrictlyOrdered,
-        ReqMade,
-        MemOpDone,
-        MaxFlags
-    };
+   enum Flags {
+       NotAnInst,
+       TranslationStarted,
+       TranslationCompleted,
+       PossibleLoadViolation,
+       HitExternalSnoop,
+       EffAddrValid,
+       RecordResult,
+       Predicate,
+       MemAccPredicate,
+       PredTaken,
+       IsStrictlyOrdered,
+       ReqMade,
+       MemOpDone,
+       MaxFlags
+   };
 
   public:
     /** The sequence number of the instruction. */
@@ -267,8 +268,11 @@ class BaseDynInst : public ExecContext, public RefCounted
      */
     std::array<PhysRegIdPtr, TheISA::MaxInstDestRegs> _prevDestRegIdx;
 
+   public:
+    // JMNOTE: Register id container
+    uint8_t destRegStreamedIndex;
 
-  public:
+   public:
     /** Records changes to result? */
     void recordResult(bool f) { instFlags[RecordResult] = f; }
 
@@ -554,7 +558,17 @@ class BaseDynInst : public ExecContext, public RefCounted
     }
     void setPhysStream(uint8_t sid) { return staticInst->setPhysStream(sid); }
 
-    /** Temporarily sets this instruction as a serialize before instruction. */
+    // JMNOTE: Dest Register Streaming
+    void setDestRegStreaming(uint8_t regsid) {
+        destRegStreamedIndex = regsid;
+        status.set(DestRegStreaming);
+    }
+    bool isDestRegStreaming(uint8_t regsid) {
+        return status[DestRegStreaming] && regsid == destRegStreamedIndex;
+    }
+
+    /** Temporarily sets this instruction as a serialize before
+       instruction. */
     void setSerializeBefore() { status.set(SerializeBefore); }
 
     /** Clears the serializeBefore part of this instruction. */

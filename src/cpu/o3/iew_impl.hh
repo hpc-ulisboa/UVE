@@ -1336,8 +1336,8 @@ DefaultIEW<Impl>::executeInsts()
             // If we execute the instruction (even if it's a nop) the fault
             // will be replaced and we will lose it.
             if (inst->getFault() == NoFault) {
-                //JMTODO: Here is where the instruction really executes
-                //JMTODO: Operands must be ready before execution
+                // JMTODO: Here is where the instruction really executes
+                // JMTODO: LOAD Operands must be ready before execution
                 inst->execute();
                 if (!inst->readPredicate())
                     inst->forwardOldRegs();
