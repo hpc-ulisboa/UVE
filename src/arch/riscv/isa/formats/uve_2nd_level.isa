@@ -482,11 +482,17 @@ namespace Uve
         uint8_t stride = (uint8_t) bits(machInst, 31, 27);
 
         uint8_t width = (uint8_t) bits(machInst, 13, 12);
+        bool load_nstore = (bits(machInst, 14) == 1);
 
         //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
 
-        return decodeStreamTemplated<UveStream>(width, machInst,
-            stream, offset, size, stride);
+        if(load_nstore)
+            return decodeStreamTemplated<UveStreamLoad>("ss.ld",
+                width, machInst, stream, offset, size, stride);
+        else
+            return decodeStreamTemplated<UveStreamStore>("ss.st",
+                width, machInst, stream, offset, size, stride);
+
 
     }  // decodeStreamSimple
 
@@ -499,11 +505,15 @@ namespace Uve
         uint8_t stride = (uint8_t) bits(machInst, 31, 27);
 
         uint8_t width = (uint8_t) bits(machInst, 13, 12);
+        bool load_nstore = (bits(machInst, 14) == 1);
 
         //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
-
-        return decodeStreamTemplated<UveStreamSta>(width, machInst,
-            stream, offset, size, stride);
+        if(load_nstore)
+            return decodeStreamTemplated<UveStreamStaLoad>("ss.sta.ld",
+                width, machInst, stream, offset, size, stride);
+        else
+            return decodeStreamTemplated<UveStreamStaStore>("ss.sta.st",
+                width, machInst, stream, offset, size, stride);
 
     }  // decodeStreamStart
 

@@ -1,14 +1,14 @@
 output header {{
     template <template<typename Width> class Base>
     StaticInstPtr
-    decodeStreamTemplated(  uint8_t width,
+    decodeStreamTemplated(  const char* mn,
+                                uint8_t width,
                                 ExtMachInst machInst,
                                 uint8_t rd,
                                 uint8_t rs1,
                                 uint8_t rs2,
                                 uint8_t rs3)
     {
-        const char* mn = "ss";
         switch (width) {
             case 0x0:
                 return new Base<uint8_t>(mn, machInst, rd, rs1, rs2, rs3);
@@ -96,11 +96,18 @@ let {{
 
     emitUveStreamInstsT(''' SECommand(xc->tcBase(), PSid, width,
                          StreamMode::load, Rs1_ud, Rs2_ud, Rs3_ud)
-                    ''', '')
+                    ''', 'Load')
     emitUveStreamInstsT(''' SECommand(xc->tcBase(), PSid, width,
                          StreamMode::load, Rs1_ud, Rs2_ud, Rs3_ud,
                          StreamType::start)
-                    ''', 'Sta')
+                    ''', 'StaLoad')
+    emitUveStreamInstsT(''' SECommand(xc->tcBase(), PSid, width,
+                         StreamMode::store, Rs1_ud, Rs2_ud, Rs3_ud)
+                    ''', 'Store')
+    emitUveStreamInstsT(''' SECommand(xc->tcBase(), PSid, width,
+                         StreamMode::store, Rs1_ud, Rs2_ud, Rs3_ud,
+                         StreamType::start)
+                    ''', 'StaStore')
     emitUveStreamInsts(''' SECommand(xc->tcBase(), PSid,
                             Rs1_ud, Rs2_ud, Rs3_ud, StreamType::append)
                     ''', 'App')
