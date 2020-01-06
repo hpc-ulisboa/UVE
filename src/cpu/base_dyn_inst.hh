@@ -556,6 +556,10 @@ class BaseDynInst : public ExecContext, public RefCounted
     uint8_t getStreamRegister() const {
         return staticInst->getStreamRegister();
     }
+    uint8_t isStreamLoad() const { return staticInst->isStreamLoad(); }
+    uint8_t isEndAppendStream() const {
+        return staticInst->isEndAppendStream();
+    }
     void setPhysStream(uint8_t sid) { return staticInst->setPhysStream(sid); }
 
     // JMNOTE: Dest Register Streaming

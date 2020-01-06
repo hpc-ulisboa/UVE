@@ -471,13 +471,9 @@ class DefaultRename
     /** Enum to record the source of a structure full stall.  Can come from
      * either ROB, IQ, LSQ, and it is priortized in that order.
      */
-    enum FullSource {
-        ROB,
-        IQ,
-        LQ,
-        SQ,
-        NONE
-    };
+    // JMNOTE: Added SSF(stream store fifo) and SLF(stream load fifo) as
+    // reasons
+    enum FullSource { ROB, IQ, LQ, SQ, SSF, SLF, NONE };
 
     /** Function used to increment the stat that corresponds to the source of
      * the stall.
@@ -508,6 +504,10 @@ class DefaultRename
     Stats::Scalar renameLQFullEvents;
     /** Stat for total number of times that the SQ starts a stall in rename. */
     Stats::Scalar renameSQFullEvents;
+    // JMNOTE: Added SSF(stream store fifo) and SLF(stream load fifo) as
+    // reasons
+    Stats::Scalar renameUVESSFFullEvents;
+    Stats::Scalar renameUVESLFFullEvents;
     /** Stat for total number of times that rename runs out of free registers
      * to use to rename. */
     Stats::Scalar renameFullRegistersEvents;

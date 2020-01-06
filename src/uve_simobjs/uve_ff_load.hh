@@ -24,6 +24,7 @@ class FifoEntry : public CoreContainer {
     States rstate, cstate;
     uint16_t size, csize;
     uint16_t config_size;
+    bool commit_ready;
 
    public:
     FifoEntry(uint8_t width, uint16_t _cfg_sz, int sid, int64_t ssid)
@@ -45,6 +46,8 @@ class FifoEntry : public CoreContainer {
     void merge_data(uint8_t *data, uint16_t offset, uint16_t size);
     uint16_t getSize() { return size; }
     bool reserve(uint16_t *_size, bool last);
+    void set_ready_to_commit() { commit_ready = true; }
+    bool is_ready_to_commit() { return commit_ready; }
 };
 
 // Each fifo is composed of FifoEntry objects, which themselfs insert the data
@@ -95,7 +98,6 @@ class StreamFifo {
     FifoContainer *fifo_container;
     uint8_t max_size;
     uint32_t max_request_size;
-    UVELoadFifo *owner;
     uint16_t config_size;
     SEIterationStatus status;
     using MapVector = std::vector<MapStruct>;
@@ -109,7 +111,6 @@ class StreamFifo {
                int id)
         : max_size(depth),
           max_request_size(_max_request_size),
-          owner(nullptr),
           config_size(_cfg_sz),
           status(SEIterationStatus::Clean),
           map(),
@@ -118,7 +119,6 @@ class StreamFifo {
         speculationPointer = SpeculativeIter(fifo_container);
     }
 
-    void set_owner(UVELoadFifo *own) { owner = own; }
     void insert(uint16_t size, uint16_t ssid, uint8_t width, bool last);
     SmartReturn merge_data(uint16_t ssid, uint8_t *data);
     FifoEntry get();
@@ -132,6 +132,12 @@ class StreamFifo {
     SmartReturn complete() {
         return SmartReturn::compare(status == SEIterationStatus::Ended);
     }
+
+    SmartReturn storeReady();
+    SmartReturn storeSquash(uint16_t ssid);
+    SmartReturn storeCommit(uint16_t ssid);
+    SmartReturn storeDiscard(uint16_t ssid);
+    FifoEntry storeGet();
 
     uint16_t availableSpace() {
         uint16_t space = max_size * config_size;
@@ -155,6 +161,7 @@ class UVELoadFifo : public SimObject {
     uint16_t cacheLineSize;
     UVEStreamingEngine *engine;
     UVEStreamingEngineParams *confParams;
+    unsigned fifo_depth;
 
    public:
     UVELoadFifo(UVEStreamingEngineParams *params);
@@ -171,6 +178,37 @@ class UVELoadFifo : public SimObject {
     SmartReturn squash(StreamID sid);
     SmartReturn shouldSquash(StreamID sid);
     SmartReturn commit(StreamID sid);
+    void synchronizeLists(StreamID sid);
+    SmartReturn clear(StreamID sid);
+    SmartReturn isFinished(StreamID sid);
+    uint16_t getAvailableSpace(StreamID sid);
+};
+
+// This is the load fifo object that contains one fifo per stream
+class UVEStoreFifo : public SimObject {
+   private:
+    std::vector<StreamFifo *> fifos;
+
+   public:
+    uint16_t cacheLineSize;
+    UVEStreamingEngine *engine;
+    UVEStreamingEngineParams *confParams;
+    unsigned fifo_depth;
+    uint64_t reservation_ssid;
+
+   public:
+    UVEStoreFifo(UVEStreamingEngineParams *params);
+
+    bool tick(CallbackInfo *res);
+    SmartReturn getData(int sid);
+    void init();
+    SmartReturn insert_data(StreamID sid, uint32_t ssid, CoreContainer data);
+    SmartReturn reserve(StreamID sid, uint16_t *ssid);
+    SmartReturn full(StreamID sid);
+    SmartReturn ready(StreamID sid);
+    SmartReturn squash(StreamID sid, uint16_t ssid);
+    SmartReturn shouldSquash(StreamID sid);
+    SmartReturn commit(StreamID sid, uint16_t ssid);
     void synchronizeLists(StreamID sid);
     SmartReturn clear(StreamID sid);
     SmartReturn isFinished(StreamID sid);

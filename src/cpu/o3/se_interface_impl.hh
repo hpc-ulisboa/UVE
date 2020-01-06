@@ -16,8 +16,10 @@ SEInterface<Impl>::SEInterface(O3CPU *cpu_ptr, Decode *dec_ptr, IEW *iew_ptr,
       iewStage(iew_ptr),
       cmtStage(cmt_ptr),
       UVECondLookup(),
-      registerBuffer(32),
-      speculationPointer(32),
+      registerBufferLoad(32),
+      registerBufferStore(32),
+      speculationPointerLoad(32),
+      speculationPointerStore(32),
       inst_validator() {
     dcachePort = &(cpu_ptr->getDataPort());
     if (params->streamEngine.size() == 1) {
@@ -28,8 +30,10 @@ SEInterface<Impl>::SEInterface(O3CPU *cpu_ptr, Decode *dec_ptr, IEW *iew_ptr,
     SEInterface<Impl>::singleton = this;
 
     for (int i = 0; i < 32; i++) {
-        registerBuffer[i] = new RegBufferList();
-        speculationPointer[i] = SpecBufferIter(registerBuffer[i]);
+        registerBufferLoad[i] = new RegBufferList();
+        speculationPointerLoad[i] = SpecBufferIter(registerBufferLoad[i]);
+        registerBufferStore[i] = new RegBufferList();
+        speculationPointerStore[i] = SpecBufferIter(registerBufferStore[i]);
     }
 }
 
@@ -102,7 +106,7 @@ SEInterface<Impl>::sendCommand(SECommand cmd){
 template <class Impl>
 bool
 SEInterface<Impl>::fetch(StreamID sid, TheISA::VecRegContainer **cnt) {
-    auto renamed = stream_rename.getStream(sid);
+    auto renamed = stream_rename.getStreamLoad(sid);
     assert(renamed.first || "Rename Should be true at this point");
     SmartReturn result = engine->ld_fifo.fetch(renamed.second, cnt);
     if (result.isError()) panic("Error" + result.estr());
@@ -112,7 +116,7 @@ SEInterface<Impl>::fetch(StreamID sid, TheISA::VecRegContainer **cnt) {
 template <class Impl>
 bool
 SEInterface<Impl>::isReady(StreamID sid) {
-    auto renamed = stream_rename.getStream(sid);
+    auto renamed = stream_rename.getStreamLoad(sid);
     assert(renamed.first || "Rename Should be true at this point");
     SmartReturn result = engine->ld_fifo.ready(renamed.second);
     if (result.isError()) panic("Error" + result.estr());
@@ -129,11 +133,11 @@ SEInterface<Impl>::_signalEngineReady(CallbackInfo info) {
     for (int i = 0; i < info.psids_size; i++) {
         StreamID psid = info.psids[i];
 
-        auto regs = consumeOnBuffer(psid);
+        auto regs = consumeOnBufferLoad(psid);
         if (regs.second == NULL) continue;
         // Ask Engine for the data
-        auto lookup_result = getStream(regs.first.index());
-        SmartReturn result = engine->getData(lookup_result);
+        auto lookup_result = getStreamLoad(regs.first.index());
+        SmartReturn result = engine->getDataLoad(lookup_result);
         result.ASSERT();
         CoreContainer *cnt = (CoreContainer *)result.getData();
         assert(cnt->is_streaming());

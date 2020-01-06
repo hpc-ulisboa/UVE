@@ -32,6 +32,10 @@ namespace RiscvISA {
 
     std::string generateDisassembly(Addr pc, const SymbolTable *symtab) const;
     uint8_t getStreamRegister() const override { return VDest; }
+    uint8_t isStreamLoad() const override { return bits(machInst, 14) == 1; }
+    uint8_t isEndAppendStream() const override {
+        return bits(machInst, 26) == 0;
+    }
     void setPhysStream(uint8_t sid) override { PSid = sid; }
   };
 }  // namespace RiscvISA

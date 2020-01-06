@@ -16,6 +16,10 @@ SEcontroller::recvCommand(SECommand cmd) {
     DPRINTF(UVESE, "recvCommand %s\n", cmd.to_string());
 
     uint8_t sID = cmd.getStreamID();
+    bool is_load = cmd.isLoad();
+    if (!is_load) {
+        return SmartReturn::ok();
+    }
 
     cmdQueue[sID].push(cmd);
     if(cmd.isLast()){

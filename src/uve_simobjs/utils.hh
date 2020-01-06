@@ -255,6 +255,8 @@ class SECommand {
             else return false;
         }
 
+        bool isLoad() { return stream->getMode() == StreamMode::load; }
+
         ThreadContext * get_tc(){return tc;}
 };
 

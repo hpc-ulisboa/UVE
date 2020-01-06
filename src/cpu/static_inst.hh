@@ -210,6 +210,12 @@ class StaticInst : public RefCounted, public StaticInstFlags
     {
         panic("getStreamRegister not defined!");
     }
+    virtual uint8_t isStreamLoad() const {
+        panic("isStreamLoad not defined!");
+    }
+    virtual uint8_t isEndAppendStream() const {
+        panic("isEndAppendStream not defined!");
+    }
     virtual void setPhysStream(uint8_t sid) {
         panic("setPhysStream not defined!");
     }

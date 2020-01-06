@@ -200,8 +200,9 @@ class UVEStreamingEngine : public ClockedObject
     SEcontroller confCore;
     ThreadContext * context;
     UVELoadFifo ld_fifo;
+    UVEStoreFifo st_fifo;
 
-  protected:
+   protected:
     Addr confAddr;
     Addr confSize;
     Tick cycler = 0;
@@ -239,15 +240,31 @@ class UVEStreamingEngine : public ClockedObject
     //     callback(physIdx, cnt);
     // }
     void signal_cpu(CallbackInfo info) { callback(info); }
-    SmartReturn squash(uint16_t sid);
-    SmartReturn shouldSquash(uint16_t sid);
-    SmartReturn commit(uint16_t sid);
-    SmartReturn getData(uint16_t sid);
-    void synchronizeLists(uint16_t sid);
+
+    SmartReturn commitLoad(uint16_t sid);
+    SmartReturn squashLoad(uint16_t sid);
+    SmartReturn shouldSquashLoad(uint16_t sid);
+    void synchronizeLoadLists(uint16_t sid);
+    SmartReturn endStreamLoad(StreamID sid);
+    SmartReturn getDataLoad(uint16_t sid);
+
+    SmartReturn commitStore(uint16_t sid, uint16_t ssid);
+    SmartReturn squashStore(uint16_t sid, uint16_t ssid);
+    SmartReturn shouldSquashStore(uint16_t sid);
+    void synchronizeStoreLists(uint16_t sid);
+    SmartReturn endStreamStore(StreamID sid);
+    void setDataStore(uint16_t sid, uint16_t ssid, CoreContainer val);
+    uint16_t reserveStoreEntry(StreamID sid) {
+        uint16_t ssid_static, *ssid = (uint16_t *)malloc(sizeof(uint16_t));
+        auto result = st_fifo.reserve(sid, ssid);
+        ssid_static = *ssid;
+        free(ssid);
+        return ssid_static;
+    }
+
     SmartReturn isFinished(uint16_t sid) {
         return ld_fifo.isFinished(sid).AND(memCore.isCompleted(sid));
     }
-    SmartReturn endStream(StreamID sid);
 };
 
 #endif // __UVE_STREAMING_ENGINE_HH__

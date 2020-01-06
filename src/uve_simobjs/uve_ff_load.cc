@@ -4,11 +4,11 @@ UVELoadFifo::UVELoadFifo(UVEStreamingEngineParams *params)
     : SimObject(params),
       fifos(32),
       cacheLineSize(params->system->cacheLineSize()),
-      confParams(params) {
+      confParams(params),
+      fifo_depth(confParams->fifo_depth) {
     for (int i = 0; i < fifos.size(); i++) {
         fifos[i] = new StreamFifo(confParams->width, confParams->fifo_depth,
                                   confParams->max_request_size, i);
-        fifos[i]->set_owner(this);
     }
 }
 
@@ -125,7 +125,6 @@ UVELoadFifo::clear(StreamID sid) {
     delete fifos[sid];
     fifos[sid] = new StreamFifo(confParams->width, confParams->fifo_depth,
                                 confParams->max_request_size, sid);
-    fifos[sid]->set_owner(this);
 
     return SmartReturn::ok();
 }
@@ -357,6 +356,85 @@ StreamFifo::real_size() {
         it++;
     }
     return size;
+}
+
+SmartReturn
+StreamFifo::storeReady() {
+    // Checks if the last element of the fifo is ready to go
+    return SmartReturn::compare(fifo_container->back().is_ready_to_commit());
+}
+
+SmartReturn
+StreamFifo::storeSquash(uint16_t ssid) {
+    // Squashes (removes) entry pointed by ssid
+    auto iter = fifo_container->begin();
+    while (iter != fifo_container->end()) {
+        if (iter->get_ssid() == ssid) {
+            // Remove entry
+            fifo_container->erase(iter);
+            speculationPointer--;
+            return SmartReturn::ok();
+        }
+        iter++;
+    }
+    return SmartReturn::nok();
+}
+
+SmartReturn
+StreamFifo::storeCommit(uint16_t ssid) {
+    // Marks the entry pointed by ssid as ready
+    auto iter = fifo_container->rbegin();
+    while (iter != fifo_container->rend()) {
+        if (iter->get_ssid() == ssid) {
+            iter->set_ready_to_commit();
+            return SmartReturn::ok();
+        }
+        iter++;
+    }
+    return SmartReturn::nok();
+}
+
+SmartReturn
+StreamFifo::storeDiscard(uint16_t ssid) {
+    if (empty().isOk())
+        return SmartReturn::error("Store Discarding on empty StreamFifo");
+
+    auto elem = fifo_container->back();
+
+    fifo_container->pop_back();
+    speculationPointer--;
+    DPRINTF(
+        UVEFifo,
+        "Store Discard on fifo[%d] ssid[%d]. Size[%d]. Speculation Pointer "
+        "targeting ssid[%d]. %s\n",
+        my_id, elem.get_ssid(), fifo_container->size(),
+        speculationPointer->get_ssid(), elem.is_last() ? "Last Discard." : "");
+    // Decrease by 1 all the id pointers in the map
+    for (auto t = map.begin(); t != map.end(); ++t) {
+        t->id = t->id <= 0 ? 0 : t->id - 1;
+        if (t->split) t->id2 = t->id2 <= 0 ? 0 : t->id2 - 1;
+    }
+
+    if (elem.is_last()) {
+        // Stream Ended
+        // Return End Code
+        return SmartReturn::end();
+    }
+
+    return SmartReturn::ok();
+}
+
+FifoEntry
+StreamFifo::storeGet() {
+    empty().NASSERT();
+
+    FifoEntry entry = fifo_container->back();
+    SmartReturn::compare(entry.is_ready_to_commit()).ASSERT();
+
+    DPRINTF(UVEFifo, "Store Get of fifo[%d]. Size[%d]. SSID[%d] %s\n", my_id,
+            fifo_container->size(), entry.get_ssid(),
+            entry.is_last() ? "Last Get." : "");
+    return entry;
 }
 
 void

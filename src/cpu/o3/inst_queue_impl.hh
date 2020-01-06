@@ -1372,8 +1372,8 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
                     RegId arch = squashed_inst->srcRegIdx(src_reg_idx);
                     if (squashed_inst->isStreamInst() &&
                         src_reg->isVectorPhysReg() &&
-                        cpu->getSEICpuPtr()->isStream(arch.index())) {
-                        cpu->getSEICpuPtr()->squashToBuffer(
+                        cpu->getSEICpuPtr()->isStreamLoad(arch.index())) {
+                        cpu->getSEICpuPtr()->squashToBufferLoad(
                             squashed_inst->srcRegIdx(src_reg_idx), src_reg,
                             squashed_inst->getSeqNum());
                     }
@@ -1480,8 +1480,8 @@ InstructionQueue<Impl>::addToDependents(const DynInstPtr &new_inst)
                 // Signal SEI that this register is in dependents
                 if (src_reg->isVectorPhysReg()) {
                     auto arch_src_reg = new_inst->srcRegIdx(src_reg_idx);
-                    cpu->getSEICpuPtr()->markOnBuffer(arch_src_reg, src_reg,
-                                                      new_inst->getSeqNum());
+                    cpu->getSEICpuPtr()->markOnBufferLoad(
+                        arch_src_reg, src_reg, new_inst->getSeqNum());
                 }
 
                 // Change the return value to indicate that something

@@ -59,6 +59,8 @@
 #include "debug/Activity.hh"
 #include "debug/Drain.hh"
 #include "debug/IEW.hh"
+// JMFIXME: Remove after
+#include "debug/JMDEVEL.hh"
 #include "debug/O3PipeView.hh"
 #include "params/DerivO3CPU.hh"
 
@@ -1341,6 +1343,30 @@ DefaultIEW<Impl>::executeInsts()
                 inst->execute();
                 if (!inst->readPredicate())
                     inst->forwardOldRegs();
+                // JMNOTE: Store to store fifo if register is streaming
+                if (inst->isStreamInst()) {
+                    unsigned num_dest_regs = inst->numDestRegs();
+                    for (int dest_idx = 0; dest_idx < num_dest_regs;
+                         dest_idx++) {
+                        const RegId& dest_reg = inst->destRegIdx(dest_idx);
+                        if (dest_reg.isVecReg() &&
+                            cpu->getSEICpuPtr()->isStreamLoad(
+                                dest_reg.index())) {
+                            if (inst->isDestRegStreaming(dest_idx)) {
+                                PhysRegIdPtr dest_phys_reg =
+                                    inst->renamedDestRegIdx(dest_idx);
+                                DPRINTF(JMDEVEL,
+                                        "AfterExecution?isDestRegStreaming: "
+                                        "seqnum(%d), vec(%d), phys(%p)\n",
+                                        inst->seqNum, dest_reg.index(),
+                                        dest_phys_reg);
+                                cpu->getSEICpuPtr()->fillOnBufferStore(
+                                    dest_reg, dest_phys_reg,
+                                    cpu->readVecReg(dest_phys_reg));
+                            }
+                        }
+                    }
+                }
             }
 
             inst->setExecuted();

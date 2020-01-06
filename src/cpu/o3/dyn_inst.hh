@@ -405,13 +405,6 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     setVecRegOperand(const StaticInst *si, int idx,
                      const VecRegContainer& val) override
     {
-        // JMNOTE: Store to store fifo if register is streaming
-        if (this->isDestRegStreaming(idx)) {
-            DPRINTF(JMDEVEL,
-                    "setVecRegOperand?isDestRegStreaming: inst(%p), idx(%d)\n",
-                    this, idx);
-            // this->cpu->getSEICpuPtr()->storeData(,val)
-        }
         this->cpu->setVecReg(this->_destRegIdx[idx], val);
         BaseDynInst<Impl>::setVecRegOperand(si, idx, val);
     }

@@ -6,9 +6,11 @@ UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams* params)
       memCore(params, this),
       confCore(params, this),
       ld_fifo(params),
+      st_fifo(params),
       confAddr(params->start_addr),
       confSize(32) {
     ld_fifo.init();
+    st_fifo.init();
     // memCore->setConfCore(confCore);
     // confCore->setMemCore(memCore);
     // confPort = new PioPort(this);
@@ -110,21 +112,21 @@ UVEStreamingEngine::set_callback(void (*_callback)(CallbackInfo info)) {
 }
 
 SmartReturn
-UVEStreamingEngine::squash(uint16_t sid) {
+UVEStreamingEngine::squashLoad(uint16_t sid) {
     return ld_fifo.squash(sid);
 }
 
 SmartReturn
-UVEStreamingEngine::shouldSquash(uint16_t sid) {
+UVEStreamingEngine::shouldSquashLoad(uint16_t sid) {
     return ld_fifo.shouldSquash(sid);
 }
 
 SmartReturn
-UVEStreamingEngine::commit(uint16_t sid) {
+UVEStreamingEngine::commitLoad(uint16_t sid) {
     auto result = ld_fifo.commit(sid);
     if (result.isEnd()) {
         // Time to eliminate this sid
-        auto clear_result = endStream(sid);
+        auto clear_result = endStreamLoad(sid);
         return clear_result.isOk()
                    ? SmartReturn::end()
                    : SmartReturn::error("Could not clear stream footprint");
@@ -133,21 +135,68 @@ UVEStreamingEngine::commit(uint16_t sid) {
 }
 
 void
-UVEStreamingEngine::synchronizeLists(uint16_t sid) {
+UVEStreamingEngine::synchronizeLoadLists(uint16_t sid) {
     ld_fifo.synchronizeLists(sid);
     return;
 }
 
 SmartReturn
-UVEStreamingEngine::getData(uint16_t sid) {
+UVEStreamingEngine::endStreamLoad(StreamID sid) {
+    SmartReturn result = SmartReturn::ok();
+    // Clear Fifo
+    result = ld_fifo.clear(sid);
+    if (!result.isOk()) return result;
+    // Clear Processing
+    result = memCore.clear(sid);
+
+    return result;
+}
+
+SmartReturn
+UVEStreamingEngine::getDataLoad(uint16_t sid) {
     return ld_fifo.getData(sid);
 }
 
 SmartReturn
-UVEStreamingEngine::endStream(StreamID sid) {
+UVEStreamingEngine::squashStore(uint16_t sid, uint16_t ssid) {
+    return st_fifo.squash(sid, ssid);
+}
+
+SmartReturn
+UVEStreamingEngine::shouldSquashStore(uint16_t sid) {
+    return st_fifo.shouldSquash(sid);
+}
+
+SmartReturn
+UVEStreamingEngine::commitStore(uint16_t sid, uint16_t ssid) {
+    auto result = st_fifo.commit(sid, ssid);
+    if (result.isEnd()) {
+        // Time to eliminate this sid
+        auto clear_result = endStreamStore(sid);
+        return clear_result.isOk()
+                   ? SmartReturn::end()
+                   : SmartReturn::error("Could not clear stream footprint");
+    }
+    return result;
+}
+
+void
+UVEStreamingEngine::synchronizeStoreLists(uint16_t sid) {
+    st_fifo.synchronizeLists(sid);
+    return;
+}
+
+void
+UVEStreamingEngine::setDataStore(uint16_t sid, uint16_t ssid,
+                                 CoreContainer val) {
+    st_fifo.insert_data(sid, ssid, val);
+}
+
+SmartReturn
+UVEStreamingEngine::endStreamStore(StreamID sid) {
     SmartReturn result = SmartReturn::ok();
     // Clear Fifo
-    result = ld_fifo.clear(sid);
+    result = st_fifo.clear(sid);
     if (!result.isOk()) return result;
     // Clear Processing
     result = memCore.clear(sid);

@@ -1334,7 +1334,7 @@ DefaultCommit<Impl>::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
          src_reg_idx++) {
         PhysRegIdPtr src_reg = head_inst->renamedSrcRegIdx(src_reg_idx);
         if (head_inst->isStreamInst() && src_reg->isVectorPhysReg())
-            cpu->getSEICpuPtr()->commitToBuffer(
+            cpu->getSEICpuPtr()->commitToBufferLoad(
                 head_inst->srcRegIdx(src_reg_idx), src_reg,
                 head_inst->getSeqNum());
     }

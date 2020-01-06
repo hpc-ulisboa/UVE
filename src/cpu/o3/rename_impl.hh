@@ -150,8 +150,15 @@ DefaultRename<Impl>::regStats()
         .name(name() + ".SQFullEvents")
         .desc("Number of times rename has blocked due to SQ full")
         .prereq(renameSQFullEvents);
-    renameFullRegistersEvents
-        .name(name() + ".FullRegisterEvents")
+    // JMNOTE: Added SSF(stream store fifo) and SLF(stream load fifo) as
+    // reasons
+    renameUVESSFFullEvents.name(name() + ".UVESSFFullEvents")
+        .desc("Number of times rename has blocked due to UVE SSFifo full")
+        .prereq(renameUVESSFFullEvents);
+    renameUVESLFFullEvents.name(name() + ".UVESLFFullEvents")
+        .desc("Number of times rename has blocked due to UVE SLFifo full")
+        .prereq(renameUVESLFFullEvents);
+    renameFullRegistersEvents.name(name() + ".FullRegisterEvents")
         .desc("Number of times there has been no free registers")
         .prereq(renameFullRegistersEvents);
     renameRenamedOperands
@@ -665,6 +672,61 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 break;
             }
         }
+        // JMNOTE: We cannot rename an instruction if there is no space
+        // available in the respective load/store fifo.
+        // JMNOTE: Check the destination vector registers and find the ones
+        // that are streaming. Those will be accounted to check for space in
+        // the FIFO.
+        bool fifo_available = true;
+        if (inst->isStreamInst()) {
+            for (int i = 0; i < inst->numDestRegs(); i++) {
+                const RegId &dest_reg = inst->destRegIdx(i);
+                if (dest_reg.isVecReg()) {
+                    if (cpu->getSEICpuPtr()->isStoreStream(dest_reg.index())) {
+                        fifo_available =
+                            cpu->getSEICpuPtr()->checkStoreOccupancy(dest_reg);
+                        if (!fifo_available) {
+                            break;
+                        }
+                    }
+                }
+            }
+            // Check if it was able to schedule. Needed in order to break
+            // the outer loop.
+            if (!fifo_available) {
+                incrFullStat(SSF);
+                DPRINTF(JMDEVEL,
+                        "Rename: Store FIFO full, delaying "
+                        "instruction seqnum(%d) due to arch fifo\n",
+                        inst->seqNum);
+                break;
+            }
+
+            fifo_available = true;
+            for (int i = 0; i < inst->numSrcRegs(); i++) {
+                const RegId &src_reg = inst->srcRegIdx(i);
+                if (src_reg.isVecReg()) {
+                    if (cpu->getSEICpuPtr()->isLoadStream(src_reg.index())) {
+                        fifo_available =
+                            cpu->getSEICpuPtr()->checkLoadOccupancy(src_reg);
+                        if (!fifo_available) {
+                            break;
+                        }
+                    }
+                }
+            }
+            // Check if it was able to schedule. Needed in order to break
+            // the outer loop.
+            if (!fifo_available) {
+                incrFullStat(SLF);
+                DPRINTF(JMDEVEL,
+                        "Rename: Load FIFO full, delaying "
+                        "instruction seqnum(%d) due to arch "
+                        "fifo\n",
+                        inst->seqNum);
+                break;
+            }
+        }
 
         insts_to_rename.pop_front();
 
@@ -704,7 +766,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             for (int i = 0; i < inst->numSrcRegs(); i++) {
                 const RegId &src_reg = inst->srcRegIdx(i);
                 if (src_reg.isVecReg()) {
-                    if (cpu->getSEICpuPtr()->isStream(src_reg.index())) {
+                    if (cpu->getSEICpuPtr()->isStreamLoad(src_reg.index())) {
                         if (streamedRegIdx != src_reg.index())
                             numStreamedRegs++;
                         streamedRegIdx = src_reg.index();
@@ -1019,7 +1081,7 @@ DefaultRename<Impl>::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
 
             // Need to squash in streaming engine
             if (hb_it->archReg.isVecReg() &&
-                cpu->getSEICpuPtr()->isStream(hb_it->archReg.index())) {
+                cpu->getSEICpuPtr()->isStreamLoad(hb_it->archReg.index())) {
                 cpu->getSEICpuPtr()->squashDestToBuffer(hb_it->archReg,
                                                         hb_it->newPhysReg,
                                                         hb_it->instSeqNum);
@@ -1111,7 +1173,7 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
 
         // JMNOTE: Check if vector register is active stream
         if (inst->isStreamInst() && src_reg.isVecReg() &&
-            cpu->getSEICpuPtr()->isStream(src_reg.index()) &&
+            cpu->getSEICpuPtr()->isStreamLoad(src_reg.index()) &&
             streamedRegIdx != src_reg.index()) {
             typename RenameMap::RenameInfo rename_result;
             RegId flat_src_regid = tc->flattenRegId(src_reg);
@@ -1126,8 +1188,8 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
 
             // Make reservation in the fifo. Set the physical register as
             // destination of the data
-            cpu->getSEICpuPtr()->addToBuffer(src_reg, rename_result.first,
-                                             inst->getSeqNum());
+            cpu->getSEICpuPtr()->addToBufferLoad(src_reg, rename_result.first,
+                                                 inst->getSeqNum());
 
             // Save streamed register
             streamedRegIdx = src_reg.index();
@@ -1228,8 +1290,9 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
 
         // In this case (StreamConfig) we don't do renaming.. just set the
         // index of Our StreamTable
-        auto rename_result = cpu->getSEICpuPtr()->initializeStream(
-            inst->getStreamRegister(), inst->getSeqNum());
+        auto rename_result = cpu->getSEICpuPtr()->initializeStreamConfig(
+            inst->getStreamRegister(), inst->getSeqNum(),
+            inst->isStreamLoad());
         assert(rename_result.first || "Could not rename!! Should have.");
         inst->setPhysStream(rename_result.second);
     }
@@ -1280,14 +1343,18 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
 
         // JMNOTE: Check if vector register is active stream
         if (inst->isStreamInst() && dest_reg.isVecReg() &&
-            cpu->getSEICpuPtr()->isStream(dest_reg.index())) {
+            cpu->getSEICpuPtr()->isStreamStore(dest_reg.index())) {
             // Set register as stream destination, will be used later to
             // simplify logic
             inst->setDestRegStreaming(dest_idx);
+            DPRINTF(JMDEVEL,
+                    "Rename: Detected destination vector with stream store "
+                    "seqnum(%d) vec(%d).\n",
+                    inst->seqNum, dest_reg.index());
             // Make reservation in the fifo. Set the physical register as
             // destination of the data
-            // cpu->getSEICpuPtr()->addToBuffer(dest_reg, rename_result.first,
-            //                                  inst->getSeqNum(), false);
+            cpu->getSEICpuPtr()->addToBufferStore(
+                dest_reg, rename_result.first, inst->getSeqNum());
         }
     }
 }
@@ -1569,6 +1636,13 @@ DefaultRename<Impl>::incrFullStat(const FullSource &source)
       case SQ:
         ++renameSQFullEvents;
         break;
+        // JMNOTE: Added SSF(stream store fifo) and SLF(stream load fifo) as
+        // reasons
+      case SSF:
+          ++renameUVESSFFullEvents;
+          break;
+      case SLF:
+          ++renameUVESLFFullEvents;
       default:
         panic("Rename full stall stat should be incremented for a reason!");
         break;
