@@ -4,49 +4,115 @@
 #include "uve_simobjs/uve_streaming_engine.hh"
 
 SEprocessing::SEprocessing(UVEStreamingEngineParams *params,
-                UVEStreamingEngine *_parent) : SimObject(params),
-                tlb(params->tlb),
-                offsetMask(mask(floorLog2(RiscvISA::PageBytes))),
-                cacheLineSize(params->system->cacheLineSize())
-                {
+                           UVEStreamingEngine *_parent)
+    : SimObject(params),
+      tlb(params->tlb),
+      offsetMask(mask(floorLog2(RiscvISA::PageBytes))),
+      cacheLineSize(params->system->cacheLineSize()) {
     parent = _parent;
+    write_boss.set_owner(this);
     for (int i = 0; i < 32; i++) {
         iterQueue[i] = new SEIter();
     }
     ssidArray.fill(-1);
 };
 
-void SEprocessing::tick(){
-    // DPRINTF(JMDEVEL, "SEprocessing::Tick()\n");
+void
+SEprocessing::tick_load() {
+    uint16_t max_advance_size = 0;
+    load_pID++;
+    if (load_pID > 31) load_pID = 0;
+    uint8_t load_auxID = load_pID + 1;
+    if (load_auxID > 31) load_auxID = 0;
 
-    uint16_t max_advance_size;
-    pID++;
-    if (pID > 31) pID = 0;
-    uint8_t auxID = pID + 1;
-    if (auxID > 31) auxID = 0;
-
-    max_advance_size = parent->ld_fifo.getAvailableSpace(auxID);
-    while (iterQueue[auxID]->empty() || max_advance_size <= 0) {
-        // One passage determines if no stream is configured
-        if (auxID == pID) {
-            // DPRINTF(JMDEVEL, "Blanck Tick\n");
+    while (1) {
+        if (load_auxID == load_pID) {
+            // Found no candidate
             return;
         }
-        auxID++;
-        if (auxID > 31) auxID = 0;
-        max_advance_size = parent->ld_fifo.getAvailableSpace(auxID);
+        if (!iterQueue[load_auxID]->is_load()) {
+            // Not a load -> next stream
+            load_auxID++;
+            if (load_auxID > 31) load_auxID = 0;
+        } else {
+            max_advance_size = parent->ld_fifo.getAvailableSpace(load_auxID);
+            if (max_advance_size > 0 && !iterQueue[load_auxID]->empty()) {
+                // We find a candidate if it is supposed to advance: has space
+                // and is configured
+                break;
+            }
+            load_auxID++;
+            if (load_auxID > 31) load_auxID = 0;
+        }
     }
 
-    DPRINTF(JMDEVEL, "Settled on auxID:%d\n", auxID);
-    pID = auxID;
-    SERequestInfo request_info = iterQueue[pID]->advance(max_advance_size);
-    DPRINTF(UVESE, "Memory Request[%d]: [%d->%d] w(%d)\n",
+    DPRINTF(JMDEVEL, "Settled on load_auxID:%d\n", load_auxID);
+    load_pID = load_auxID;
+    SERequestInfo request_info =
+        iterQueue[load_pID]->advance(max_advance_size);
+    DPRINTF(UVESE, "Memory Request[%s][%d]: [%d->%d] w(%d)\n",
+            request_info.mode == StreamMode::load ? "load" : "store",
             request_info.sequence_number, request_info.initial_offset,
             request_info.final_offset, request_info.width);
     if (request_info.status == SEIterationStatus::Ended)
-        DPRINTF(UVESE,"Iteration on stream %d ended!\n", pID);
+        DPRINTF(UVESE, "Iteration on stream %d ended!\n", load_pID);
+    // Create and send request to memory
+    emitRequest(request_info);
+};
+
+void
+SEprocessing::tick_store() {
+    // JMFIXME: 512 should be the width of an element.. Can also be the size of
+    // a store fifo.. Never more
+    uint16_t max_advance_size = 512;
+    store_pID++;
+    if (store_pID > 31) store_pID = 0;
+    uint8_t store_auxID = store_pID + 1;
+    if (store_auxID > 31) store_auxID = 0;
+
+    while (1) {
+        if (store_auxID == store_pID) {
+            // Found no candidate
+            return;
+        }
+        if (iterQueue[store_auxID]->is_load()) {
+            // Not a store -> next stream
+            store_auxID++;
+            if (store_auxID > 31) store_auxID = 0;
+        } else {
+            // max_advance_size =
+            // parent->st_fifo.getAvailableSpace(store_auxID); if
+            // (max_advance_size > 0 && !iterQueue[store_auxID]->empty()) {
+            if (!iterQueue[store_auxID]->empty()) {
+                // We find a candidate if it is supposed to advance: has space
+                // and is configured
+                break;
+            }
+            store_auxID++;
+            if (store_auxID > 31) store_auxID = 0;
+        }
+    }
+
+    DPRINTF(JMDEVEL, "Settled on store_auxID:%d\n", store_auxID);
+    store_pID = store_auxID;
+    SERequestInfo request_info =
+        iterQueue[store_pID]->advance(max_advance_size);
+    DPRINTF(UVESE, "Memory Request[%s][%d]: [%d->%d] w(%d)\n",
+            request_info.mode == StreamMode::load ? "load" : "store",
+            request_info.sequence_number, request_info.initial_offset,
+            request_info.final_offset, request_info.width);
+    if (request_info.status == SEIterationStatus::Ended)
+        DPRINTF(UVESE, "Iteration on stream %d ended!\n", store_pID);
     //Create and send request to memory
     emitRequest(request_info);
+};
+
+void
+SEprocessing::tick() {
+    // DPRINTF(JMDEVEL, "SEprocessing::Tick()\n");
+    tick_load();
+    tick_store();
+    write_boss.tick();
     return;
 }
 
@@ -63,8 +129,12 @@ SEprocessing::executeRequest(SERequestInfo info){
     info.sequence_number, info.initial_offset,
     info.final_offset, info.width );
     uint64_t size = info.final_offset- info.initial_offset;
-    accessMemory(info.initial_offset, size, info.sid, info.sequence_number,
-        BaseTLB::Mode::Read, new uint8_t[size], info.tc);
+    if (info.mode == StreamMode::load) {
+        accessMemory(info.initial_offset, size, info.sid, info.sequence_number,
+                     BaseTLB::Mode::Read, new uint8_t[size], info.tc);
+    } else {
+        write_boss.queueMemoryWrite(info);
+    }
 }
 
 void
@@ -73,7 +143,8 @@ SEprocessing::accessMemory(Addr addr, int size, int sid, int ssid,
                         ThreadContext * tc)
 {
     Addr paddr;
-    if (!iterQueue[sid]->translatePaddr(&paddr)){
+    if (mode == BaseTLB::Mode::Write ||
+        !iterQueue[sid]->translatePaddr(&paddr)) {
         //Create new virtual request if:
             //Translation is needed
         RequestPtr req = std::make_shared<Request>();
@@ -114,7 +185,7 @@ SEprocessing::accessMemory(Addr addr, int size, int sid, int ssid,
         RequestPtr req = std::make_shared<Request>(paddr, size, 0, 0);
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
-        sendData(req, data, mode == BaseTLB::Read);
+        sendDataRequest(req, data, mode == BaseTLB::Read);
         iterQueue[sid]->setPaddr(paddr, false);
     }
 }
@@ -134,7 +205,8 @@ SEprocessing::finishTranslation(WholeTranslationState *state)
     if (!state->isSplit) {
         DPRINTF(JMDEVEL, "Got response for translation. %#x -> %#x\n",
                 state->mainReq->getVaddr(), state->mainReq->getPaddr());
-        sendData(state->mainReq, state->data, state->mode == BaseTLB::Read);
+        sendDataRequest(state->mainReq, state->data,
+                        state->mode == BaseTLB::Read);
         iterQueue[sid]->setPaddr(state->mainReq->getPaddr(), false);
     } else {
         DPRINTF(JMDEVEL,
@@ -142,8 +214,8 @@ SEprocessing::finishTranslation(WholeTranslationState *state)
                 "%#x)\n",
                 state->sreqLow->getVaddr(), state->sreqLow->getPaddr(),
                 state->sreqHigh->getVaddr(), state->sreqHigh->getPaddr());
-        sendSplitData(state->sreqLow, state->sreqHigh, state->mainReq,
-                      state->data, state->mode == BaseTLB::Read);
+        sendSplitDataRequest(state->sreqLow, state->sreqHigh, state->mainReq,
+                             state->data, state->mode == BaseTLB::Read);
         iterQueue[sid]->setPaddr(state->sreqHigh->getPaddr(), true,
                                  state->sreqHigh->getVaddr());
     }
@@ -152,8 +224,8 @@ SEprocessing::finishTranslation(WholeTranslationState *state)
 }
 
 void
-SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read,
-                       bool split_not_last) {
+SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
+                              bool split_not_last) {
     DPRINTF(JMDEVEL, "Sending request for addr [P%#x]\n", ireq->getPaddr());
 
     RequestPtr req = NULL;
@@ -163,16 +235,12 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read,
 
     for (ChunkGenerator gen(ireq->getPaddr(), ireq->getSize(), cacheLineSize);
         !gen.done(); gen.next()) {
-
-        //JMTODO: We need to make sure that a page is not being crossed
-        //If so: Go back with the iteration: For that the next cycle takes
+        // JMNOTE: We need to make sure that a page is not being crossed
+        // If so: Go back with the iteration: For that the next cycle takes
         // care of that
 
-        //JMTODO: Here we need to check FIFO for ocuppancy
-        //And guarantee that it is not full yet
-
-        req = std::make_shared<Request>(
-            gen.addr(), gen.size(), 0, 0);
+        Request::FlagsType flags = 0;
+        req = std::make_shared<Request>(gen.addr(), gen.size(), flags, 0);
 
         auto ssid = ++ssidArray[sid];
         req->setStreamId(sid);
@@ -181,35 +249,34 @@ SEprocessing::sendData(RequestPtr ireq, uint8_t *data, bool read,
         // if (!parent->ld_fifo.full(sid)){
         bool last_packet = (ended && gen.last() && !split_not_last);
         if (last_packet) DPRINTF(JMDEVEL, "Last packet for sid (%d)\n", sid);
-        parent->ld_fifo.reserve(sid, ssid, gen.size(), width, last_packet);
-        // }
-        // else {
-        //     //JMTODO: Take action on reversing the processing
-        // }
+        if (read)
+            parent->ld_fifo.reserve(sid, ssid, gen.size(), width, last_packet);
 
         req->taskId(ContextSwitchTaskId::DMA);
         PacketPtr pkt = read ? Packet::createRead(req) :
                                Packet::createWrite(req);
 
-        // Increment the data pointer on a write
+        // Increment the data pointer on each request
         if (data)
             pkt->dataStatic(data + gen.complete());
 
-        DPRINTF(JMDEVEL, "--Queuing for addr: %#x size: %d ssid[%d]\n",
-                gen.addr(), gen.size(), ssid);
+        DPRINTF(JMDEVEL, "--[%s] Queuing for addr: %#x size: %d ssid[%d]\n",
+                read ? "Read" : "Write", gen.addr(), gen.size(), ssid);
         parent->getMemPort()->schedTimingReq(pkt,
-                                parent->nextAvailableCycle());
+                                             parent->nextAvailableCycle());
     }
 }
 
 void
-SEprocessing::sendSplitData(const RequestPtr &req1, const RequestPtr &req2,
-                            const RequestPtr &req, uint8_t *data, bool read) {
+SEprocessing::sendSplitDataRequest(const RequestPtr &req1,
+                                   const RequestPtr &req2,
+                                   const RequestPtr &req, uint8_t *data,
+                                   bool read) {
     DPRINTF(JMDEVEL, "Sending split request for addrs [P%#x] & [P%#x]\n",
             req1->getPaddr(), req2->getPaddr());
 
-    sendData(req1, data, read, true);
-    sendData(req2, data + req1->getSize(), read, false);
+    sendDataRequest(req1, data, read, true);
+    sendDataRequest(req2, data + req1->getSize(), read, false);
 }
 
 template <typename T>
@@ -268,4 +335,192 @@ SEprocessing::recvData(PacketPtr pkt){
 void
 RequestExecuteEvent::process(){
     callee->executeRequest(info);
+}
+
+void
+SEprocessing::MemoryWriteHandler::tick() {
+    // Each tick it tries to write data into memory
+    SmartReturn res = consume_data();
+    // 2.1. If there is data to write
+    if (res.isOk()) {
+        // Exc: If partial data is available, no need for new addr
+        if (has_partial_data) {
+            res = write_mem_partial();
+            if (res.isNok()) {
+                // Another partial request is ongoing
+                return;
+            }
+            return;
+        }
+        // 2.2. Get address
+        res = consume_addr_unit();
+        if (res.isOk()) {
+            // 2.3. Send memory request
+            res = write_mem((SERequestInfo *)res.getData());
+            if (res.isNok()) {
+                // No sufficient data for addr size
+                return;
+            }
+        } else {
+            // No addr available, try next cycle
+            return;
+        }
+    } else {
+        // No data available, try next cycle
+        return;
+    }
+};
+
+SmartReturn
+SEprocessing::MemoryWriteHandler::consume_data() {
+    // General consume, handles the data comming from fifo and the in-fligth
+    // data
+    if (has_data_block) {
+        return SmartReturn::ok();
+    } else {
+        SmartReturn res = owner->parent->st_fifo.ready();
+        if (res.isOk()) {
+            StreamID *sid = ((StreamID *)res.getData());
+            res = owner->parent->st_fifo.getData(*sid);
+            free(sid);
+            if (res.isOk()) {
+                data_block = (CoreContainer *)res.getData();
+                has_data_block = true;
+                data_block_index = 0;
+                return SmartReturn::ok();
+            }
+        }
+        return SmartReturn::nok();
+    }
+}
+
+SmartReturn
+SEprocessing::MemoryWriteHandler::consume_data_unit(uint64_t sz) {
+    // Size always in bytes
+    // We only get here when we have data in a block
+    SmartReturn::compare(has_data_block).ASSERT();
+
+    // Get a data unit of size sz from the data block
+    // Check if sz is smaller than available data size
+    if (sz <= data_block->get_valid() - data_block_index) {
+        uint8_t *data = (uint8_t *)malloc(sz * sizeof(uint8_t));
+        memcpy(data, data_block->raw_ptr<uint8_t>() + data_block_index, sz);
+        // Handle remains
+        data_block_index += sz;
+        if (data_block_index >= data_block->get_valid()) {
+            has_data_block = false;
+            delete data_block;
+        }
+        return SmartReturn::ok((void *)data);
+    } else {
+        // requested size is bigger than current available data
+        uint64_t transaction_size = data_block->get_valid() - data_block_index;
+        // need to delay transaction to next cycle
+        partial_data = (uint8_t *)malloc(transaction_size * sizeof(uint8_t));
+        memcpy(partial_data, data_block->raw_ptr<uint8_t>() + data_block_index,
+               transaction_size);
+        // Handle remains
+        data_block_index += transaction_size;
+        partial_data_size = transaction_size;
+        has_partial_data = true;
+        has_data_block = false;
+        delete data_block;
+        return SmartReturn::nok();
+    }
+}
+
+SmartReturn
+SEprocessing::MemoryWriteHandler::write_mem(SERequestInfo *info) {
+    // Size always in bytes
+    // We only get here when we have data in a block
+    SmartReturn::compare(has_data_block).ASSERT();
+
+    // Get last address size
+    uint64_t sz = info->final_offset - info->initial_offset;
+
+    uint8_t *mem_block = (uint8_t *)malloc(sz * sizeof(uint8_t));
+
+    SmartReturn res = consume_data_unit(sz);
+    if (res.isOk()) {
+        uint8_t *new_rq_block = (uint8_t *)res.getData();
+        memcpy(mem_block, new_rq_block, sz);
+        free(new_rq_block);
+        // Request is complete: issue to memory
+        owner->accessMemory(info->initial_offset, sz, info->sid,
+                            info->sequence_number, BaseTLB::Mode::Write,
+                            mem_block, info->tc);
+        delete info;
+        return SmartReturn::ok();
+    } else {
+        // Confirm that partial request happened
+        assert(has_partial_data);
+        delayed_address = info;
+        return SmartReturn::nok();
+    }
+}
+
+SmartReturn
+SEprocessing::MemoryWriteHandler::write_mem_partial() {
+    // Size always in bytes
+    // We only get here when we have data in a block
+    SmartReturn::compare(has_data_block && has_partial_data).ASSERT();
+
+    // Get last address in delayed_address
+    uint64_t sz =
+        delayed_address->final_offset - delayed_address->initial_offset;
+
+    uint8_t *mem_block = (uint8_t *)malloc(sz * sizeof(uint8_t));
+    memcpy(mem_block, partial_data, partial_data_size);
+    uint64_t new_rq_sz = sz - partial_data_size;
+    free(partial_data);
+    has_partial_data = false;
+    uint64_t data_offset = partial_data_size;
+
+    SmartReturn res = consume_data_unit(new_rq_sz);
+    if (res.isOk()) {
+        uint8_t *new_rq_block = (uint8_t *)res.getData();
+        memcpy(mem_block + partial_data_size, new_rq_block, new_rq_sz);
+        free(new_rq_block);
+        // Request is complete: issue to memory
+        owner->accessMemory(
+            delayed_address->initial_offset, sz, delayed_address->sid,
+            delayed_address->sequence_number, BaseTLB::Mode::Write, mem_block,
+            delayed_address->tc);
+        delete delayed_address;
+        return SmartReturn::ok();
+    } else {
+        // Something wrong happened...Maybe requested size still too big.
+        if (has_partial_data) {
+            // Not touch delayed_address
+            // Merge old data in mem_nlock with new data in partial_data.
+            // Need to move mem_block's to beggining of partial_data
+            uint8_t *aux_block = (uint8_t *)malloc(
+                (data_offset + partial_data_size) * sizeof(uint8_t));
+            memcpy(aux_block, mem_block, data_offset);
+            memcpy(aux_block + data_offset, partial_data, partial_data_size);
+            free(partial_data);
+            free(mem_block);
+            partial_data_size = data_offset + partial_data_size;
+            partial_data = aux_block;
+        } else {
+            assert(false && "Unnexpected error in write_mem_partial.");
+        }
+        return SmartReturn::nok();
+    }
+}
+
+SmartReturn
+SEprocessing::MemoryWriteHandler::consume_addr_unit() {
+    // Check if there is an address in the queue, return it
+    if (!addr_queue.empty()) {
+        SERequestInfo *info = addr_queue.front();
+        addr_queue.pop();
+        return SmartReturn::ok((void *)info);
+    } else
+        return SmartReturn::nok();
+}
+
+void
+SEprocessing::MemoryWriteHandler::queueMemoryWrite(SERequestInfo info) {
+    addr_queue.push(new SERequestInfo(info));
 }

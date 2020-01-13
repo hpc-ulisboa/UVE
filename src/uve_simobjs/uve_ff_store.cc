@@ -5,9 +5,10 @@ UVEStoreFifo::UVEStoreFifo(UVEStreamingEngineParams *params)
       fifos(32),
       cacheLineSize(params->system->cacheLineSize()),
       confParams(params),
-      fifo_depth(confParams->fifo_depth) {
-    reservation_ssid = -1;
+      fifo_depth(confParams->fifo_depth),
+      reservation_ssid(32) {
     for (int i = 0; i < fifos.size(); i++) {
+        reservation_ssid[i] = -1;
         fifos[i] = new StreamFifo(confParams->width, confParams->fifo_depth,
                                   confParams->max_request_size, i);
     }
@@ -62,9 +63,9 @@ UVEStoreFifo::reserve(StreamID sid, uint16_t *ssid) {
             : "";
         panic(s.str());
     }
-    reservation_ssid++;
-    fifos[sid]->insert(confParams->width, reservation_ssid, 0, false);
-    *ssid = reservation_ssid;
+    reservation_ssid[sid]++;
+    fifos[sid]->insert(confParams->width / 8, reservation_ssid[sid], 0, false);
+    *ssid = reservation_ssid[sid];
     return SmartReturn::ok();
 }
 
@@ -90,6 +91,20 @@ UVEStoreFifo::full(StreamID sid) {
 SmartReturn
 UVEStoreFifo::ready(StreamID sid) {
     return fifos[sid]->storeReady();
+}
+
+SmartReturn
+UVEStoreFifo::ready() {
+    // JMFIXME: Change to RoundRobin
+    // Sugestion: Round Iterator
+    int *ret = (int *)malloc(sizeof(int));
+    for (int i = 0; i < fifos.size(); i++) {
+        if (fifos[i]->storeReady().isOk()) {
+            *ret = i;
+            return SmartReturn::ok((void *)ret);
+        }
+    }
+    return SmartReturn::nok();
 }
 
 SmartReturn

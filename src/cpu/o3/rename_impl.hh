@@ -694,6 +694,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             // Check if it was able to schedule. Needed in order to break
             // the outer loop.
             if (!fifo_available) {
+                source = SSF;
                 incrFullStat(SSF);
                 DPRINTF(JMDEVEL,
                         "Rename: Store FIFO full, delaying "
@@ -718,6 +719,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             // Check if it was able to schedule. Needed in order to break
             // the outer loop.
             if (!fifo_available) {
+                source = SLF;
                 incrFullStat(SLF);
                 DPRINTF(JMDEVEL,
                         "Rename: Load FIFO full, delaying "

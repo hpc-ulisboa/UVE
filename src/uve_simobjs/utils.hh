@@ -385,6 +385,7 @@ struct SERequestInfo{
     Addr initial_paddr;
     StreamID sid;
     ThreadContext * tc;
+    StreamMode mode;
 };
 
 
@@ -406,6 +407,7 @@ class SEIter: public SEList<DimensionObject> {
         ThreadContext * tc;
         bool page_jump;
         Addr page_jump_vaddr;
+        StreamMode mode;
         typedef enum {
             BufferFull,
             DimensionSwap,
@@ -429,6 +431,7 @@ class SEIter: public SEList<DimensionObject> {
             head_stride = cmd.get_dimension()->get_stride();
             tc = cmd.get_tc();
             sid = cmd.getStreamID();
+            mode = cmd.isLoad() ? StreamMode::load : StreamMode::store;
 
             insert_dim(new DimensionObject(cmd.get_dimension(), width, true));
             cmds->pop();
@@ -561,6 +564,7 @@ class SEIter: public SEList<DimensionObject> {
                 }
             }
             elem_counter = 0;
+            request.mode = mode;
             request.initial_offset = initial_offset_calculation();
             request.final_offset = offset_calculation() + width;
             request.iterations = 128;
@@ -655,6 +659,7 @@ class SEIter: public SEList<DimensionObject> {
         void stall() { status = SEIterationStatus::Stalled; }
         void resume() { status = SEIterationStatus::Running; }
         bool stalled() { return status == SEIterationStatus::Stalled; }
+        bool is_load() { return mode == StreamMode::load; }
 };
 
 using SEIterPtr = SEIter *;

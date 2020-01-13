@@ -57,9 +57,8 @@ UVELoadFifo::reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
     if (result.isError() || result.isTrue()) {
         std::stringstream s;
         s << "Trying to reserve on fifo " << (int)sid
-          << " with no space available" << result.isError()
-            ? " Error: " + result.estr()
-            : "";
+          << " with no space available. "
+          << (result.isError() ? " Error: " + result.estr() : "") << "\n";
         panic(s.str());
     }
     fifos[sid]->insert(size, ssid, width, last);
@@ -361,6 +360,7 @@ StreamFifo::real_size() {
 SmartReturn
 StreamFifo::storeReady() {
     // Checks if the last element of the fifo is ready to go
+    if (fifo_container->empty()) return SmartReturn::nok();
     return SmartReturn::compare(fifo_container->back().is_ready_to_commit());
 }
 
@@ -429,6 +429,7 @@ StreamFifo::storeGet() {
     empty().NASSERT();
 
     FifoEntry entry = fifo_container->back();
+    storeDiscard(entry.get_ssid());
     SmartReturn::compare(entry.is_ready_to_commit()).ASSERT();
 
     DPRINTF(UVEFifo, "Store Get of fifo[%d]. Size[%d]. SSID[%d] %s\n", my_id,

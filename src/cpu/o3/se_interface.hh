@@ -441,125 +441,126 @@ class SEInterface {
             std::make_tuple(arch, phys, false, ssid));
     }
     bool fillOnBufferStore(const RegId &arch, PhysRegIdPtr phys,
-                           CoreContainer val) {
+                           CoreContainer val, InstSeqNum sn) {
         // Fills the fifo entry with the data coming from the cpu
         // Sid is already physical
-        if (!isInstMeaningful(sn)) return;
+        if (!isInstMeaningful(sn)) return false;
 
         StreamID sid = getStreamStore(arch.index());
         if (!registerBufferStore[sid]->empty()) {
-            auto iter = registerBufferStore.begin();
-            while (iter != registerBufferStore.end()) {
+            auto iter = registerBufferStore[sid]->begin();
+            while (iter != registerBufferStore[sid]->end()) {
                 if (std::get<1>(*iter) == phys && std::get<0>(*iter) == arch) {
+                    DPRINTF(UVERename,
+                            "fillOnBufferStore: %d, %p. SeqNum[%d]\n", sid,
+                            phys, sn);
                     uint16_t ssid = std::get<3>(*iter);
                     engine->setDataStore(sid, ssid, val);
-                    break;
+                    return true;
                 }
-            }
-
-            return false;
-        }
-
-        void squashToBufferStore(const RegId &arch, PhysRegIdPtr phys,
-                                 InstSeqNum sn) {
-            if (!isInstMeaningful(sn)) return;
-            StreamID sid = getStreamStore(arch.index());
-
-            if (!registerBufferStore[sid]->empty()) {
-                if (std::get<1>(registerBufferStore[sid]->back()) == phys &&
-                    std::get<0>(registerBufferStore[sid]->back()) == arch) {
-                    uint16_t ssid =
-                        std::get<3>(registerBufferStore[sid]->back());
-                    registerBufferStore[sid]->pop_back();
-                    speculationPointerStore[sid]--;
-                    auto lookup_stream =
-                        stream_rename.getStreamStore(arch.index());
-                    if (engine->shouldSquashStore(lookup_stream.second)
-                            .isOk()) {
-                        SmartReturn result =
-                            engine->squashStore(lookup_stream.second, ssid);
-                        if (result.isNok() || result.isError())
-                            panic("Error" + result.estr());
-                        DPRINTF(UVERename,
-                                "squashToBufferStore: %d, %p. SeqNum[%d] \t "
-                                "Result:%s\n",
-                                arch.index(), phys, sn, result.str());
-                    } else {
-                        DPRINTF(
-                            UVERename,
-                            "squashToBufferStoreOnly: %d, %p. SeqNum[%d]\n",
-                            arch.index(), phys, sn);
-                    }
-                }
+                iter++;
             }
         }
-        void commitToBufferStore(const RegId &arch, PhysRegIdPtr phys,
-                                 InstSeqNum sn) {
-            if (!isInstMeaningful(sn)) return;
-            StreamID sid = getStreamStore(arch.index());
+        return false;
+    }
 
-            auto bufferEnd = registerBufferStore[sid]->back();
-            if (std::get<2>(bufferEnd)) {
-                if (std::get<1>(bufferEnd) == phys &&
-                    std::get<0>(bufferEnd) == arch) {
-                    uint16_t ssid = std::get<3>(bufferEnd);
-                    registerBufferStore[sid]->pop_back();
-                    speculationPointerStore[sid]--;
-                    auto lookup_stream = stream_rename.getStreamStore(
-                        std::get<0>(bufferEnd).index());
+    void squashToBufferStore(const RegId &arch, PhysRegIdPtr phys,
+                             InstSeqNum sn) {
+        if (!isInstMeaningful(sn)) return;
+        StreamID sid = getStreamStore(arch.index());
+
+        if (!registerBufferStore[sid]->empty()) {
+            if (std::get<1>(registerBufferStore[sid]->back()) == phys &&
+                std::get<0>(registerBufferStore[sid]->back()) == arch) {
+                uint16_t ssid = std::get<3>(registerBufferStore[sid]->back());
+                registerBufferStore[sid]->pop_back();
+                speculationPointerStore[sid]--;
+                auto lookup_stream =
+                    stream_rename.getStreamStore(arch.index());
+                if (engine->shouldSquashStore(lookup_stream.second).isOk()) {
                     SmartReturn result =
-                        engine->commitStore(lookup_stream.second, ssid);
-                    DPRINTF(UVERename,
-                            "commitToBufferStore: %d, %p. SeqNum[%d]. \t "
-                            "Result:%s\n",
-                            sid, phys, sn, result.str());
-                    if (result.isEnd()) {
-                        clearBuffer(lookup_stream.second);
-                    }
-                    retireMeaningfulInst(sn);
+                        engine->squashStore(lookup_stream.second, ssid);
                     if (result.isNok() || result.isError())
                         panic("Error" + result.estr());
+                    DPRINTF(UVERename,
+                            "squashToBufferStore: %d, %p. SeqNum[%d] \t "
+                            "Result:%s\n",
+                            arch.index(), phys, sn, result.str());
+                } else {
+                    DPRINTF(UVERename,
+                            "squashToBufferStoreOnly: %d, %p. SeqNum[%d]\n",
+                            arch.index(), phys, sn);
                 }
             }
         }
-        bool checkStoreOccupancy(const RegId &arch) {
-            StreamID psid = getStreamStore(arch.index());
-            return engine->st_fifo.fifo_depth >
-                   registerBufferStore[psid]->size();
+    }
+    void commitToBufferStore(const RegId &arch, PhysRegIdPtr phys,
+                             InstSeqNum sn) {
+        if (!isInstMeaningful(sn)) return;
+        StreamID sid = getStreamStore(arch.index());
+
+        auto bufferEnd = registerBufferStore[sid]->back();
+        if (std::get<1>(bufferEnd) == phys && std::get<0>(bufferEnd) == arch) {
+            uint16_t ssid = std::get<3>(bufferEnd);
+            registerBufferStore[sid]->pop_back();
+            speculationPointerStore[sid]--;
+            auto lookup_stream =
+                stream_rename.getStreamStore(std::get<0>(bufferEnd).index());
+            SmartReturn result =
+                engine->commitStore(lookup_stream.second, ssid);
+            DPRINTF(UVERename,
+                    "commitToBufferStore: %d, %p. SeqNum[%d]. \t "
+                    "Result:%s\n",
+                    sid, phys, sn, result.str());
+            if (result.isEnd()) {
+                clearBuffer(lookup_stream.second);
+            }
+            retireMeaningfulInst(sn);
+            if (result.isNok() || result.isError())
+                panic("Error" + result.estr());
         }
+    }
+    bool checkStoreOccupancy(const RegId &arch) {
+        StreamID psid = getStreamStore(arch.index());
+        bool res =
+            engine->st_fifo.fifo_depth > registerBufferStore[psid]->size();
+        bool res2 = engine->st_fifo.full(psid).isNok();
+        return res && res2;
+    }
 
-       private:  // Data
-        /** Pointers for parent and sibling structures. */
-        O3CPU *cpu;
-        Decode *decStage;
-        IEW *iewStage;
-        Commit *cmtStage;
+   private:  // Data
+    /** Pointers for parent and sibling structures. */
+    O3CPU *cpu;
+    Decode *decStage;
+    IEW *iewStage;
+    Commit *cmtStage;
 
-        /* Pointer for communication port */
-        MasterPort *dcachePort;
+    /* Pointer for communication port */
+    MasterPort *dcachePort;
 
-        /* Pointer for engine */
-        UVEStreamingEngine *engine;
+    /* Pointer for engine */
+    UVEStreamingEngine *engine;
 
-        /* Addr range */
-        AddrRange sengine_addr_range;
+    /* Addr range */
+    AddrRange sengine_addr_range;
 
-        /* Completion Lookup Table (Updated in rename phase) */
-        std::map<InstSeqNum, bool> UVECondLookup;
+    /* Completion Lookup Table (Updated in rename phase) */
+    std::map<InstSeqNum, bool> UVECondLookup;
 
-        using RegBufferList = std::list<std::tuple<RegId, PhysRegIdPtr, bool>>;
-        using RegBufferIter = RegBufferList::iterator;
-        using SpecBufferIter = DumbIterator<RegBufferList>;
-        using InstSeqNumSet = std::unordered_map<uint64_t, uint8_t>;
-        using StreamConfigHashMap = std::unordered_map<uint64_t, StreamID>;
+    using RegBufferList =
+        std::list<std::tuple<RegId, PhysRegIdPtr, bool, int>>;
+    using RegBufferIter = RegBufferList::iterator;
+    using SpecBufferIter = DumbIterator<RegBufferList>;
+    using InstSeqNumSet = std::unordered_map<uint64_t, uint8_t>;
+    using StreamConfigHashMap = std::unordered_map<uint64_t, StreamID>;
 
-        std::vector<RegBufferList *> registerBufferLoad, registerBufferStore;
-        std::vector<SpecBufferIter> speculationPointerLoad,
-            speculationPointerStore;
+    std::vector<RegBufferList *> registerBufferLoad, registerBufferStore;
+    std::vector<SpecBufferIter> speculationPointerLoad,
+        speculationPointerStore;
 
-        StreamRename stream_rename;
-        InstSeqNumSet inst_validator;
-        StreamConfigHashMap stream_config_validator;
+    StreamRename stream_rename;
+    InstSeqNumSet inst_validator;
+    StreamConfigHashMap stream_config_validator;
 };
 
 #endif  //__CPU_O3_SE_INTERFACE_HH__

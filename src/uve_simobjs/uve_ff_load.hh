@@ -31,7 +31,8 @@ class FifoEntry : public CoreContainer {
         : CoreContainer(),
           size(0),
           csize(0),
-          config_size(_cfg_sz / 8) {  // Config size to be used in bytes
+          config_size(_cfg_sz / 8),
+          commit_ready(false) {  // Config size to be used in bytes
         this->zero();
         rstate = States::NotComplete;
         cstate = States::Clean;
@@ -194,7 +195,7 @@ class UVEStoreFifo : public SimObject {
     UVEStreamingEngine *engine;
     UVEStreamingEngineParams *confParams;
     unsigned fifo_depth;
-    uint64_t reservation_ssid;
+    std::vector<uint64_t> reservation_ssid;
 
    public:
     UVEStoreFifo(UVEStreamingEngineParams *params);
@@ -206,6 +207,7 @@ class UVEStoreFifo : public SimObject {
     SmartReturn reserve(StreamID sid, uint16_t *ssid);
     SmartReturn full(StreamID sid);
     SmartReturn ready(StreamID sid);
+    SmartReturn ready();
     SmartReturn squash(StreamID sid, uint16_t ssid);
     SmartReturn shouldSquash(StreamID sid);
     SmartReturn commit(StreamID sid, uint16_t ssid);

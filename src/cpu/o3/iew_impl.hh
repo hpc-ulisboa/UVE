@@ -1350,7 +1350,7 @@ DefaultIEW<Impl>::executeInsts()
                          dest_idx++) {
                         const RegId& dest_reg = inst->destRegIdx(dest_idx);
                         if (dest_reg.isVecReg() &&
-                            cpu->getSEICpuPtr()->isStreamLoad(
+                            !cpu->getSEICpuPtr()->isStreamLoad(
                                 dest_reg.index())) {
                             if (inst->isDestRegStreaming(dest_idx)) {
                                 PhysRegIdPtr dest_phys_reg =
@@ -1362,7 +1362,8 @@ DefaultIEW<Impl>::executeInsts()
                                         dest_phys_reg);
                                 cpu->getSEICpuPtr()->fillOnBufferStore(
                                     dest_reg, dest_phys_reg,
-                                    cpu->readVecReg(dest_phys_reg));
+                                    cpu->readVecReg(dest_phys_reg),
+                                    inst->seqNum);
                             }
                         }
                     }

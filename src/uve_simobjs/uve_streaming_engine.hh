@@ -35,11 +35,48 @@ class RequestExecuteEvent : public Event
 // class SCmem;
 class SEprocessing : SimObject
 {
-  protected:
+   private:
+    class MemoryWriteHandler {
+       private:
+        using AddrQueue = std::queue<SERequestInfo *>;
+        SEprocessing *owner;
+        CoreContainer *data_block;
+        bool has_data_block;
+        uint64_t data_block_index;
+        AddrQueue addr_queue;
+        uint8_t *partial_data;
+        bool has_partial_data;
+        uint16_t partial_data_size;
+        SERequestInfo *delayed_address;
+
+       private:
+        SmartReturn write_mem(SERequestInfo *info);
+        SmartReturn write_mem_partial();
+        SmartReturn consume_data_unit(uint64_t sz);
+        SmartReturn consume_addr_unit();
+        SmartReturn consume_data();
+
+       public:
+        MemoryWriteHandler()
+            : owner(nullptr),
+              data_block(nullptr),
+              has_data_block(false),
+              data_block_index(0),
+              addr_queue(),
+              partial_data(nullptr),
+              has_partial_data(false),
+              partial_data_size(0),
+              delayed_address(nullptr){};
+        void tick();
+        void set_owner(SEprocessing *_owner) { owner = _owner; }
+        void queueMemoryWrite(SERequestInfo info);
+    };
+
+   protected:
     UVEStreamingEngine *parent;
     std::array<SEIterPtr,32> iterQueue;
     std::array<int, 32> ssidArray;
-    uint8_t pID;
+    uint8_t load_pID, store_pID;
 
    public:
     void tick();
@@ -48,18 +85,18 @@ class SEprocessing : SimObject
     RiscvISA::TLB *tlb;
     const Addr offsetMask;
     unsigned cacheLineSize;
+    MemoryWriteHandler write_boss;
 
     // SCmem *memCore;
     // SCftch *fetchCore;
 
-  public:
-
+   public:
     // void setMemCore(SCmem * memCorePtr);
 
     /** constructor
      */
     SEprocessing(UVEStreamingEngineParams *params,
-                UVEStreamingEngine *_parent);
+                 UVEStreamingEngine *_parent);
 
     bool setIterator(StreamID sid, SEIterPtr iterator){
       iterator->setCompareFunction(
@@ -83,10 +120,10 @@ class SEprocessing : SimObject
     bool isSquashed() { return false; }
 
     void executeRequest(SERequestInfo info);
-    void sendData(RequestPtr req, uint8_t *data, bool read,
-                  bool split_not_last = false);
-    void sendSplitData(const RequestPtr &req1, const RequestPtr &req2,
-                       const RequestPtr &req, uint8_t *data, bool read);
+    void sendDataRequest(RequestPtr req, uint8_t *data, bool read,
+                         bool split_not_last = false);
+    void sendSplitDataRequest(const RequestPtr &req1, const RequestPtr &req2,
+                              const RequestPtr &req, uint8_t *data, bool read);
     void accessMemory(Addr addr, int size, int sid, int ssid,
                       BaseTLB::Mode mode, uint8_t *data, ThreadContext *tc);
     void recvData(PacketPtr pkt);
@@ -96,6 +133,8 @@ class SEprocessing : SimObject
     void emitRequest(SERequestInfo info);
     Addr pageAlign(Addr a)  { return (a & ~offsetMask); }
     Addr splitAddressOnPage(Addr a, int sz) { return pageAlign(a + sz); }
+    void tick_load();
+    void tick_store();
 
    public:
     bool samePage(Addr a, Addr b) { return (pageAlign(a) == pageAlign(b)); }

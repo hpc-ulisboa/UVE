@@ -1338,6 +1338,16 @@ DefaultCommit<Impl>::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
                 head_inst->srcRegIdx(src_reg_idx), src_reg,
                 head_inst->getSeqNum());
     }
+    // JMNOTE: Send commit signal to streaming engine
+    for (int dest_reg_idx = 0; dest_reg_idx < head_inst->numDestRegs();
+         dest_reg_idx++) {
+        PhysRegIdPtr dest_reg = head_inst->renamedDestRegIdx(dest_reg_idx);
+        if (head_inst->isStreamInst() && dest_reg->isVectorPhysReg() &&
+            head_inst->isDestRegStreaming(dest_reg_idx))
+            cpu->getSEICpuPtr()->commitToBufferStore(
+                head_inst->destRegIdx(dest_reg_idx), dest_reg,
+                head_inst->getSeqNum());
+    }
 
 #if TRACING_ON
     if (DTRACE(O3PipeView)) {

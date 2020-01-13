@@ -66,6 +66,16 @@ UVEStreamingEngine::MemSidePort::recvTimingResp(PacketPtr pkt)
 {
     // Just forward to the Engine.
     // return owner->handleResponse(pkt);
+    if (pkt->isWrite()) {
+        DPRINTF(JMDEVEL, "MemSidePort received write pkt for Paddr %p\n",
+                pkt->req->getPaddr());
+        return true;
+    }
+    if (pkt->isInvalidate()) {
+        DPRINTF(JMDEVEL, "MemSidePort received invalidate pkt for Paddr %p\n",
+                pkt->req->getPaddr());
+        return true;
+    }
     if (pkt->req->hasVaddr()){
       DPRINTF(JMDEVEL, "MemSidePort received pkt for Vaddr %p :Paddr %p\n",
                           pkt->req->getVaddr(), pkt->req->getPaddr());
