@@ -38,7 +38,7 @@ class SEprocessing : SimObject
    private:
     class MemoryWriteHandler {
        private:
-        using AddrQueue = std::queue<SERequestInfo *>;
+        using AddrQueue = std::list<std::pair<StreamID, SERequestInfo *>>;
         SEprocessing *owner;
         CoreContainer *data_block;
         bool has_data_block;
@@ -70,12 +70,13 @@ class SEprocessing : SimObject
         void tick();
         void set_owner(SEprocessing *_owner) { owner = _owner; }
         void queueMemoryWrite(SERequestInfo info);
+        void squash(StreamID sid);
     };
 
    protected:
     UVEStreamingEngine *parent;
     std::array<SEIterPtr,32> iterQueue;
-    std::array<int, 32> ssidArray;
+    std::array<SubStreamID, 32> ssidArray;
     uint8_t load_pID, store_pID;
 
    public:
@@ -124,7 +125,7 @@ class SEprocessing : SimObject
                          bool split_not_last = false);
     void sendSplitDataRequest(const RequestPtr &req1, const RequestPtr &req2,
                               const RequestPtr &req, uint8_t *data, bool read);
-    void accessMemory(Addr addr, int size, int sid, int ssid,
+    void accessMemory(Addr addr, int size, StreamID sid, SubStreamID ssid,
                       BaseTLB::Mode mode, uint8_t *data, ThreadContext *tc);
     void recvData(PacketPtr pkt);
     SmartReturn isCompleted(StreamID sid) { return iterQueue[sid]->ended(); }
@@ -142,6 +143,7 @@ class SEprocessing : SimObject
         delete iterQueue[sid];
         iterQueue[sid] = new SEIter();
         this->ssidArray[sid] = -1;
+        write_boss.squash(sid);
         return SmartReturn::ok();
     }
 };
@@ -279,29 +281,31 @@ class UVEStreamingEngine : public ClockedObject
     //     callback(physIdx, cnt);
     // }
     void signal_cpu(CallbackInfo info) { callback(info); }
+    SmartReturn endStreamFromSquash(StreamID sid);
 
-    SmartReturn commitLoad(uint16_t sid);
-    SmartReturn squashLoad(uint16_t sid);
-    SmartReturn shouldSquashLoad(uint16_t sid);
-    void synchronizeLoadLists(uint16_t sid);
+    SmartReturn commitLoad(StreamID sid);
+    SmartReturn squashLoad(StreamID sid);
+    SmartReturn shouldSquashLoad(StreamID sid);
+    void synchronizeLoadLists(StreamID sid);
     SmartReturn endStreamLoad(StreamID sid);
-    SmartReturn getDataLoad(uint16_t sid);
+    SmartReturn getDataLoad(StreamID sid);
 
-    SmartReturn commitStore(uint16_t sid, uint16_t ssid);
-    SmartReturn squashStore(uint16_t sid, uint16_t ssid);
-    SmartReturn shouldSquashStore(uint16_t sid);
-    void synchronizeStoreLists(uint16_t sid);
+    SmartReturn commitStore(StreamID sid, SubStreamID ssid);
+    SmartReturn squashStore(StreamID sid, SubStreamID ssid);
+    SmartReturn shouldSquashStore(StreamID sid);
+    void synchronizeStoreLists(StreamID sid);
     SmartReturn endStreamStore(StreamID sid);
-    void setDataStore(uint16_t sid, uint16_t ssid, CoreContainer val);
-    uint16_t reserveStoreEntry(StreamID sid) {
-        uint16_t ssid_static, *ssid = (uint16_t *)malloc(sizeof(uint16_t));
+    void setDataStore(StreamID sid, SubStreamID ssid, CoreContainer val);
+    SubStreamID reserveStoreEntry(StreamID sid) {
+        SubStreamID ssid_static,
+            *ssid = (SubStreamID *)malloc(sizeof(SubStreamID));
         auto result = st_fifo.reserve(sid, ssid);
         ssid_static = *ssid;
         free(ssid);
         return ssid_static;
     }
 
-    SmartReturn isFinished(uint16_t sid) {
+    SmartReturn isFinished(StreamID sid) {
         return ld_fifo.isFinished(sid).AND(memCore.isCompleted(sid));
     }
 };

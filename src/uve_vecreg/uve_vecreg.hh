@@ -18,6 +18,7 @@
 
 // JMNOTE: This number must aggree to types.hh MaxUveVeccLenInBits
 constexpr unsigned MaxVecRegLenInBytes = 256;
+typedef int64_t vecSubStreamID;
 
 template <size_t Sz>
 class VecRegContainer;
@@ -134,7 +135,7 @@ class VecRegContainer {
     bool last_request;
     // DEBUG only flags/vars
     bool streaming;
-    int64_t ssid;
+    vecSubStreamID ssid;
     int sid;
 
    public:
@@ -159,8 +160,8 @@ class VecRegContainer {
     void set_streaming(bool _streaming) { streaming = _streaming; }
     bool is_streaming() const { return streaming; }
     void set_sid(int _sid) { sid = _sid; }
-    void set_ssid(int64_t _ssid) { ssid = _ssid; }
-    int64_t get_ssid() { return ssid; }
+    void set_ssid(vecSubStreamID _ssid) { ssid = _ssid; }
+    vecSubStreamID get_ssid() { return ssid; }
     int get_sid() { return sid; }
 
     void zero() { memset(container.data(), 0, SIZE); }

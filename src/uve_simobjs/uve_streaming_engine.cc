@@ -122,17 +122,17 @@ UVEStreamingEngine::set_callback(void (*_callback)(CallbackInfo info)) {
 }
 
 SmartReturn
-UVEStreamingEngine::squashLoad(uint16_t sid) {
+UVEStreamingEngine::squashLoad(StreamID sid) {
     return ld_fifo.squash(sid);
 }
 
 SmartReturn
-UVEStreamingEngine::shouldSquashLoad(uint16_t sid) {
+UVEStreamingEngine::shouldSquashLoad(StreamID sid) {
     return ld_fifo.shouldSquash(sid);
 }
 
 SmartReturn
-UVEStreamingEngine::commitLoad(uint16_t sid) {
+UVEStreamingEngine::commitLoad(StreamID sid) {
     auto result = ld_fifo.commit(sid);
     if (result.isEnd()) {
         // Time to eliminate this sid
@@ -145,7 +145,7 @@ UVEStreamingEngine::commitLoad(uint16_t sid) {
 }
 
 void
-UVEStreamingEngine::synchronizeLoadLists(uint16_t sid) {
+UVEStreamingEngine::synchronizeLoadLists(StreamID sid) {
     ld_fifo.synchronizeLists(sid);
     return;
 }
@@ -163,22 +163,22 @@ UVEStreamingEngine::endStreamLoad(StreamID sid) {
 }
 
 SmartReturn
-UVEStreamingEngine::getDataLoad(uint16_t sid) {
+UVEStreamingEngine::getDataLoad(StreamID sid) {
     return ld_fifo.getData(sid);
 }
 
 SmartReturn
-UVEStreamingEngine::squashStore(uint16_t sid, uint16_t ssid) {
+UVEStreamingEngine::squashStore(StreamID sid, SubStreamID ssid) {
     return st_fifo.squash(sid, ssid);
 }
 
 SmartReturn
-UVEStreamingEngine::shouldSquashStore(uint16_t sid) {
+UVEStreamingEngine::shouldSquashStore(StreamID sid) {
     return st_fifo.shouldSquash(sid);
 }
 
 SmartReturn
-UVEStreamingEngine::commitStore(uint16_t sid, uint16_t ssid) {
+UVEStreamingEngine::commitStore(StreamID sid, SubStreamID ssid) {
     auto result = st_fifo.commit(sid, ssid);
     if (result.isEnd()) {
         // Time to eliminate this sid
@@ -191,13 +191,13 @@ UVEStreamingEngine::commitStore(uint16_t sid, uint16_t ssid) {
 }
 
 void
-UVEStreamingEngine::synchronizeStoreLists(uint16_t sid) {
+UVEStreamingEngine::synchronizeStoreLists(StreamID sid) {
     st_fifo.synchronizeLists(sid);
     return;
 }
 
 void
-UVEStreamingEngine::setDataStore(uint16_t sid, uint16_t ssid,
+UVEStreamingEngine::setDataStore(StreamID sid, SubStreamID ssid,
                                  CoreContainer val) {
     st_fifo.insert_data(sid, ssid, val);
 }
@@ -212,4 +212,9 @@ UVEStreamingEngine::endStreamStore(StreamID sid) {
     result = memCore.clear(sid);
 
     return result;
+}
+
+SmartReturn
+UVEStreamingEngine::endStreamFromSquash(StreamID sid) {
+    return memCore.clear(sid).AND(ld_fifo.clear(sid)).AND(st_fifo.clear(sid));
 }

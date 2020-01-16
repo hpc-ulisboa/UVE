@@ -34,7 +34,7 @@ UVELoadFifo::tick(CallbackInfo *info) {
 }
 
 SmartReturn
-UVELoadFifo::getData(int sid) {
+UVELoadFifo::getData(StreamID sid) {
     // Check if fifo is ready and if so, organize data to the cpu;
     if (fifos[sid]->ready().isTrue()) {
         auto entry = fifos[sid]->get();
@@ -50,8 +50,8 @@ UVELoadFifo::synchronizeLists(StreamID sid) {
 }
 
 void
-UVELoadFifo::reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
-                     bool last = false) {
+UVELoadFifo::reserve(StreamID sid, SubStreamID ssid, uint8_t size,
+                     uint8_t width, bool last = false) {
     // Reserve space in fifo. This reserve comes from the engine
     SmartReturn result = fifos[sid]->full();
     if (result.isError() || result.isTrue()) {
@@ -65,7 +65,7 @@ UVELoadFifo::reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
 }
 
 SmartReturn
-UVELoadFifo::insert(StreamID sid, uint32_t ssid, CoreContainer data) {
+UVELoadFifo::insert(StreamID sid, SubStreamID ssid, CoreContainer data) {
     //If not empty try and merge
     //  Not Succeded: Create new entry
     //      If full: Warn no more space
@@ -143,7 +143,7 @@ UVELoadFifo::getAvailableSpace(StreamID sid) {
 }
 
 void
-StreamFifo::insert(uint16_t size, uint16_t ssid, uint8_t width,
+StreamFifo::insert(uint16_t size, SubStreamID ssid, uint8_t width,
                    bool last = false) {
     //Dont just push back, need to interpolate;
     status = SEIterationStatus::Configured;
@@ -229,7 +229,7 @@ StreamFifo::insert(uint16_t size, uint16_t ssid, uint8_t width,
 }
 
 SmartReturn
-StreamFifo::merge_data(uint16_t ssid, uint8_t *data) {
+StreamFifo::merge_data(SubStreamID ssid, uint8_t *data) {
     empty().NASSERT();
     //Get corresponding fifo entry
     auto it = this->map.begin() + ssid;
@@ -365,7 +365,7 @@ StreamFifo::storeReady() {
 }
 
 SmartReturn
-StreamFifo::storeSquash(uint16_t ssid) {
+StreamFifo::storeSquash(SubStreamID ssid) {
     // Squashes (removes) entry pointed by ssid
     auto iter = fifo_container->begin();
     while (iter != fifo_container->end()) {
@@ -381,7 +381,7 @@ StreamFifo::storeSquash(uint16_t ssid) {
 }
 
 SmartReturn
-StreamFifo::storeCommit(uint16_t ssid) {
+StreamFifo::storeCommit(SubStreamID ssid) {
     // Marks the entry pointed by ssid as ready
     auto iter = fifo_container->rbegin();
     while (iter != fifo_container->rend()) {
@@ -395,7 +395,7 @@ StreamFifo::storeCommit(uint16_t ssid) {
 }
 
 SmartReturn
-StreamFifo::storeDiscard(uint16_t ssid) {
+StreamFifo::storeDiscard(SubStreamID ssid) {
     if (empty().isOk())
         return SmartReturn::error("Store Discarding on empty StreamFifo");
 
@@ -439,9 +439,9 @@ StreamFifo::storeGet() {
 }
 
 void
-FifoEntry::merge_data(uint8_t * data, uint16_t offset, uint16_t _size) {
+FifoEntry::merge_data(uint8_t *data, uint16_t offset, uint16_t _size) {
     auto my_data = this->raw_ptr<uint8_t>();
-    for (int i = 0; i < _size; i++) {
+    for (uint16_t i = 0; i < _size; i++) {
         (my_data+offset)[i] =  data[i];
     }
     csize += _size;

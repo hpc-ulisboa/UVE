@@ -27,7 +27,7 @@ class FifoEntry : public CoreContainer {
     bool commit_ready;
 
    public:
-    FifoEntry(uint8_t width, uint16_t _cfg_sz, int sid, int64_t ssid)
+    FifoEntry(uint8_t width, uint16_t _cfg_sz, int sid, SubStreamID ssid)
         : CoreContainer(),
           size(0),
           csize(0),
@@ -60,18 +60,18 @@ class StreamFifo {
     using FifoContainer = std::list<FifoEntry>;
     using SpeculativeIter = DumbIterator<FifoContainer>;
     typedef struct mapEntry {
-        uint16_t id;
+        uint64_t id;
         uint16_t size;
         uint16_t offset;
         bool used;
         bool split;
-        uint16_t id2;
+        uint64_t id2;
         uint16_t size2;
         uint16_t offset2;
     } MapStruct;
 
     // Simple MapStruct
-    MapStruct create_MS(uint16_t id, uint16_t size, uint16_t offset) {
+    MapStruct create_MS(uint64_t id, uint16_t size, uint16_t offset) {
         MapStruct new_ms;
         new_ms.id = id;
         new_ms.size = size;
@@ -81,7 +81,7 @@ class StreamFifo {
         return new_ms;
     }
     // Split MapStruct (For vector alignement)
-    MapStruct create_MS(uint16_t id1, uint16_t id2, uint16_t size1,
+    MapStruct create_MS(uint64_t id1, uint64_t id2, uint16_t size1,
                         uint16_t size2, uint16_t offset1, uint16_t offset2) {
         MapStruct new_ms;
         new_ms.split = true;
@@ -120,8 +120,8 @@ class StreamFifo {
         speculationPointer = SpeculativeIter(fifo_container);
     }
 
-    void insert(uint16_t size, uint16_t ssid, uint8_t width, bool last);
-    SmartReturn merge_data(uint16_t ssid, uint8_t *data);
+    void insert(uint16_t size, SubStreamID ssid, uint8_t width, bool last);
+    SmartReturn merge_data(SubStreamID ssid, uint8_t *data);
     FifoEntry get();
     SmartReturn full();
     SmartReturn ready();
@@ -135,9 +135,9 @@ class StreamFifo {
     }
 
     SmartReturn storeReady();
-    SmartReturn storeSquash(uint16_t ssid);
-    SmartReturn storeCommit(uint16_t ssid);
-    SmartReturn storeDiscard(uint16_t ssid);
+    SmartReturn storeSquash(SubStreamID ssid);
+    SmartReturn storeCommit(SubStreamID ssid);
+    SmartReturn storeDiscard(SubStreamID ssid);
     FifoEntry storeGet();
 
     uint16_t availableSpace() {
@@ -168,10 +168,10 @@ class UVELoadFifo : public SimObject {
     UVELoadFifo(UVEStreamingEngineParams *params);
 
     bool tick(CallbackInfo *res);
-    SmartReturn getData(int sid);
+    SmartReturn getData(StreamID sid);
     void init();
-    SmartReturn insert(StreamID sid, uint32_t ssid, CoreContainer data);
-    void reserve(StreamID sid, uint32_t ssid, uint8_t size, uint8_t width,
+    SmartReturn insert(StreamID sid, SubStreamID ssid, CoreContainer data);
+    void reserve(StreamID sid, SubStreamID ssid, uint8_t size, uint8_t width,
                  bool last);
     SmartReturn fetch(StreamID sid, CoreContainer **cnt);
     SmartReturn full(StreamID sid);
@@ -195,22 +195,23 @@ class UVEStoreFifo : public SimObject {
     UVEStreamingEngine *engine;
     UVEStreamingEngineParams *confParams;
     unsigned fifo_depth;
-    std::vector<uint64_t> reservation_ssid;
+    std::vector<SubStreamID> reservation_ssid;
 
    public:
     UVEStoreFifo(UVEStreamingEngineParams *params);
 
     bool tick(CallbackInfo *res);
-    SmartReturn getData(int sid);
+    SmartReturn getData(StreamID sid);
     void init();
-    SmartReturn insert_data(StreamID sid, uint32_t ssid, CoreContainer data);
-    SmartReturn reserve(StreamID sid, uint16_t *ssid);
+    SmartReturn insert_data(StreamID sid, SubStreamID ssid,
+                            CoreContainer data);
+    SmartReturn reserve(StreamID sid, SubStreamID *ssid);
     SmartReturn full(StreamID sid);
     SmartReturn ready(StreamID sid);
     SmartReturn ready();
-    SmartReturn squash(StreamID sid, uint16_t ssid);
+    SmartReturn squash(StreamID sid, SubStreamID ssid);
     SmartReturn shouldSquash(StreamID sid);
-    SmartReturn commit(StreamID sid, uint16_t ssid);
+    SmartReturn commit(StreamID sid, SubStreamID ssid);
     void synchronizeLists(StreamID sid);
     SmartReturn clear(StreamID sid);
     SmartReturn isFinished(StreamID sid);

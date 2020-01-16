@@ -280,6 +280,7 @@ class SEInterface {
             StreamID sid = getStreamConfigSid(sn);
             stream_rename.freeStream(sid);
             retireStreamConfigInst(sn);
+            engine->endStreamFromSquash(sid);
             DPRINTF(UVERename, "SquashStreamConfig: %d. SeqNum[%d]\n", sid,
                     sn);
         }
@@ -359,12 +360,13 @@ class SEInterface {
                             InstSeqNum sn) {
         if (!isInstMeaningful(sn)) return;
         StreamID sid = getStreamLoad(arch.index());
+        DPRINTF(UVERename, "squashToBufferLoadTrt: %d, %p. SeqNum[%d] \n",
+                arch.index(), phys, sn);
 
         if (!registerBufferLoad[sid]->empty()) {
-            if (std::get<1>(registerBufferLoad[sid]->back()) == phys &&
-                std::get<0>(registerBufferLoad[sid]->back()) == arch) {
-                registerBufferLoad[sid]->pop_back();
-                speculationPointerLoad[sid]--;
+            if (std::get<1>(registerBufferLoad[sid]->front()) == phys &&
+                std::get<0>(registerBufferLoad[sid]->front()) == arch) {
+                registerBufferLoad[sid]->pop_front();
                 auto lookup_stream = stream_rename.getStreamLoad(arch.index());
                 if (engine->shouldSquashLoad(lookup_stream.second).isOk()) {
                     SmartReturn result =
@@ -391,7 +393,8 @@ class SEInterface {
         retireStreamConfigInst(sn);
 
         StreamID sid = getStreamLoad(arch.index());
-
+        DPRINTF(UVERename, "CommitToBufferLoadTry: %d, %p. SeqNum[%d]. \n",
+                sid, phys, sn);
         auto bufferEnd = registerBufferLoad[sid]->back();
         if (std::get<2>(bufferEnd)) {
             if (std::get<1>(bufferEnd) == phys &&
@@ -436,7 +439,7 @@ class SEInterface {
             // desyncronization with this one
             engine->synchronizeStoreLists(sid);
         }
-        uint16_t ssid = engine->reserveStoreEntry(sid);
+        SubStreamID ssid = engine->reserveStoreEntry(sid);
         registerBufferStore[sid]->push_front(
             std::make_tuple(arch, phys, false, ssid));
     }
@@ -454,7 +457,7 @@ class SEInterface {
                     DPRINTF(UVERename,
                             "fillOnBufferStore: %d, %p. SeqNum[%d]\n", sid,
                             phys, sn);
-                    uint16_t ssid = std::get<3>(*iter);
+                    SubStreamID ssid = std::get<3>(*iter);
                     engine->setDataStore(sid, ssid, val);
                     return true;
                 }
@@ -470,11 +473,11 @@ class SEInterface {
         StreamID sid = getStreamStore(arch.index());
 
         if (!registerBufferStore[sid]->empty()) {
-            if (std::get<1>(registerBufferStore[sid]->back()) == phys &&
-                std::get<0>(registerBufferStore[sid]->back()) == arch) {
-                uint16_t ssid = std::get<3>(registerBufferStore[sid]->back());
-                registerBufferStore[sid]->pop_back();
-                speculationPointerStore[sid]--;
+            if (std::get<1>(registerBufferStore[sid]->front()) == phys &&
+                std::get<0>(registerBufferStore[sid]->front()) == arch) {
+                SubStreamID ssid =
+                    std::get<3>(registerBufferStore[sid]->front());
+                registerBufferStore[sid]->pop_front();
                 auto lookup_stream =
                     stream_rename.getStreamStore(arch.index());
                 if (engine->shouldSquashStore(lookup_stream.second).isOk()) {
@@ -501,7 +504,7 @@ class SEInterface {
 
         auto bufferEnd = registerBufferStore[sid]->back();
         if (std::get<1>(bufferEnd) == phys && std::get<0>(bufferEnd) == arch) {
-            uint16_t ssid = std::get<3>(bufferEnd);
+            SubStreamID ssid = std::get<3>(bufferEnd);
             registerBufferStore[sid]->pop_back();
             speculationPointerStore[sid]--;
             auto lookup_stream =

@@ -140,7 +140,7 @@ SEInterface<Impl>::_signalEngineReady(CallbackInfo info) {
         SmartReturn result = engine->getDataLoad(lookup_result);
         result.ASSERT();
         CoreContainer *cnt = (CoreContainer *)result.getData();
-        assert(cnt->is_streaming());
+        // assert(cnt->is_streaming());
         // Set data in reg file
         cpu->setVecReg(regs.second, *cnt);
         // Wake Dependents and set scoreboard

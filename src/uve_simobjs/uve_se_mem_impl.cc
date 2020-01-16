@@ -138,10 +138,9 @@ SEprocessing::executeRequest(SERequestInfo info){
 }
 
 void
-SEprocessing::accessMemory(Addr addr, int size, int sid, int ssid,
-                        BaseTLB::Mode mode, uint8_t *data,
-                        ThreadContext * tc)
-{
+SEprocessing::accessMemory(Addr addr, int size, StreamID sid, SubStreamID ssid,
+                           BaseTLB::Mode mode, uint8_t *data,
+                           ThreadContext *tc) {
     Addr paddr;
     if (mode == BaseTLB::Mode::Write ||
         !iterQueue[sid]->translatePaddr(&paddr)) {
@@ -160,8 +159,8 @@ SEprocessing::accessMemory(Addr addr, int size, int sid, int ssid,
             req->splitOnVaddr(this->splitAddressOnPage(addr, size), req1,
                               req2);
 
-            WholeTranslationState *state = new WholeTranslationState(
-                req, req1, req2, new uint8_t[size], NULL, mode);
+            WholeTranslationState *state =
+                new WholeTranslationState(req, req1, req2, data, NULL, mode);
             DataTranslation<SEprocessing *> *trans1 =
                 new DataTranslation<SEprocessing *>(this, state, 0);
             DataTranslation<SEprocessing *> *trans2 =
@@ -195,8 +194,14 @@ void
 SEprocessing::finishTranslation(WholeTranslationState *state)
 {
     if (state->getFault() != NoFault) {
-        panic("Page fault in SEprocessing. Addr: %#x, Name: %s\n",
-              state->mainReq->getVaddr(), state->getFault()->name());
+        // JMFIXME: Must continue with the processing. Executing with
+        // speculation can give rise to page faults
+        // panic("Page fault in SEprocessing. Addr: %#x, Name: %s\n",
+        //       state->mainReq->getVaddr(), state->getFault()->name());
+        DPRINTF(JMDEVEL,
+                "Page fault found, prooceding. For now doing nothing.\n");
+        delete state;
+        return;
     }
 
     //Save the physical addr in the iterator
@@ -242,7 +247,7 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
         Request::FlagsType flags = 0;
         req = std::make_shared<Request>(gen.addr(), gen.size(), flags, 0);
 
-        auto ssid = ++ssidArray[sid];
+        SubStreamID ssid = ++ssidArray[sid];
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
 
@@ -308,6 +313,15 @@ SEprocessing::recvData(PacketPtr pkt){
     std::stringstream str;
 
     SEIterPtr iter = iterQueue[sid];
+    // Special case for in-fligth transactions on canceled streams
+    if (iter->empty() && iter->ended().isNok()) {
+        DPRINTF(
+            JMDEVEL,
+            "Iteration Object with sid %d was empty. In-fligth transaction "
+            "detected.\n",
+            sid);
+        return;
+    }
     uint8_t width = iter->getWidth();
     int size = pkt->getSize()/width;
 
@@ -513,14 +527,28 @@ SmartReturn
 SEprocessing::MemoryWriteHandler::consume_addr_unit() {
     // Check if there is an address in the queue, return it
     if (!addr_queue.empty()) {
-        SERequestInfo *info = addr_queue.front();
-        addr_queue.pop();
-        return SmartReturn::ok((void *)info);
+        auto _back = addr_queue.back();
+        while (_back.first == -1) {
+            addr_queue.pop_back();
+            _back = addr_queue.back();
+        }
+        addr_queue.pop_back();
+        return SmartReturn::ok((void *)_back.second);
     } else
         return SmartReturn::nok();
 }
 
 void
+SEprocessing::MemoryWriteHandler::squash(StreamID sid) {
+    auto iter = addr_queue.begin();
+    while (iter != addr_queue.end()) {
+        if (iter->first == sid) iter->first = -1;
+        iter++;
+    }
+}
+
+void
 SEprocessing::MemoryWriteHandler::queueMemoryWrite(SERequestInfo info) {
-    addr_queue.push(new SERequestInfo(info));
+    addr_queue.push_front(
+        std::make_pair((StreamID)info.sid, new SERequestInfo(info)));
 }

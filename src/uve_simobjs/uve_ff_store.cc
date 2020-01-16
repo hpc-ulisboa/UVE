@@ -36,7 +36,7 @@ UVEStoreFifo::tick(CallbackInfo *info) {
 }
 
 SmartReturn
-UVEStoreFifo::getData(int sid) {
+UVEStoreFifo::getData(StreamID sid) {
     // Check if fifo is ready and if so give data to the engine
     if (fifos[sid]->storeReady().isTrue()) {
         auto entry = fifos[sid]->storeGet();
@@ -52,7 +52,7 @@ UVEStoreFifo::synchronizeLists(StreamID sid) {
 }
 
 SmartReturn
-UVEStoreFifo::reserve(StreamID sid, uint16_t *ssid) {
+UVEStoreFifo::reserve(StreamID sid, SubStreamID *ssid) {
     // Reserve space in fifo. This reserve comes from the cpu in the rename
     SmartReturn result = fifos[sid]->full();
     if (result.isError() || result.isTrue()) {
@@ -70,7 +70,7 @@ UVEStoreFifo::reserve(StreamID sid, uint16_t *ssid) {
 }
 
 SmartReturn
-UVEStoreFifo::insert_data(StreamID sid, uint32_t ssid, CoreContainer data) {
+UVEStoreFifo::insert_data(StreamID sid, SubStreamID ssid, CoreContainer data) {
     // If not empty try and merge
     //  Not Succeded: Create new entry
     //      If full: Warn no more space
@@ -108,7 +108,7 @@ UVEStoreFifo::ready() {
 }
 
 SmartReturn
-UVEStoreFifo::squash(StreamID sid, uint16_t ssid) {
+UVEStoreFifo::squash(StreamID sid, SubStreamID ssid) {
     return fifos[sid]->storeSquash(ssid);
 }
 
@@ -118,7 +118,7 @@ UVEStoreFifo::shouldSquash(StreamID sid) {
 }
 
 SmartReturn
-UVEStoreFifo::commit(StreamID sid, uint16_t ssid) {
+UVEStoreFifo::commit(StreamID sid, SubStreamID ssid) {
     return fifos[sid]->storeCommit(ssid);
 }
 

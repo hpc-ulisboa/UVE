@@ -76,7 +76,8 @@ typedef enum  {
     end = 'e',
     simple = 'i'
 }StreamType;
-typedef uint8_t StreamID;
+typedef int8_t StreamID;
+typedef uint32_t SubStreamID;
 BOOST_STRONG_TYPEDEF(StreamID, ArchStreamID)
 BOOST_STRONG_TYPEDEF(StreamID, PhysStreamID)
 
@@ -381,7 +382,7 @@ struct SERequestInfo{
     uint8_t width;
     uint8_t iterations;
     SEIterationStatus status;
-    uint8_t sequence_number;
+    int64_t sequence_number;
     Addr initial_paddr;
     StreamID sid;
     ThreadContext * tc;
@@ -398,8 +399,8 @@ class SEIter: public SEList<DimensionObject> {
         tnode * current_nd;
         tnode * current_dim;
         uint64_t elem_counter;
-        int16_t sequence_number;
-        int16_t end_ssid;
+        int64_t sequence_number;
+        int64_t end_ssid;
         SEIterationStatus status;
         uint64_t head_stride;
         SERequestInfo cur_request;
@@ -654,7 +655,7 @@ class SEIter: public SEList<DimensionObject> {
         SmartReturn ended() {
             return SmartReturn::compare(status == SEIterationStatus::Ended);
         }
-        uint8_t get_end_ssid(){return end_ssid;}
+        int64_t get_end_ssid() { return end_ssid; }
 
         void stall() { status = SEIterationStatus::Stalled; }
         void resume() { status = SEIterationStatus::Running; }

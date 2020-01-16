@@ -1434,11 +1434,19 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
         {
             PhysRegIdPtr dest_reg =
                 squashed_inst->renamedDestRegIdx(dest_reg_idx);
+            // JMNOTE: Squash destination registers
+            RegId arch = squashed_inst->destRegIdx(dest_reg_idx);
+            if (squashed_inst->isStreamInst() && dest_reg->isVectorPhysReg() &&
+                cpu->getSEICpuPtr()->isStreamStore(arch.index())) {
+                cpu->getSEICpuPtr()->squashToBufferStore(
+                    arch, dest_reg, squashed_inst->getSeqNum());
+            }
             if (dest_reg->isFixedMapping()){
                 continue;
             }
             assert(dependGraph.empty(dest_reg->flatIndex()));
             dependGraph.clearInst(dest_reg->flatIndex());
+
         }
         instList[tid].erase(squash_it--);
         ++iqSquashedInstsExamined;

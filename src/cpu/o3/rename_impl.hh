@@ -1645,6 +1645,7 @@ DefaultRename<Impl>::incrFullStat(const FullSource &source)
           break;
       case SLF:
           ++renameUVESLFFullEvents;
+          break;
       default:
         panic("Rename full stall stat should be incremented for a reason!");
         break;
