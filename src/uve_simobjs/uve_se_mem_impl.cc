@@ -150,6 +150,7 @@ SEprocessing::accessMemory(Addr addr, int size, StreamID sid, SubStreamID ssid,
         req->setVirt(0,addr,size,0,0,0);
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
+        // req->setFlags(Request::PREFETCH);
         DPRINTF(JMDEVEL, "Translating for addr %#x\n", req->getVaddr());
 
         // Check if the data is only in one page:
@@ -184,6 +185,7 @@ SEprocessing::accessMemory(Addr addr, int size, StreamID sid, SubStreamID ssid,
         RequestPtr req = std::make_shared<Request>(paddr, size, 0, 0);
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
+        // req->setFlags(Request::PREFETCH);
         sendDataRequest(req, data, mode == BaseTLB::Read);
         iterQueue[sid]->setPaddr(paddr, false);
     }
@@ -244,7 +246,7 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
         // If so: Go back with the iteration: For that the next cycle takes
         // care of that
 
-        Request::FlagsType flags = 0;
+        Request::FlagsType flags = 0;  // = Request::PREFETCH;
         req = std::make_shared<Request>(gen.addr(), gen.size(), flags, 0);
 
         SubStreamID ssid = ++ssidArray[sid];

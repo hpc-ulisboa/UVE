@@ -1082,8 +1082,7 @@ DefaultRename<Impl>::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
             freeList->addReg(hb_it->newPhysReg);
 
             // Need to squash in streaming engine
-            if (hb_it->archReg.isVecReg() &&
-                cpu->getSEICpuPtr()->isStreamLoad(hb_it->archReg.index())) {
+            if (hb_it->archReg.isVecReg()) {
                 cpu->getSEICpuPtr()->squashDestToBuffer(hb_it->archReg,
                                                         hb_it->newPhysReg,
                                                         hb_it->instSeqNum);

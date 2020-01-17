@@ -76,9 +76,9 @@ class StreamRename {
     }
 
     std::pair<bool, StreamID> getStream(StreamID sid) {
-        if (map[sid].used)
-            DPRINTF(UVESEI, "Lookup: Stream %d points to %d.\n", sid,
-                    map[sid].renamed);
+        // if (map[sid].used)
+        //     DPRINTF(UVESEI, "Lookup: Stream %d points to %d.\n", sid,
+        //             map[sid].renamed);
         return std::make_pair(map[sid].used, map[sid].renamed);
     }
 
@@ -228,8 +228,9 @@ class SEInterface {
         } else {
             // squash can be both store and load. Let the methods solve this
             // problem themselfs
-            squashToBufferStore(arch, phys, sn);
-            squashToBufferLoad(arch, phys, sn);
+            if (isStreamLoad(arch.index())) squashToBufferLoad(arch, phys, sn);
+            if (isStreamStore(arch.index()))
+                squashToBufferStore(arch, phys, sn);
         }
     }
     void retireMeaningfulInst(InstSeqNum sn) {
@@ -360,7 +361,7 @@ class SEInterface {
                             InstSeqNum sn) {
         if (!isInstMeaningful(sn)) return;
         StreamID sid = getStreamLoad(arch.index());
-        DPRINTF(UVERename, "squashToBufferLoadTrt: %d, %p. SeqNum[%d] \n",
+        DPRINTF(UVERename, "squashToBufferLoadTry: %d, %p. SeqNum[%d] \n",
                 arch.index(), phys, sn);
 
         if (!registerBufferLoad[sid]->empty()) {
@@ -449,6 +450,8 @@ class SEInterface {
         // Sid is already physical
         if (!isInstMeaningful(sn)) return false;
 
+        DPRINTF(UVERename, "fillToBufferStoreTry: %d, %p. SeqNum[%d] \n",
+                arch.index(), phys, sn);
         StreamID sid = getStreamStore(arch.index());
         if (!registerBufferStore[sid]->empty()) {
             auto iter = registerBufferStore[sid]->begin();
@@ -472,6 +475,8 @@ class SEInterface {
         if (!isInstMeaningful(sn)) return;
         StreamID sid = getStreamStore(arch.index());
 
+        DPRINTF(UVERename, "squashToBufferStoreTry: %d, %p. SeqNum[%d] \n",
+                arch.index(), phys, sn);
         if (!registerBufferStore[sid]->empty()) {
             if (std::get<1>(registerBufferStore[sid]->front()) == phys &&
                 std::get<0>(registerBufferStore[sid]->front()) == arch) {
@@ -502,6 +507,8 @@ class SEInterface {
         if (!isInstMeaningful(sn)) return;
         StreamID sid = getStreamStore(arch.index());
 
+        DPRINTF(UVERename, "commitToBufferStoreTry: %d, %p. SeqNum[%d] \n",
+                arch.index(), phys, sn);
         auto bufferEnd = registerBufferStore[sid]->back();
         if (std::get<1>(bufferEnd) == phys && std::get<0>(bufferEnd) == arch) {
             SubStreamID ssid = std::get<3>(bufferEnd);
