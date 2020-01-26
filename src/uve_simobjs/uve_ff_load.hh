@@ -41,6 +41,22 @@ class FifoEntry : public CoreContainer {
         set_sid(sid);
         set_ssid(ssid);
     }
+    FifoEntry()
+        : CoreContainer(),
+          size(0),
+          csize(0),
+          config_size(0),
+          commit_ready(false) {  // Config size to be used in bytes
+        this->zero();
+        rstate = States::NotComplete;
+        cstate = States::Clean;
+        set_width(0);
+        set_streaming(false);
+        set_sid(0);
+        set_ssid(0);
+    }
+    ~FifoEntry() {}
+
     bool complete() { return rstate == States::Complete; }
     bool ready() { return cstate == States::Complete; }
 

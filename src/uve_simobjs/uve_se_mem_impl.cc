@@ -8,12 +8,17 @@ SEprocessing::SEprocessing(UVEStreamingEngineParams *params,
     : SimObject(params),
       tlb(params->tlb),
       offsetMask(mask(floorLog2(RiscvISA::PageBytes))),
-      cacheLineSize(params->system->cacheLineSize()) {
+      cacheLineSize(params->system->cacheLineSize()),
+      write_boss() {
     parent = _parent;
     write_boss.set_owner(this);
     for (int i = 0; i < 32; i++) {
         iterQueue[i] = new SEIter();
     }
+    load_pID = 0;
+    store_pID = 0;
+    load_pID--;
+    store_pID--;
     ssidArray.fill(-1);
 };
 

@@ -164,6 +164,17 @@ class StridePrefetcher(QueuedPrefetcher):
     replacement_policy = Param.BaseReplacementPolicy(RandomRP(),
         "Replacement policy")
 
+class StreamPrefetcher(QueuedPrefetcher):
+    type = 'StreamPrefetcher'
+    cxx_class = 'StreamPrefetcher'
+    cxx_header = "mem/cache/prefetch/stream.hh"
+    table_sets = Param.Int(16, "Number of sets in PC lookup table")
+    table_assoc = Param.Int(16, "Associativity of PC lookup table")
+    tableSize = Param.Int(8, "Number of sets in PC lookup table")
+    distance = Param.Int(5, "Associativity of PC look table")
+    use_master_id = Param.Bool(True, "Use master id based history")
+    degree = Param.Int(4, "Number of prefetches to generate")
+
 class TaggedPrefetcher(QueuedPrefetcher):
     type = 'TaggedPrefetcher'
     cxx_class = 'TaggedPrefetcher'

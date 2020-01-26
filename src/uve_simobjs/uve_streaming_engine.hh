@@ -239,14 +239,13 @@ class UVEStreamingEngine : public ClockedObject
   public:
     SEprocessing memCore;
     SEcontroller confCore;
-    ThreadContext * context;
     UVELoadFifo ld_fifo;
     UVEStoreFifo st_fifo;
 
    protected:
     Addr confAddr;
     Addr confSize;
-    Tick cycler = 0;
+    Tick cycler;
     std::function<void(CallbackInfo)> callback;
 
    public:

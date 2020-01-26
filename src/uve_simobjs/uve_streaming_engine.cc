@@ -8,7 +8,9 @@ UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams* params)
       ld_fifo(params),
       st_fifo(params),
       confAddr(params->start_addr),
-      confSize(32) {
+      confSize(32),
+      cycler(0) {
+    callback = nullptr;
     ld_fifo.init();
     st_fifo.init();
     // memCore->setConfCore(confCore);
