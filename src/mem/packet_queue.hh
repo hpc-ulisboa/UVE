@@ -219,6 +219,8 @@ class PacketQueue : public Drainable
       */
     void disableSanityCheck() { _disableSanityCheck = true; }
 
+    uint64_t getTransmitListSize() { return transmitList.size(); }
+
     DrainState drain() override;
 };
 

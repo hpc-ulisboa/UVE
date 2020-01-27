@@ -11,8 +11,6 @@ UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams* params)
       confSize(32),
       cycler(0) {
     callback = nullptr;
-    ld_fifo.init();
-    st_fifo.init();
     // memCore->setConfCore(confCore);
     // confCore->setMemCore(memCore);
     // confPort = new PioPort(this);
@@ -24,6 +22,8 @@ UVEStreamingEngine::init(){
     if (!memoryPort.isConnected())
         panic("Memory port of %s not connected to anything!", name());
     ClockedObject::init();
+    ld_fifo.init();
+    st_fifo.init();
 }
 
 
@@ -110,11 +110,54 @@ UVEStreamingEngine::tick(){
       //     send_data_to_sei(elem.first, elem.second);
       // }
   }
+  memQueueDepth.sample(getMemPort()->getTransmitListSize());
 }
 
 void
 UVEStreamingEngine::regStats(){
-  ClockedObject::regStats();
+    ClockedObject::regStats();
+
+    using namespace Stats;
+
+    // Number of times a stream was configured - Scalar
+    numStreamConfig.init(confSize)
+        .name(name() + ".numStreamConfig")
+        .desc("Number of times a stream was configured");
+    // "" Squashed - Scalar
+    numStreamSquashed.init(confSize)
+        .name(name() + ".numStreamSquashed")
+        .desc("Number of times a stream was squashed");
+    // "" Completed - Scalar
+    numStreamCompleted.init(confSize)
+        .name(name() + ".numStreamCompleted")
+        .desc("Number of times a stream was completed successfully");
+    // Memory accesses - Scalar
+    numStreamMemAccesses.init(confSize)
+        .name(name() + ".numStreamMemAccesses")
+        .desc("Number of memory accesses");
+    // Read bytes - Scalar
+    numStreamMemBytes.init(confSize)
+        .name(name() + ".numStreamMemBytes")
+        .desc("Number of memory bytes transacted");
+    // Cycles between start and completion - Distribution
+    streamExecutionCycles.init(confSize, 0, 2048, 1024)
+        .name(name() + ".streamExecutionCycles")
+        .desc("Cycles the stream took to successfully complete");
+    // Cycles of stream processing - Scalar
+    streamProcessingCycles.init(confSize)
+        .name(name() + ".streamProcessingCycles")
+        .desc("Number of cycles the stream was being processed");
+    // Mem queue depth (max, avg) - Distribution
+    memQueueDepth.init(0, 200, 50)
+        .name(name() + ".memQueueDepth")
+        .desc("Memory request queue depth");
+    // Cycles mem request took (avg, min, max) - Distribution
+    memRequestCycles.init(32, 0, 100, 10)
+        .name(name() + ".memRequestCycles")
+        .desc("Cycles a memory request took");
+
+    ld_fifo.regStats();
+    st_fifo.regStats();
 }
 
 void
@@ -212,7 +255,6 @@ UVEStreamingEngine::endStreamStore(StreamID sid) {
     if (!result.isOk()) return result;
     // Clear Processing
     result = memCore.clear(sid);
-
     return result;
 }
 

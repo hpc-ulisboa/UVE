@@ -25,6 +25,7 @@ class FifoEntry : public CoreContainer {
     uint16_t size, csize;
     uint16_t config_size;
     bool commit_ready;
+    Tick start_time;
 
    public:
     FifoEntry(uint8_t width, uint16_t _cfg_sz, int sid, SubStreamID ssid)
@@ -32,7 +33,8 @@ class FifoEntry : public CoreContainer {
           size(0),
           csize(0),
           config_size(_cfg_sz / 8),
-          commit_ready(false) {  // Config size to be used in bytes
+          commit_ready(false),
+          start_time(curTick()) {  // Config size to be used in bytes
         this->zero();
         rstate = States::NotComplete;
         cstate = States::Clean;
@@ -46,7 +48,8 @@ class FifoEntry : public CoreContainer {
           size(0),
           csize(0),
           config_size(0),
-          commit_ready(false) {  // Config size to be used in bytes
+          commit_ready(false),
+          start_time(0) {  // Config size to be used in bytes
         this->zero();
         rstate = States::NotComplete;
         cstate = States::Clean;
@@ -65,6 +68,7 @@ class FifoEntry : public CoreContainer {
     bool reserve(uint16_t *_size, bool last);
     void set_ready_to_commit() { commit_ready = true; }
     bool is_ready_to_commit() { return commit_ready; }
+    Tick time() { return start_time; }
 };
 
 // Each fifo is composed of FifoEntry objects, which themselfs insert the data
@@ -165,6 +169,15 @@ class StreamFifo {
         return space > max_request_size ? max_request_size : space;
     }
 
+    uint16_t entries() {
+        uint16_t _entries = 0;
+        for (auto it = fifo_container->begin(); it != fifo_container->end();
+             it++) {
+            if (it->ready()) _entries++;
+        }
+        return _entries;
+    }
+
    private:
     uint16_t real_size();
 };
@@ -199,6 +212,15 @@ class UVELoadFifo : public SimObject {
     SmartReturn clear(StreamID sid);
     SmartReturn isFinished(StreamID sid);
     uint16_t getAvailableSpace(StreamID sid);
+
+   protected:
+    // Cycles at 0, 25, 50, 75, 90, 100. %
+    Stats::VectorDistribution fifo_occupancy;
+    // Cycles per entry (avg, max, min)
+    Stats::VectorDistribution entry_time;
+
+   public:
+    void regStats() override;
 };
 
 // This is the load fifo object that contains one fifo per stream
@@ -232,6 +254,15 @@ class UVEStoreFifo : public SimObject {
     SmartReturn clear(StreamID sid);
     SmartReturn isFinished(StreamID sid);
     uint16_t getAvailableSpace(StreamID sid);
+
+   protected:
+    // Cycles at 0, 25, 50, 75, 90, 100. %
+    Stats::VectorDistribution fifo_occupancy;
+    // Cycles per entry (avg, max, min)
+    Stats::VectorDistribution entry_time;
+
+   public:
+    void regStats() override;
 };
 
 #endif  //__UVE_SIMOBJS_FIFO_LOAD_HH__

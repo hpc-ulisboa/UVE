@@ -20,12 +20,14 @@ SEcontroller::recvCommand(SECommand cmd) {
     cmdQueue[sID].push(cmd);
     if(cmd.isLast()){
         SEStack * que = &cmdQueue[sID];
-        SEIterPtr stream_iterator = new SEIter(que);
+        SEIterPtr stream_iterator = new SEIter(que, curTick());
         //Send iterator to processing engine
         if (!memCore->setIterator(sID, stream_iterator)) {
             DPRINTF(UVESE, "Starting Stream: Stream %d is not available.\n",
                     sID);
             delete stream_iterator;
+        } else {
+            parent->numStreamConfig[sID]++;
         }
     }
     return SmartReturn::ok();

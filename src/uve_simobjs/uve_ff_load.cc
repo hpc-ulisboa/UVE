@@ -25,6 +25,7 @@ UVELoadFifo::tick(CallbackInfo *info) {
         if (fifos[i]->ready().isOk()) {
             info->psids[++k] = i;
         }
+        fifo_occupancy[i].sample(fifos[i]->entries());
     }
     if (k != -1) {
         info->psids_size = k + 1;
@@ -38,6 +39,7 @@ UVELoadFifo::getData(StreamID sid) {
     // Check if fifo is ready and if so, organize data to the cpu;
     if (fifos[sid]->ready().isTrue()) {
         auto entry = fifos[sid]->get();
+        entry_time[sid].sample(Cycles(curTick() - entry.time()));
         return SmartReturn::ok((void *)new CoreContainer(entry));
     } else {
         return SmartReturn::nok();
@@ -140,6 +142,20 @@ UVELoadFifo::getAvailableSpace(StreamID sid) {
     // JMFIXME: Probably will not work (use start and end counter, keep state
     // of configuration start and end)
     return fifos[sid]->availableSpace();
+}
+
+void
+UVELoadFifo::regStats() {
+    SimObject::regStats();
+    using namespace Stats;
+    // Cycles at 0, 25, 50, 75, 90, 100. %
+    fifo_occupancy.init(32, 0, fifo_depth, 1)
+        .name(name() + ".load.occupancy")
+        .desc("Occupancy of the fifo for stream x.");
+    // Cycles per entry (avg, max, min)
+    entry_time.init(32, 0, 1000, 100)
+        .name(name() + ".load.entry_time")
+        .desc("Time a entry is in the fifo x, in cycles");
 }
 
 void

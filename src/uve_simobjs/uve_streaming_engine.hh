@@ -139,13 +139,7 @@ class SEprocessing : SimObject
 
    public:
     bool samePage(Addr a, Addr b) { return (pageAlign(a) == pageAlign(b)); }
-    SmartReturn clear(StreamID sid) {
-        delete iterQueue[sid];
-        iterQueue[sid] = new SEIter();
-        this->ssidArray[sid] = -1;
-        write_boss.squash(sid);
-        return SmartReturn::ok();
-    }
+    SmartReturn clear(StreamID sid);
 };
 
 /*
@@ -211,7 +205,9 @@ class UVEStreamingEngine : public ClockedObject
        */
       // void sendPacket(PacketPtr pkt);
 
-    protected:
+      uint64_t getTransmitListSize() { return queue.getTransmitListSize(); }
+
+     protected:
       /**
        * Receive a timing response from the slave port.
        */
@@ -241,6 +237,24 @@ class UVEStreamingEngine : public ClockedObject
     SEcontroller confCore;
     UVELoadFifo ld_fifo;
     UVEStoreFifo st_fifo;
+    // Number of times a stream was configured
+    Stats::Vector numStreamConfig;
+    // "" Squashed
+    Stats::Vector numStreamSquashed;
+    // "" Completed
+    Stats::Vector numStreamCompleted;
+    // Memory accesses
+    Stats::Vector numStreamMemAccesses;
+    // Read bytes
+    Stats::Vector numStreamMemBytes;
+    // Cycles between start and completion
+    Stats::VectorDistribution streamExecutionCycles;
+    // Cycles of stream processing
+    Stats::Vector streamProcessingCycles;
+    // Mem queue depth (max, avg)
+    Stats::Distribution memQueueDepth;
+    // Cycles mem request took (avg, min, max)
+    Stats::VectorDistribution memRequestCycles;
 
    protected:
     Addr confAddr;
@@ -307,6 +321,13 @@ class UVEStreamingEngine : public ClockedObject
     SmartReturn isFinished(StreamID sid) {
         return ld_fifo.isFinished(sid).AND(memCore.isCompleted(sid));
     }
+
+    void sampleStreamExecutionCycles(StreamID sid, Cycles _time) {
+        streamExecutionCycles[sid].sample(_time);
+    }
+
+    void incStreamCompleted(StreamID sid) { numStreamCompleted[sid]++; }
+    void incStreamSquashed(StreamID sid) { numStreamSquashed[sid]++; }
 };
 
 #endif // __UVE_STREAMING_ENGINE_HH__

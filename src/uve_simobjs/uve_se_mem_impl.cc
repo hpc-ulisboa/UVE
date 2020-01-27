@@ -52,6 +52,7 @@ SEprocessing::tick_load() {
     }
 
     DPRINTF(JMDEVEL, "Settled on load_auxID:%d\n", load_auxID);
+    parent->streamProcessingCycles[load_auxID]++;
     load_pID = load_auxID;
     SERequestInfo request_info =
         iterQueue[load_pID]->advance(max_advance_size);
@@ -99,6 +100,7 @@ SEprocessing::tick_store() {
     }
 
     DPRINTF(JMDEVEL, "Settled on store_auxID:%d\n", store_auxID);
+    parent->streamProcessingCycles[store_auxID]++;
     store_pID = store_auxID;
     SERequestInfo request_info =
         iterQueue[store_pID]->advance(max_advance_size);
@@ -119,6 +121,21 @@ SEprocessing::tick() {
     tick_store();
     write_boss.tick();
     return;
+}
+
+SmartReturn
+SEprocessing::clear(StreamID sid) {
+    if (iterQueue[sid]->ended().isOk()) {
+        Cycles _time = Cycles(curTick() - iterQueue[sid]->time());
+        parent->sampleStreamExecutionCycles(sid, _time);
+        parent->incStreamCompleted(sid);
+    } else
+        parent->incStreamSquashed(sid);
+    delete iterQueue[sid];
+    iterQueue[sid] = new SEIter();
+    this->ssidArray[sid] = -1;
+    write_boss.squash(sid);
+    return SmartReturn::ok();
 }
 
 void
@@ -276,6 +293,7 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
                 read ? "Read" : "Write", gen.addr(), gen.size(), ssid);
         parent->getMemPort()->schedTimingReq(pkt,
                                              parent->nextAvailableCycle());
+        parent->numStreamMemAccesses[sid]++;
     }
 }
 
@@ -351,6 +369,10 @@ SEprocessing::recvData(PacketPtr pkt){
     }
     //Insert data into fifo
     parent->ld_fifo.insert(sid, ssid, memData);
+    Tick start_time = pkt->req->time();
+    Tick end_time = curTick();
+    parent->memRequestCycles[sid].sample(Cycles(end_time - start_time));
+    parent->numStreamMemBytes[sid] += pkt->getSize();
 }
 
 void

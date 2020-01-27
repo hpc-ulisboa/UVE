@@ -389,6 +389,20 @@ struct SERequestInfo{
     StreamMode mode;
 };
 
+SERequestInfo static makeSERequestInfo() {
+    SERequestInfo a;
+    a.initial_offset = 0;
+    a.final_offset = 0;
+    a.width = 0;
+    a.iterations = 0;
+    a.status = SEIterationStatus::Clean;
+    a.sequence_number = 0;
+    a.initial_paddr = 0;
+    a.sid = 0;
+    a.tc = nullptr;
+    a.mode = StreamMode::load;
+    return a;
+}
 
 class SEIter: public SEList<DimensionObject> {
     private:
@@ -401,6 +415,7 @@ class SEIter: public SEList<DimensionObject> {
         uint64_t elem_counter;
         int64_t sequence_number;
         int64_t end_ssid;
+        Tick start_tick;
         SEIterationStatus status;
         uint64_t head_stride;
         SERequestInfo cur_request;
@@ -417,50 +432,70 @@ class SEIter: public SEList<DimensionObject> {
         }StopReason;
 
     public:
-        SEIter(SEStack * cmds):
-        SEList(),
-        elem_counter(0), sequence_number(-1), end_ssid(-1){
-            //JMTODO: Create iterator from cmds
-            //Validate all commands
-            //Create iteration tree
-            //Empty Stack
-            status = SEIterationStatus::Configured;
-            DPRINTF(JMDEVEL, "SEIter constructor\n");
+     SEIter(SEStack* cmds, Tick _start_tick)
+         : SEList(),
+           elem_counter(0),
+           sequence_number(-1),
+           end_ssid(-1),
+           start_tick(_start_tick) {
+         // JMTODO: Create iterator from cmds
+         // Validate all commands
+         // Create iteration tree
+         // Empty Stack
+         status = SEIterationStatus::Configured;
+         DPRINTF(JMDEVEL, "SEIter constructor\n");
 
-            SECommand cmd = cmds->front();
-            width = cmd.get_width();
-            head_stride = cmd.get_dimension()->get_stride();
-            tc = cmd.get_tc();
-            sid = cmd.getStreamID();
-            mode = cmd.isLoad() ? StreamMode::load : StreamMode::store;
+         SECommand cmd = cmds->front();
+         width = cmd.get_width();
+         head_stride = cmd.get_dimension()->get_stride();
+         tc = cmd.get_tc();
+         sid = cmd.getStreamID();
+         mode = cmd.isLoad() ? StreamMode::load : StreamMode::store;
 
-            insert_dim(new DimensionObject(cmd.get_dimension(), width, true));
-            cmds->pop();
+         insert_dim(new DimensionObject(cmd.get_dimension(), width, true));
+         cmds->pop();
 
-            DimensionObject* dimobj;
-            while (!cmds->empty()) {
-                cmd = cmds->front();
-                if (cmds->size() == 1) {
-                    dimobj = new DimensionObject(cmd.get_dimension(), width,
-                                                 false, true);
-                } else {
-                    dimobj = new DimensionObject(cmd.get_dimension(), width);
-                }
+         DimensionObject* dimobj;
+         while (!cmds->empty()) {
+             cmd = cmds->front();
+             if (cmds->size() == 1) {
+                 dimobj = new DimensionObject(cmd.get_dimension(), width,
+                                              false, true);
+             } else {
+                 dimobj = new DimensionObject(cmd.get_dimension(), width);
+             }
 
-                DPRINTF(JMDEVEL, "Inserting command: %s\n", cmd.to_string());
+             DPRINTF(JMDEVEL, "Inserting command: %s\n", cmd.to_string());
 
-                if(cmd.isDimension())
-                    insert_dim(dimobj);
-                else
-                    insert_mod(dimobj);
-                cmds->pop();
-            }
-            DPRINTF(JMDEVEL, "Tree: \n%s\n",this->to_string());
-            initial_offset = initial_offset_calculation(true);
-            current_dim = get_end();
+             if (cmd.isDimension())
+                 insert_dim(dimobj);
+             else
+                 insert_mod(dimobj);
+             cmds->pop();
+         }
+         DPRINTF(JMDEVEL, "Tree: \n%s\n", this->to_string());
+         initial_offset = initial_offset_calculation(true);
+         current_dim = get_end();
         }
         SEIter() {
             status = SEIterationStatus::Clean;
+            pageFunction = nullptr;
+            sid = 0;
+            initial_offset = 0;
+            width = 0;
+            current_nd = nullptr;
+            current_dim = nullptr;
+            elem_counter = 0;
+            sequence_number = 0;
+            end_ssid = 0;
+            start_tick = 0;
+            head_stride = 0;
+            cur_request = makeSERequestInfo();
+            last_request = makeSERequestInfo();
+            tc = nullptr;
+            page_jump = false;
+            page_jump_vaddr = 0;
+            mode = StreamMode::load;
         }
         ~SEIter(){}
 
@@ -661,6 +696,8 @@ class SEIter: public SEList<DimensionObject> {
         void resume() { status = SEIterationStatus::Running; }
         bool stalled() { return status == SEIterationStatus::Stalled; }
         bool is_load() { return mode == StreamMode::load; }
+
+        Tick time() { return start_tick; }
 };
 
 using SEIterPtr = SEIter *;
