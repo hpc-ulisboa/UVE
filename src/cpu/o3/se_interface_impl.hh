@@ -99,17 +99,7 @@ template <class Impl>
 bool
 SEInterface<Impl>::sendCommand(SECommand cmd){
     SmartReturn result = engine->recvCommand(cmd);
-    if (result.isError()) panic("Error" + result.estr());
-    return result.isOk();
-}
-
-template <class Impl>
-bool
-SEInterface<Impl>::fetch(StreamID sid, TheISA::VecRegContainer **cnt) {
-    auto renamed = stream_rename.getStreamLoad(sid);
-    assert(renamed.first || "Rename Should be true at this point");
-    SmartReturn result = engine->ld_fifo.fetch(renamed.second, cnt);
-    if (result.isError()) panic("Error" + result.estr());
+    if (result.isError()) panic("Error");
     return result.isOk();
 }
 
@@ -119,7 +109,7 @@ SEInterface<Impl>::isReady(StreamID sid) {
     auto renamed = stream_rename.getStreamLoad(sid);
     assert(renamed.first || "Rename Should be true at this point");
     SmartReturn result = engine->ld_fifo.ready(renamed.second);
-    if (result.isError()) panic("Error" + result.estr());
+    if (result.isError()) panic("Error");
     return result.isOk();
 }
 
@@ -143,6 +133,7 @@ SEInterface<Impl>::_signalEngineReady(CallbackInfo info) {
         // assert(cnt->is_streaming());
         // Set data in reg file
         cpu->setVecReg(regs.second, *cnt);
+        delete cnt;
         // Wake Dependents and set scoreboard
         iewStage->instQueue.wakeDependents(regs.second);
         return;

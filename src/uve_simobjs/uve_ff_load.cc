@@ -59,8 +59,8 @@ UVELoadFifo::reserve(StreamID sid, SubStreamID ssid, uint8_t size,
     if (result.isError() || result.isTrue()) {
         std::stringstream s;
         s << "Trying to reserve on fifo " << (int)sid
-          << " with no space available. "
-          << (result.isError() ? " Error: " + result.estr() : "") << "\n";
+          << " with no space available. " << (result.isError() ? " Error" : "")
+          << "\n";
         panic(s.str());
     }
     fifos[sid]->insert(size, ssid, width, last);
@@ -78,22 +78,6 @@ UVELoadFifo::insert(StreamID sid, SubStreamID ssid, CoreContainer data) {
         return SmartReturn::ok();
     }
     return SmartReturn::nok();
-}
-
-SmartReturn
-UVELoadFifo::fetch(StreamID sid, CoreContainer **cnt) {
-    if (fifos[sid]->ready().isOk()) {
-        // cnt = new SmartContainer(to_smart(fifos[sid].get()));
-        FifoEntry entry = fifos[sid]->get();
-        *cnt = new CoreContainer(entry);
-        return SmartReturn::ok();
-    }
-    else {
-        *cnt = nullptr;
-        std::stringstream s;
-        s << "Fetch called when fifo[" << sid << "] not ready";
-        return SmartReturn::error(s.str());
-    }
 }
 
 SmartReturn
@@ -304,8 +288,7 @@ StreamFifo::synchronizeLists() {
 
 SmartReturn
 StreamFifo::commit() {
-    if (empty().isOk())
-        return SmartReturn::error("Commiting on empty StreamFifo");
+    if (empty().isOk()) return SmartReturn::error();
 
     auto elem = fifo_container->back();
 
@@ -334,8 +317,7 @@ StreamFifo::commit() {
 
 SmartReturn
 StreamFifo::squash() {
-    if (empty().isOk())
-        return SmartReturn::error("Squashing on empty StreamFifo");
+    if (empty().isOk()) return SmartReturn::error();
     speculationPointer--;
     DPRINTF(UVEFifo,
             "Squash on fifo[%d]. Size[%d]. Pointer Targeting ssid[%d].\n",
@@ -412,8 +394,7 @@ StreamFifo::storeCommit(SubStreamID ssid) {
 
 SmartReturn
 StreamFifo::storeDiscard(SubStreamID ssid) {
-    if (empty().isOk())
-        return SmartReturn::error("Store Discarding on empty StreamFifo");
+    if (empty().isOk()) return SmartReturn::error();
 
     auto elem = fifo_container->back();
 

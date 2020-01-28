@@ -60,9 +60,7 @@ UVEStoreFifo::reserve(StreamID sid, SubStreamID *ssid) {
     if (result.isError() || result.isTrue()) {
         std::stringstream s;
         s << "Trying to reserve on fifo " << (int)sid
-          << " with no space available" << result.isError()
-            ? " Error: " + result.estr()
-            : "";
+          << " with no space available" << (result.isError() ? "Error" : "");
         panic(s.str());
     }
     reservation_ssid[sid]++;
@@ -106,6 +104,7 @@ UVEStoreFifo::ready() {
             return SmartReturn::ok((void *)ret);
         }
     }
+    free(ret);
     return SmartReturn::nok();
 }
 

@@ -202,7 +202,6 @@ class UVELoadFifo : public SimObject {
     SmartReturn insert(StreamID sid, SubStreamID ssid, CoreContainer data);
     void reserve(StreamID sid, SubStreamID ssid, uint8_t size, uint8_t width,
                  bool last);
-    SmartReturn fetch(StreamID sid, CoreContainer **cnt);
     SmartReturn full(StreamID sid);
     SmartReturn ready(StreamID sid);
     SmartReturn squash(StreamID sid);

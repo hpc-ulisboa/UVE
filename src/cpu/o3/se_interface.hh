@@ -166,7 +166,6 @@ class SEInterface {
     void recvReqRetry();
     bool sendCommand(SECommand cmd);
     bool isReady(StreamID sid);
-    bool fetch(StreamID sid, TheISA::VecRegContainer **cnt);
 
     void tick() { engine->tick(); }
 
@@ -372,12 +371,12 @@ class SEInterface {
                 if (engine->shouldSquashLoad(lookup_stream.second).isOk()) {
                     SmartReturn result =
                         engine->squashLoad(lookup_stream.second);
-                    if (result.isNok() || result.isError())
-                        panic("Error" + result.estr());
+                    if (result.isNok() || result.isError()) panic("Error");
                     DPRINTF(UVERename,
                             "squashToBufferLoad: %d, %p. SeqNum[%d] \t "
                             "Result:%s\n",
-                            arch.index(), phys, sn, result.str());
+                            arch.index(), phys, sn,
+                            result.isOk() ? "Ok" : "Nok");
                 } else {
                     DPRINTF(UVERename,
                             "squashToBufferLoadOnly: %d, %p. SeqNum[%d]\n",
@@ -408,13 +407,12 @@ class SEInterface {
                 DPRINTF(UVERename,
                         "commitToBufferLoad: %d, %p. SeqNum[%d]. \t "
                         "Result:%s\n",
-                        sid, phys, sn, result.str());
+                        sid, phys, sn, result.isOk() ? "Ok" : "Nok");
                 if (result.isEnd()) {
                     clearBuffer(lookup_stream.second);
                 }
                 retireMeaningfulInst(sn);
-                if (result.isNok() || result.isError())
-                    panic("Error" + result.estr());
+                if (result.isNok() || result.isError()) panic("Error");
             }
         }
     }
@@ -488,12 +486,12 @@ class SEInterface {
                 if (engine->shouldSquashStore(lookup_stream.second).isOk()) {
                     SmartReturn result =
                         engine->squashStore(lookup_stream.second, ssid);
-                    if (result.isNok() || result.isError())
-                        panic("Error" + result.estr());
+                    if (result.isNok() || result.isError()) panic("Error");
                     DPRINTF(UVERename,
                             "squashToBufferStore: %d, %p. SeqNum[%d] \t "
                             "Result:%s\n",
-                            arch.index(), phys, sn, result.str());
+                            arch.index(), phys, sn,
+                            result.isOk() ? "Ok" : "Nok");
                 } else {
                     DPRINTF(UVERename,
                             "squashToBufferStoreOnly: %d, %p. SeqNum[%d]\n",
@@ -521,13 +519,12 @@ class SEInterface {
             DPRINTF(UVERename,
                     "commitToBufferStore: %d, %p. SeqNum[%d]. \t "
                     "Result:%s\n",
-                    sid, phys, sn, result.str());
+                    sid, phys, sn, result.isOk() ? "Ok" : "Nok");
             if (result.isEnd()) {
                 clearBuffer(lookup_stream.second);
             }
             retireMeaningfulInst(sn);
-            if (result.isNok() || result.isError())
-                panic("Error" + result.estr());
+            if (result.isNok() || result.isError()) panic("Error");
         }
     }
     bool checkStoreOccupancy(const RegId &arch) {

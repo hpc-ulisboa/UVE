@@ -153,7 +153,7 @@ SEprocessing::executeRequest(SERequestInfo info){
     uint64_t size = info.final_offset- info.initial_offset;
     if (info.mode == StreamMode::load) {
         accessMemory(info.initial_offset, size, info.sid, info.sequence_number,
-                     BaseTLB::Mode::Read, new uint8_t[size], info.tc);
+                     BaseTLB::Mode::Read, nullptr, info.tc);
     } else {
         write_boss.queueMemoryWrite(info);
     }
@@ -263,7 +263,7 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
     bool ended = iterQueue[sid]->ended().isOk();
 
     for (ChunkGenerator gen(ireq->getPaddr(), ireq->getSize(), cacheLineSize);
-        !gen.done(); gen.next()) {
+         !gen.done(); gen.next()) {
         // JMNOTE: We need to make sure that a page is not being crossed
         // If so: Go back with the iteration: For that the next cycle takes
         // care of that
@@ -282,12 +282,15 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
             parent->ld_fifo.reserve(sid, ssid, gen.size(), width, last_packet);
 
         req->taskId(ContextSwitchTaskId::DMA);
-        PacketPtr pkt = read ? Packet::createRead(req) :
-                               Packet::createWrite(req);
+        PacketPtr pkt =
+            read ? Packet::createRead(req) : Packet::createWrite(req);
 
         // Increment the data pointer on each request
-        if (data)
-            pkt->dataStatic(data + gen.complete());
+        uint8_t *data_blk = new uint8_t[gen.size()];
+        if (!read) {
+            memcpy(data_blk, data + gen.complete(), gen.size());
+        }
+        pkt->dataDynamic(data_blk);
 
         DPRINTF(JMDEVEL, "--[%s] Queuing for addr: %#x size: %d ssid[%d]\n",
                 read ? "Read" : "Write", gen.addr(), gen.size(), ssid);
@@ -383,6 +386,7 @@ RequestExecuteEvent::process(){
 void
 SEprocessing::MemoryWriteHandler::tick() {
     // Each tick it tries to write data into memory
+    // JMFIXME: HERE lies the memory leak > actually it was in the smart return
     SmartReturn res = consume_data();
     // 2.1. If there is data to write
     if (res.isOk()) {
@@ -558,6 +562,7 @@ SEprocessing::MemoryWriteHandler::consume_addr_unit() {
     if (!addr_queue.empty()) {
         auto _back = addr_queue.back();
         while (_back.first == -1) {
+            delete _back.second;
             addr_queue.pop_back();
             _back = addr_queue.back();
         }

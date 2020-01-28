@@ -16,15 +16,23 @@ class SmartReturn {
     } ReturnCode;
     ReturnCode status;
     void* data;
-    std::string error_str;
-    SmartReturn(ReturnCode rt, void* _data, std::string _str = std::string()) {
+    bool data_used;
+    SmartReturn(ReturnCode rt, void* _data) {
         status = rt;
         data = _data;
-        error_str = _str;
+        if (_data == NULL) {
+            data_used = true;
+        } else {
+            data_used = false;
+        }
     }
 
    public:
-    ~SmartReturn(){};
+    ~SmartReturn(){
+        // if (!data_used) {
+        //     // panic("Data in smart return not used!");
+        // }
+    };
     static SmartReturn ok(void* _data = NULL) {
         return SmartReturn(ReturnCode::OK, _data);
     }
@@ -37,37 +45,21 @@ class SmartReturn {
         return SmartReturn(ReturnCode::END, _data);
     }
     bool isEnd() { return status == ReturnCode::END; }
-    static SmartReturn error(std::string _str, void* _data = NULL) {
-        return SmartReturn(ReturnCode::ERROR, _data, _str);
+    static SmartReturn error(void* _data = NULL) {
+        return SmartReturn(ReturnCode::ERROR, _data);
     }
     bool isError() { return status == ReturnCode::ERROR; }
     bool hasData() { return data != NULL; }
-    void* getData() { return data; }
+    void* getData() {
+        data_used = true;
+        return data;
+    }
     static SmartReturn compare(bool comparisson, void* _data = NULL) {
         return comparisson ? SmartReturn::ok(_data) : SmartReturn::nok(_data);
     }
 
     inline bool isTrue() { return isOk(); }
     inline bool isFalse() { return isNok(); }
-
-    std::string str() {
-        switch (status) {
-            case END:
-                return std::string("END");
-            case OK:
-                return std::string("OK");
-            case NOK:
-                return std::string("NOK");
-            case ERROR:
-                return std::string("ERROR:[") + estr() + std::string("]");
-            default:
-                std::stringstream s;
-                s << "Unsuported Result Status(" << status << ")";
-                return s.str();
-        }
-    }
-
-    std::string estr() { return error_str; }
 
     SmartReturn AND(SmartReturn b) {
         if (isError() || b.isError()) return *this;
@@ -77,7 +69,7 @@ class SmartReturn {
             return SmartReturn(NOK, b.hasData() ? b.getData() : getData());
         if (isOk() && b.isOk())
             return SmartReturn(OK, b.hasData() ? b.getData() : getData());
-        return SmartReturn::error("SmartReturn::AND Condition Failed");
+        return SmartReturn::error();
     };
     SmartReturn OR(SmartReturn b) {
         if (isError() || b.isError()) return *this;
@@ -87,7 +79,7 @@ class SmartReturn {
             return SmartReturn(NOK, b.hasData() ? b.getData() : getData());
         if (isOk() || b.isOk())
             return SmartReturn(OK, b.hasData() ? b.getData() : getData());
-        return SmartReturn::error("SmartReturn::OR Condition Failed");
+        return SmartReturn::error();
     };
 
     void ASSERT() {
@@ -97,7 +89,7 @@ class SmartReturn {
         }
 
         if (isError()) {
-            panic("SmartReturn::ASSERT: Error " + estr());
+            panic("SmartReturn::ASSERT: Error");
             return;
         }
     }
@@ -109,7 +101,7 @@ class SmartReturn {
         }
 
         if (isError()) {
-            panic("SmartReturn::NASSERT: Error " + estr());
+            panic("SmartReturn::NASSERT: Error");
             return;
         }
     }

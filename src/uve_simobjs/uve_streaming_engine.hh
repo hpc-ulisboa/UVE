@@ -88,12 +88,7 @@ class SEprocessing : SimObject
     unsigned cacheLineSize;
     MemoryWriteHandler write_boss;
 
-    // SCmem *memCore;
-    // SCftch *fetchCore;
-
    public:
-    // void setMemCore(SCmem * memCorePtr);
-
     /** constructor
      */
     SEprocessing(UVEStreamingEngineParams *params,
@@ -151,7 +146,6 @@ class SEcontroller
     UVEStreamingEngine *parent;
     std::array<SEStack,32> cmdQueue;
     SEprocessing *memCore;
-    // SCftch *fetchCore;
 
   public:
     // JMTODO: Define methods for Pio Port
@@ -228,9 +222,6 @@ class UVEStreamingEngine : public ClockedObject
 
   private:
     MemSidePort memoryPort;
-    // SCftch fetchCore;
-    // SCmem  memCore;
-    // JMFIXME: Add port for fetch Core
 
   public:
     SEprocessing memCore;

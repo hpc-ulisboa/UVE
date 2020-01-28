@@ -11,10 +11,6 @@ UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams* params)
       confSize(32),
       cycler(0) {
     callback = nullptr;
-    // memCore->setConfCore(confCore);
-    // confCore->setMemCore(memCore);
-    // confPort = new PioPort(this);
-    // memoryPort = new MemSidePort(params->name + ".mem_side", this);
 }
 
 void
@@ -71,11 +67,13 @@ UVEStreamingEngine::MemSidePort::recvTimingResp(PacketPtr pkt)
     if (pkt->isWrite()) {
         DPRINTF(JMDEVEL, "MemSidePort received write pkt for Paddr %p\n",
                 pkt->req->getPaddr());
+        delete pkt;
         return true;
     }
     if (pkt->isInvalidate()) {
         DPRINTF(JMDEVEL, "MemSidePort received invalidate pkt for Paddr %p\n",
                 pkt->req->getPaddr());
+        delete pkt;
         return true;
     }
     if (pkt->req->hasVaddr()){
@@ -182,9 +180,7 @@ UVEStreamingEngine::commitLoad(StreamID sid) {
     if (result.isEnd()) {
         // Time to eliminate this sid
         auto clear_result = endStreamLoad(sid);
-        return clear_result.isOk()
-                   ? SmartReturn::end()
-                   : SmartReturn::error("Could not clear stream footprint");
+        return clear_result.isOk() ? SmartReturn::end() : SmartReturn::error();
     }
     return result;
 }
@@ -228,9 +224,7 @@ UVEStreamingEngine::commitStore(StreamID sid, SubStreamID ssid) {
     if (result.isEnd()) {
         // Time to eliminate this sid
         auto clear_result = endStreamStore(sid);
-        return clear_result.isOk()
-                   ? SmartReturn::end()
-                   : SmartReturn::error("Could not clear stream footprint");
+        return clear_result.isOk() ? SmartReturn::end() : SmartReturn::error();
     }
     return result;
 }
