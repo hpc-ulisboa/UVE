@@ -270,7 +270,7 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
 
         Request::FlagsType flags = 0;  // = Request::PREFETCH;
         req = std::make_shared<Request>(gen.addr(), gen.size(), flags, 0);
-
+        SubStreamID old_ssid = ireq->substreamId();
         SubStreamID ssid = ++ssidArray[sid];
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
@@ -292,11 +292,24 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
         }
         pkt->dataDynamic(data_blk);
 
-        DPRINTF(JMDEVEL, "--[%s] Queuing for addr: %#x size: %d ssid[%d]\n",
-                read ? "Read" : "Write", gen.addr(), gen.size(), ssid);
-        parent->getMemPort()->schedTimingReq(pkt,
-                                             parent->nextAvailableCycle());
+        if (read)
+            DPRINTF(JMDEVEL,
+                    "--[%s] Queuing for addr: %#x size: %d ssid[%d]\n",
+                    read ? "Read" : "Write", gen.addr(), gen.size(), ssid);
+        else
+            DPRINTF(JMDEVEL,
+                    "--[%s] Queuing for addr: %#x size: %d ssid[%d] old[%d]\n",
+                    read ? "Read" : "Write", gen.addr(), gen.size(), ssid,
+                    old_ssid);
+        parent->getMemPort(read /*read=>Load/!Write*/)
+            ->schedTimingReq(pkt, parent->nextAvailableCycle());
         parent->numStreamMemAccesses[sid]++;
+        if (!read) {
+            if (last_packet) {
+                if (write_boss.is_end(sid, old_ssid))
+                    parent->endStreamStore(sid);
+            }
+        }
     }
 }
 
@@ -386,7 +399,6 @@ RequestExecuteEvent::process(){
 void
 SEprocessing::MemoryWriteHandler::tick() {
     // Each tick it tries to write data into memory
-    // JMFIXME: HERE lies the memory leak > actually it was in the smart return
     SmartReturn res = consume_data();
     // 2.1. If there is data to write
     if (res.isOk()) {
@@ -454,7 +466,14 @@ SEprocessing::MemoryWriteHandler::consume_data_unit(uint64_t sz) {
         memcpy(data, data_block->raw_ptr<uint8_t>() + data_block_index, sz);
         // Handle remains
         data_block_index += sz;
+        owner->DEBUG_PRINT(
+            "data_block: has(%s) idx(%d) valid(%d) || req:sz(%d)\n",
+            has_data_block ? "T" : "F", data_block_index,
+            data_block->get_valid(), sz);
         if (data_block_index >= data_block->get_valid()) {
+            owner->DEBUG_PRINT(
+                "Data unit has same size as requested.. has_data_block = "
+                "false\n");
             has_data_block = false;
             delete data_block;
         }
@@ -493,6 +512,11 @@ SEprocessing::MemoryWriteHandler::write_mem(SERequestInfo *info) {
         memcpy(mem_block, new_rq_block, sz);
         free(new_rq_block);
         // Request is complete: issue to memory
+        if (info->status == SEIterationStatus::Ended) {
+            add_end(info->sid, info->sequence_number);
+        }
+        owner->DEBUG_PRINT("Writing request, sid(%d) ssid(%d) sz(%d)\n",
+                           info->sid, info->sequence_number, sz);
         owner->accessMemory(info->initial_offset, sz, info->sid,
                             info->sequence_number, BaseTLB::Mode::Write,
                             mem_block, info->tc);
@@ -502,6 +526,12 @@ SEprocessing::MemoryWriteHandler::write_mem(SERequestInfo *info) {
         // Confirm that partial request happened
         assert(has_partial_data);
         delayed_address = info;
+        owner->DEBUG_PRINT(
+            "Data was not sufficient for request, retrying next "
+            "cycle, sid(%d) "
+            "ssid(%d) new_sz(%d)\n",
+            delayed_address->sid, delayed_address->sequence_number,
+            partial_data_size);
         return SmartReturn::nok();
     }
 }
@@ -529,6 +559,12 @@ SEprocessing::MemoryWriteHandler::write_mem_partial() {
         memcpy(mem_block + partial_data_size, new_rq_block, new_rq_sz);
         free(new_rq_block);
         // Request is complete: issue to memory
+        if (delayed_address->status == SEIterationStatus::Ended) {
+            add_end(delayed_address->sid, delayed_address->sequence_number);
+        }
+        owner->DEBUG_PRINT(
+            "Writing partial request, sid(%d) ssid(%d) sz(%d)\n",
+            delayed_address->sid, delayed_address->sequence_number, sz);
         owner->accessMemory(
             delayed_address->initial_offset, sz, delayed_address->sid,
             delayed_address->sequence_number, BaseTLB::Mode::Write, mem_block,
@@ -549,6 +585,12 @@ SEprocessing::MemoryWriteHandler::write_mem_partial() {
             free(mem_block);
             partial_data_size = data_offset + partial_data_size;
             partial_data = aux_block;
+            owner->DEBUG_PRINT(
+                "Data was not sufficient for partial request, retrying next "
+                "cycle, sid(%d) "
+                "ssid(%d) new_sz(%d)\n",
+                delayed_address->sid, delayed_address->sequence_number,
+                partial_data_size);
         } else {
             assert(false && "Unnexpected error in write_mem_partial.");
         }
@@ -567,6 +609,7 @@ SEprocessing::MemoryWriteHandler::consume_addr_unit() {
             _back = addr_queue.back();
         }
         addr_queue.pop_back();
+        owner->DEBUG_PRINT("ConsumeAQ %s\n", print_addr_queue());
         return SmartReturn::ok((void *)_back.second);
     } else
         return SmartReturn::nok();
@@ -579,10 +622,12 @@ SEprocessing::MemoryWriteHandler::squash(StreamID sid) {
         if (iter->first == sid) iter->first = -1;
         iter++;
     }
+    owner->DEBUG_PRINT("SquashAQ %s\n", print_addr_queue());
 }
 
 void
 SEprocessing::MemoryWriteHandler::queueMemoryWrite(SERequestInfo info) {
     addr_queue.push_front(
         std::make_pair((StreamID)info.sid, new SERequestInfo(info)));
+    owner->DEBUG_PRINT("QueuedAQ %s\n", print_addr_queue());
 }

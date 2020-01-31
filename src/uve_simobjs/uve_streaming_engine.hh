@@ -48,6 +48,7 @@ class SEprocessing : SimObject
         bool has_partial_data;
         uint16_t partial_data_size;
         SERequestInfo *delayed_address;
+        std::set<uint64_t> end_set;
 
        private:
         SmartReturn write_mem(SERequestInfo *info);
@@ -71,6 +72,54 @@ class SEprocessing : SimObject
         void set_owner(SEprocessing *_owner) { owner = _owner; }
         void queueMemoryWrite(SERequestInfo info);
         void squash(StreamID sid);
+        void add_end(StreamID sid, SubStreamID ssid) {
+            uint64_t s_hash = 0;
+            s_hash = (uint64_t)((uint64_t)sid << 32) | (uint64_t)ssid;
+            end_set.insert(s_hash);
+            owner->DEBUG_PRINT(
+                "Set as store end: sid %d, ssid %d with hash %d\n", sid, ssid,
+                s_hash);
+        }
+        bool is_end(StreamID sid, SubStreamID ssid) {
+            uint64_t s_hash = 0;
+            s_hash = (uint64_t)((uint64_t)sid << 32) | (uint64_t)ssid;
+            auto e_set_iter = end_set.find(s_hash);
+            owner->DEBUG_PRINT("Find as store end: hash %d\n", s_hash);
+            if (e_set_iter != end_set.end()) {
+                end_set.erase(e_set_iter);
+                owner->DEBUG_PRINT(
+                    "Found as store end: sid %d, ssid %d with hash %d\n", sid,
+                    ssid, s_hash);
+                return true;
+            }
+            return false;
+        }
+
+       private:
+        const char *print_addr_queue() {
+            std::stringstream sout;
+            uint64_t _counter = 0;
+            sout << "addr queue:";
+            if (has_partial_data)
+                sout << " partData(" << (int32_t)delayed_address->sid << "_"
+                     << delayed_address->sequence_number << ")";
+            if (has_data_block) sout << " DataBlk";
+            sout << "[";
+            auto iter = addr_queue.cbegin();
+            while (iter != addr_queue.cend()) {
+                if (iter != addr_queue.cbegin()) sout << ", ";
+                sout << (int32_t)iter->first << "_"
+                     << iter->second->sequence_number;
+                if (iter->second->status == SEIterationStatus::Ended)
+                    sout << "L";
+                if (iter->first == -1) sout << "X";
+                if (_counter % 20 == 19) sout << "\n";
+                _counter++;
+                iter++;
+            }
+            sout << "]";
+            return sout.str().c_str();
+        };
     };
 
    protected:
@@ -135,6 +184,10 @@ class SEprocessing : SimObject
    public:
     bool samePage(Addr a, Addr b) { return (pageAlign(a) == pageAlign(b)); }
     SmartReturn clear(StreamID sid);
+    template <typename... Args>
+    void DEBUG_PRINT(const char *fmt, const Args &... args) {
+        DPRINTF(JMDEVEL, fmt, args...);
+    }
 };
 
 /*
@@ -146,16 +199,21 @@ class SEcontroller
     UVEStreamingEngine *parent;
     std::array<SEStack,32> cmdQueue;
     SEprocessing *memCore;
+    SmartReturn cmds_ready(StreamID sid);
+    SmartReturn validate_cmds(StreamID sid);
+    SmartReturn fill_cmd(StreamID sID, InstSeqNum sn, SECommand cmd);
 
-  public:
-    // JMTODO: Define methods for Pio Port
-   SmartReturn recvCommand(SECommand command);
+   public:
+    SmartReturn addCmd(StreamID sid, InstSeqNum sn);
+    SmartReturn squashCmd(StreamID sid, InstSeqNum sn);
+    SmartReturn recvCommand(SECommand command, InstSeqNum sn);
 
-   void setMemCore(SEprocessing *memCorePtr);
+    void setMemCore(SEprocessing *memCorePtr);
 
-   /** constructor
-    */
-   SEcontroller(UVEStreamingEngineParams *params, UVEStreamingEngine *_parent);
+    /** constructor
+     */
+    SEcontroller(UVEStreamingEngineParams *params,
+                 UVEStreamingEngine *_parent);
 };
 
 /*
@@ -221,7 +279,8 @@ class UVEStreamingEngine : public ClockedObject
     void tick();
 
   private:
-    MemSidePort memoryPort;
+   MemSidePort memoryPortLoad;
+   MemSidePort memoryPortStore;
 
   public:
     SEprocessing memCore;
@@ -243,7 +302,8 @@ class UVEStreamingEngine : public ClockedObject
     // Cycles of stream processing
     Stats::Vector streamProcessingCycles;
     // Mem queue depth (max, avg)
-    Stats::Distribution memQueueDepth;
+    Stats::Distribution memQueueDepthLoad;
+    Stats::Distribution memQueueDepthStore;
     // Cycles mem request took (avg, min, max)
     Stats::VectorDistribution memRequestCycles;
 
@@ -264,9 +324,16 @@ class UVEStreamingEngine : public ClockedObject
     void sendRangeChange() const;
 
     Port& getPort(const std::string& if_name, PortID idx) override;
-    MemSidePort * getMemPort(){return &memoryPort;}
+    MemSidePort *getMemPort(bool load) {
+        if (load)
+            return &memoryPortLoad;
+        else
+            return &memoryPortStore;
+    }
 
-    SmartReturn recvCommand(SECommand cmd);
+    SmartReturn recvCommand(SECommand cmd, InstSeqNum sn);
+    SmartReturn addStreamConfig(StreamID sid, InstSeqNum sn);
+    SmartReturn squashStreamConfig(StreamID sid, InstSeqNum sn);
     Tick nextAvailableCycle(){
       if (cycler < curTick()){
         cycler = nextCycle();

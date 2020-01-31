@@ -2,7 +2,8 @@
 
 UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams* params)
     : ClockedObject(params),
-      memoryPort(params->name + ".mem_side", this),
+      memoryPortLoad(params->name + ".mem_side_load", this),
+      memoryPortStore(params->name + ".mem_side_store", this),
       memCore(params, this),
       confCore(params, this),
       ld_fifo(params),
@@ -15,8 +16,10 @@ UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams* params)
 
 void
 UVEStreamingEngine::init(){
-    if (!memoryPort.isConnected())
-        panic("Memory port of %s not connected to anything!", name());
+    if (!memoryPortLoad.isConnected())
+        panic("Memory port load of %s not connected to anything!", name());
+    if (!memoryPortStore.isConnected())
+        panic("Memory port store of %s not connected to anything!", name());
     ClockedObject::init();
     ld_fifo.init();
     st_fifo.init();
@@ -47,16 +50,26 @@ UVEStreamingEngine::sendRangeChange() const
 Port& UVEStreamingEngine::getPort(const std::string& if_name,
   PortID idx = InvalidPortID)
 {
-  if (if_name == "mem_side") {
-      return memoryPort;
-  } else {
-      return ClockedObject::getPort(if_name, idx);
-  }
+    if (if_name == "mem_side_load") {
+        return memoryPortLoad;
+    } else if (if_name == "mem_side_store") {
+        return memoryPortStore;
+    } else {
+        return ClockedObject::getPort(if_name, idx);
+    }
 }
 
 SmartReturn
-UVEStreamingEngine::recvCommand(SECommand cmd) {
-    return confCore.recvCommand(cmd);
+UVEStreamingEngine::recvCommand(SECommand cmd, InstSeqNum sn) {
+    return confCore.recvCommand(cmd, sn);
+}
+SmartReturn
+UVEStreamingEngine::addStreamConfig(StreamID sid, InstSeqNum sn) {
+    return confCore.addCmd(sid, sn);
+}
+SmartReturn
+UVEStreamingEngine::squashStreamConfig(StreamID sid, InstSeqNum sn) {
+    return confCore.squashCmd(sid, sn);
 }
 
 bool
@@ -101,6 +114,7 @@ void
 UVEStreamingEngine::tick(){
   memCore.tick();
   CallbackInfo res;
+  res.is_clear = false;
   if (ld_fifo.tick(&res)) {
       // auto data_vec = ld_fifo.get_data();
       signal_cpu(res);
@@ -108,7 +122,9 @@ UVEStreamingEngine::tick(){
       //     send_data_to_sei(elem.first, elem.second);
       // }
   }
-  memQueueDepth.sample(getMemPort()->getTransmitListSize());
+  memQueueDepthLoad.sample(getMemPort(true /*Load*/)->getTransmitListSize());
+  memQueueDepthStore.sample(
+      getMemPort(false /*Store*/)->getTransmitListSize());
 }
 
 void
@@ -146,8 +162,11 @@ UVEStreamingEngine::regStats(){
         .name(name() + ".streamProcessingCycles")
         .desc("Number of cycles the stream was being processed");
     // Mem queue depth (max, avg) - Distribution
-    memQueueDepth.init(0, 200, 50)
-        .name(name() + ".memQueueDepth")
+    memQueueDepthLoad.init(0, 200, 50)
+        .name(name() + ".memQueueDepthLoad")
+        .desc("Memory request queue depth");
+    memQueueDepthStore.init(0, 200, 50)
+        .name(name() + ".memQueueDepthStore")
         .desc("Memory request queue depth");
     // Cycles mem request took (avg, min, max) - Distribution
     memRequestCycles.init(32, 0, 100, 10)
@@ -221,11 +240,14 @@ UVEStreamingEngine::shouldSquashStore(StreamID sid) {
 SmartReturn
 UVEStreamingEngine::commitStore(StreamID sid, SubStreamID ssid) {
     auto result = st_fifo.commit(sid, ssid);
-    if (result.isEnd()) {
-        // Time to eliminate this sid
-        auto clear_result = endStreamStore(sid);
-        return clear_result.isOk() ? SmartReturn::end() : SmartReturn::error();
-    }
+    // Should only eliminate store stream when last piece of data was sent to
+    // memory
+    // if (result.isEnd()) {
+    //     // Time to eliminate this sid
+    //     auto clear_result = endStreamStore(sid);
+    //     return clear_result.isOk() ? SmartReturn::end() :
+    //     SmartReturn::error();
+    // }
     return result;
 }
 
@@ -244,6 +266,12 @@ UVEStreamingEngine::setDataStore(StreamID sid, SubStreamID ssid,
 SmartReturn
 UVEStreamingEngine::endStreamStore(StreamID sid) {
     SmartReturn result = SmartReturn::ok();
+    // Clear Stream in SEInterface
+    DPRINTF(JMDEVEL, "Ending StreamStore: sid %d\n", sid);
+    CallbackInfo info;
+    info.is_clear = true;
+    info.clear_sid = sid;
+    callback(info);
     // Clear Fifo
     result = st_fifo.clear(sid);
     if (!result.isOk()) return result;

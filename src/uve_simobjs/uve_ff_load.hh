@@ -60,14 +60,14 @@ class FifoEntry : public CoreContainer {
     }
     ~FifoEntry() {}
 
-    bool complete() { return rstate == States::Complete; }
-    bool ready() { return cstate == States::Complete; }
+    bool complete() const { return rstate == States::Complete; }
+    bool ready() const { return cstate == States::Complete; }
 
     void merge_data(uint8_t *data, uint16_t offset, uint16_t size);
-    uint16_t getSize() { return size; }
+    uint16_t getSize() const { return size; }
     bool reserve(uint16_t *_size, bool last);
     void set_ready_to_commit() { commit_ready = true; }
-    bool is_ready_to_commit() { return commit_ready; }
+    bool is_ready_to_commit() const { return commit_ready; }
     Tick time() { return start_time; }
 };
 
@@ -142,6 +142,8 @@ class StreamFifo {
 
     void insert(uint16_t size, SubStreamID ssid, uint8_t width, bool last);
     SmartReturn merge_data(SubStreamID ssid, uint8_t *data);
+    SmartReturn merge_data_store(SubStreamID ssid, uint8_t *data,
+                                 uint16_t valid);
     FifoEntry get();
     SmartReturn full();
     SmartReturn ready();
@@ -180,6 +182,26 @@ class StreamFifo {
 
    private:
     uint16_t real_size();
+    const char *print_fifo() {
+        std::stringstream sout;
+        sout << "fifo(" << my_id << ") iter*(" << speculationPointer.getID()
+             << ") [";
+        auto iter = fifo_container->cbegin();
+        while (iter != fifo_container->cend()) {
+            if (iter != fifo_container->cbegin()) sout << ", ";
+            sout << iter->get_ssid() << " ";
+            if (iter->is_last()) sout << "L";
+            if (iter->get_ssid() == speculationPointer->get_ssid())
+                sout << "*";
+            if (iter->is_ready_to_commit()) sout << "C";
+            if (iter->ready())
+                sout << "F";  // F means full, C suits commit best
+            if (iter->complete()) sout << "R";  // R means reserved
+            iter++;
+        }
+        sout << "]";
+        return sout.str().c_str();
+    }
 };
 
 // This is the load fifo object that contains one fifo per stream

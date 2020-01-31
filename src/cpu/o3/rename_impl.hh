@@ -1291,11 +1291,20 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
 
         // In this case (StreamConfig) we don't do renaming.. just set the
         // index of Our StreamTable
-        auto rename_result = cpu->getSEICpuPtr()->initializeStreamConfig(
-            inst->getStreamRegister(), inst->getSeqNum(),
-            inst->isStreamLoad());
-        assert(rename_result.first || "Could not rename!! Should have.");
-        inst->setPhysStream(rename_result.second);
+        if (inst->isStreamStart()) {
+            auto rename_result = cpu->getSEICpuPtr()->initializeStreamConfig(
+                inst->getStreamRegister(), inst->getSeqNum(),
+                inst->isStreamLoad());
+            assert(rename_result.first || "Could not rename!! Should have.");
+            inst->setPhysStream(rename_result.second);
+        } else {
+            // A stream end or stream append
+            // Get the phys stream id
+            auto rename_result = cpu->getSEICpuPtr()->getStreamConfigSequence(
+                inst->getStreamRegister(), inst->getSeqNum());
+            assert(rename_result.first || "Did not find a stream sequence.");
+            inst->setPhysStream(rename_result.second);
+        }
     }
 
     // Rename the destination registers.

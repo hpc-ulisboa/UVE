@@ -204,6 +204,7 @@ class StaticInst : public RefCounted, public StaticInstFlags
 
     //JMNOTE: StreamConfig Flag
     bool isStreamConfig() const { return flags[IsStreamConfig]; }
+    bool isStreamStart() const { return flags[IsStreamStart]; }
     bool isStreamInst() const { return flags[IsStreamInst]; }
     bool isStreamBranch() const { return flags[IsStreamBranch]; }
     virtual uint8_t getStreamRegister() const

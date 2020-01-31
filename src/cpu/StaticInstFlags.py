@@ -115,6 +115,7 @@ class StaticInstFlags(Enum):
         'IsSquashAfter',     # Squash all uncommitted state after executed
         # JMNOTE: StreamConfig Flag
         'IsStreamConfig',
+        'IsStreamStart',
         'IsStreamInst',
         'IsStreamBranch'
     ]

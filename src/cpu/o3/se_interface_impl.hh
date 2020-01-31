@@ -97,8 +97,8 @@ SEInterface<Impl>::recvReqRetry()
 
 template <class Impl>
 bool
-SEInterface<Impl>::sendCommand(SECommand cmd){
-    SmartReturn result = engine->recvCommand(cmd);
+SEInterface<Impl>::sendCommand(SECommand cmd, InstSeqNum sn) {
+    SmartReturn result = engine->recvCommand(cmd, sn);
     if (result.isError()) panic("Error");
     return result.isOk();
 }
@@ -120,15 +120,20 @@ SEInterface<Impl>::_signalEngineReady(CallbackInfo info) {
     //         cnt->print());
     // Get PhysRegIdPtr from index
     // Get Streamed Registers
+    if (info.is_clear) {
+        clearStoreStream(info.clear_sid);
+        return;
+    }
+
     for (int i = 0; i < info.psids_size; i++) {
         StreamID psid = info.psids[i];
 
         auto regs = consumeOnBufferLoad(psid);
-        if (regs.second == NULL) continue;
+        if (regs.second == nullptr) continue;
         // Ask Engine for the data
         auto lookup_result = getStreamLoad(regs.first.index());
         SmartReturn result = engine->getDataLoad(lookup_result);
-        result.ASSERT();
+        if (result.isNok()) continue;
         CoreContainer *cnt = (CoreContainer *)result.getData();
         // assert(cnt->is_streaming());
         // Set data in reg file

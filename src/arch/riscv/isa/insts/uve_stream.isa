@@ -55,7 +55,7 @@ let {{
              'tpl_args': tplArgs,
              'cmd_code': cmdCode,
              'op_class': 'UveStreamOp'},
-            [ 'IsStreamConfig'])
+            [ 'IsStreamConfig','IsStreamStart'])
             # 'IsNonSpeculative',
 
 

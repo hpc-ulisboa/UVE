@@ -52,13 +52,17 @@ class DumbIterator {
         if (it < 0) it = -1;
         return *this;
     }
+    bool validOnDecrement() {
+        return (it - 1 < container->size() && it - 1 >= 0);
+    }
     bool __attribute_noinline__ valid() {
-        return !(it == -1 || it == container->size());
+        return (it >= 0 && it < container->size());
     }
     void clear() { it = -1; }
     void forceUpdate() {
         if (it == -1 && container->size() > 0) it = 0;
     }
+    int getID() const { return it; }
 };
 
 #endif //__UVE_SIMOBJS_FIFO_UTILS_HH__

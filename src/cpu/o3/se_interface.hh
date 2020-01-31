@@ -164,7 +164,7 @@ class SEInterface {
     bool recvTimingResp(PacketPtr pkt);
     void recvTimingSnoopReq(PacketPtr pkt);
     void recvReqRetry();
-    bool sendCommand(SECommand cmd);
+    bool sendCommand(SECommand cmd, InstSeqNum sn);
     bool isReady(StreamID sid);
 
     void tick() { engine->tick(); }
@@ -202,6 +202,15 @@ class SEInterface {
         stream_rename.freeStream(sid);
         // Clear register buffer
         registerBufferLoad[sid]->clear();
+
+        DPRINTF(UVERename, "Cleared Stream %d\n", sid);
+    }
+    void clearStoreBuffer(StreamID sid) {
+        // Sid must be a real stream. Not a rename alias.
+        // Release stream rename and clear rename
+        stream_rename.freeStream(sid);
+        // Clear register buffer
+        registerBufferStore[sid]->clear();
 
         DPRINTF(UVERename, "Cleared Stream %d\n", sid);
     }
@@ -269,10 +278,25 @@ class SEInterface {
             result = stream_rename.renameStreamStore(sid);
         }
         insertStreamConfigInst(sn, result.second);
+        engine->addStreamConfig(result.second, sn);
         DPRINTF(UVERename,
                 "Initialized Stream [%d], renamed to sid[%d] with inst "
                 "SeqNum[%d]\n",
                 sid, result.second, sn);
+        return result;
+    }
+
+    std::pair<bool, StreamID> getStreamConfigSequence(StreamID sid,
+                                                      InstSeqNum sn) {
+        // This method is only called on stream configs
+        // Add inst sequence number to hash map
+        std::pair<bool, StreamID> result;
+
+        result = stream_rename.getStreamConfig(sid);
+        engine->addStreamConfig(result.second, sn);
+        DPRINTF(UVERename,
+                "Initialization Sequence Stream [%d], looked up sid[%d]\n",
+                sid, result.second);
         return result;
     }
     void squashStreamConfig(StreamID asid, InstSeqNum sn) {
@@ -280,6 +304,7 @@ class SEInterface {
             StreamID sid = getStreamConfigSid(sn);
             stream_rename.freeStream(sid);
             retireStreamConfigInst(sn);
+            engine->squashStreamConfig(sid, sn);
             engine->endStreamFromSquash(sid);
             DPRINTF(UVERename, "SquashStreamConfig: %d. SeqNum[%d]\n", sid,
                     sn);
@@ -319,7 +344,7 @@ class SEInterface {
             engine->synchronizeLoadLists(sid);
         }
         registerBufferLoad[sid]->push_front(
-            std::make_tuple(arch, phys, false, 0));
+            std::make_tuple(arch, phys, false, 0, false));
     }
     void markOnBufferLoad(const RegId &arch, PhysRegIdPtr phys,
                           InstSeqNum sn) {
@@ -348,13 +373,15 @@ class SEInterface {
                                    std::get<1>(*speculationPointerLoad[psid]));
                 DPRINTF(UVERename, "consumeOnBufferLoad: %d, %p\n", psid,
                         std::get<1>(*speculationPointerLoad[psid]));
+                auto val = *speculationPointerLoad[psid];
+                std::get<4>(val) = true;
                 speculationPointerLoad[psid]++;
 
                 return retval;
             }
-            return std::make_pair(RegId(), (PhysRegIdPtr)NULL);
+            return std::make_pair(RegId(), (PhysRegIdPtr) nullptr);
         }
-        return std::make_pair(RegId(), (PhysRegIdPtr)NULL);
+        return std::make_pair(RegId(), (PhysRegIdPtr) nullptr);
     }
     void squashToBufferLoad(const RegId &arch, PhysRegIdPtr phys,
                             InstSeqNum sn) {
@@ -366,9 +393,12 @@ class SEInterface {
         if (!registerBufferLoad[sid]->empty()) {
             if (std::get<1>(registerBufferLoad[sid]->front()) == phys &&
                 std::get<0>(registerBufferLoad[sid]->front()) == arch) {
+                bool already_consumed =
+                    std::get<4>(registerBufferLoad[sid]->front());
                 registerBufferLoad[sid]->pop_front();
                 auto lookup_stream = stream_rename.getStreamLoad(arch.index());
-                if (engine->shouldSquashLoad(lookup_stream.second).isOk()) {
+                if (already_consumed &&
+                    engine->shouldSquashLoad(lookup_stream.second).isOk()) {
                     SmartReturn result =
                         engine->squashLoad(lookup_stream.second);
                     if (result.isNok() || result.isError()) panic("Error");
@@ -404,10 +434,12 @@ class SEInterface {
                 auto lookup_stream = stream_rename.getStreamLoad(
                     std::get<0>(bufferEnd).index());
                 SmartReturn result = engine->commitLoad(lookup_stream.second);
-                DPRINTF(UVERename,
-                        "commitToBufferLoad: %d, %p. SeqNum[%d]. \t "
-                        "Result:%s\n",
-                        sid, phys, sn, result.isOk() ? "Ok" : "Nok");
+                DPRINTF(
+                    UVERename,
+                    "commitToBufferLoad: %d, %p. SeqNum[%d]. \t "
+                    "Result:%s\n",
+                    sid, phys, sn,
+                    result.isOk() ? "Ok" : (result.isEnd() ? "End" : "Nok"));
                 if (result.isEnd()) {
                     clearBuffer(lookup_stream.second);
                 }
@@ -440,7 +472,7 @@ class SEInterface {
         }
         SubStreamID ssid = engine->reserveStoreEntry(sid);
         registerBufferStore[sid]->push_front(
-            std::make_tuple(arch, phys, false, ssid));
+            std::make_tuple(arch, phys, false, ssid, false));
     }
     bool fillOnBufferStore(const RegId &arch, PhysRegIdPtr phys,
                            CoreContainer val, InstSeqNum sn) {
@@ -520,9 +552,6 @@ class SEInterface {
                     "commitToBufferStore: %d, %p. SeqNum[%d]. \t "
                     "Result:%s\n",
                     sid, phys, sn, result.isOk() ? "Ok" : "Nok");
-            if (result.isEnd()) {
-                clearBuffer(lookup_stream.second);
-            }
             retireMeaningfulInst(sn);
             if (result.isNok() || result.isError()) panic("Error");
         }
@@ -534,6 +563,7 @@ class SEInterface {
         bool res2 = engine->st_fifo.full(psid).isNok();
         return res && res2;
     }
+    void clearStoreStream(StreamID sid) { clearStoreBuffer(sid); }
 
    private:  // Data
     /** Pointers for parent and sibling structures. */
@@ -555,7 +585,14 @@ class SEInterface {
     std::map<InstSeqNum, bool> UVECondLookup;
 
     using RegBufferList =
-        std::list<std::tuple<RegId, PhysRegIdPtr, bool, int>>;
+        std::list<std::tuple<RegId /*Arch Reg*/, PhysRegIdPtr /*Phys Reg*/,
+                             bool /*Progress Control*/, int /*SSID*/,
+                             bool /*Squash Control*/>>;
+    /***Squash Control and Progress Control***
+     *            Init   Mark    Cons    Comm
+     * Progress     0     1        1       1
+     * Squash       0     0        1       1
+     */
     using RegBufferIter = RegBufferList::iterator;
     using SpecBufferIter = DumbIterator<RegBufferList>;
     using InstSeqNumSet = std::unordered_map<uint64_t, uint8_t>;

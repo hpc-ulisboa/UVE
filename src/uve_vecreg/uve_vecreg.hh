@@ -161,7 +161,7 @@ class VecRegContainer {
     bool is_streaming() const { return streaming; }
     void set_sid(int _sid) { sid = _sid; }
     void set_ssid(vecSubStreamID _ssid) { ssid = _ssid; }
-    vecSubStreamID get_ssid() { return ssid; }
+    vecSubStreamID get_ssid() const { return ssid; }
     int get_sid() { return sid; }
 
     void zero() { memset(container.data(), 0, SIZE); }

@@ -440,7 +440,7 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     bool sendSEIcmd(void * cmd_ptr)
     {
         auto cmd = *((SECommand*) cmd_ptr);
-        return this->cpu->getSEICpuPtr()->sendCommand(cmd);
+        return this->cpu->getSEICpuPtr()->sendCommand(cmd, getSeqNum());
     }
 
     InstSeqNum getSeqNum() { return this->seqNum; }

@@ -45,6 +45,9 @@
 // Include the unknown
 ##include "unknown.isa"
 
+// Include m5ops
+##include "m5ops.isa"
+
 // Include formats for the StreamSet and StreamOps instructions (UVE)
 // JMNOTE: Include formats files here
 ##include "uve.isa"

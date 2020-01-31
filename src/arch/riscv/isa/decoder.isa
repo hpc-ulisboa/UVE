@@ -1694,6 +1694,10 @@ decode QUADRANT default Unknown::unknown() {
             }
         }
 
+        //JMNOTE: m5ops
+        0x15:
+        ##include "decoder/m5ops.isa"
+
         0x18: decode FUNCT3 {
             format BOp {
                 0x0: beq({{

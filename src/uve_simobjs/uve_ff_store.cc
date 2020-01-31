@@ -77,7 +77,9 @@ UVEStoreFifo::insert_data(StreamID sid, SubStreamID ssid, CoreContainer data) {
     //      Else: Create new entry
     fifos[sid]->empty().NASSERT();
 
-    if (fifos[sid]->merge_data(ssid, data.raw_ptr<uint8_t>()).isOk()) {
+    if (fifos[sid]
+            ->merge_data_store(ssid, data.raw_ptr<uint8_t>(), data.get_valid())
+            .isOk()) {
         return SmartReturn::ok();
     }
     return SmartReturn::nok();
@@ -125,6 +127,7 @@ UVEStoreFifo::commit(StreamID sid, SubStreamID ssid) {
 
 SmartReturn
 UVEStoreFifo::clear(StreamID sid) {
+    reservation_ssid[sid] = -1;
     delete fifos[sid];
     fifos[sid] = new StreamFifo(confParams->width, confParams->fifo_depth,
                                 confParams->max_request_size, sid);

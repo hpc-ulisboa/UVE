@@ -552,6 +552,7 @@ class BaseDynInst : public ExecContext, public RefCounted
     //JMNOTE: StreamConfig Flag
     bool isStreamInst() const { return staticInst->isStreamInst(); }
     bool isStreamConfig() const { return staticInst->isStreamConfig(); }
+    bool isStreamStart() const { return staticInst->isStreamStart(); }
     bool isStreamBranch() const { return staticInst->isStreamBranch(); }
     uint8_t getStreamRegister() const {
         return staticInst->getStreamRegister();

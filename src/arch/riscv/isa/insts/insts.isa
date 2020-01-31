@@ -1,9 +1,11 @@
 // -*- mode:c++ -*-
-
+//M5ops
+##include "m5ops.isa"
 //UVE
 ##include "uve_arithmetic.isa"
 ##include "uve_branch.isa"
 ##include "uve_predicate.isa"
 ##include "uve_stream.isa"
 ##include "uve_vector_mem.isa"
+
 

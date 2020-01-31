@@ -162,6 +162,7 @@ StreamFifo::insert(uint16_t size, SubStreamID ssid, uint8_t width,
                 my_id, ssid, 0, speculationPointer->get_ssid());
         //Reserve space in entry
         assert(fifo_container->front().reserve(&size, last));
+        DPRINTF(UVEFifo, "%s\n", print_fifo());
         //First entry was created, set id to 0;
         this->map.push_back(create_MS(id,size,offset));
         return;
@@ -183,6 +184,7 @@ StreamFifo::insert(uint16_t size, SubStreamID ssid, uint8_t width,
                 "Size[%d].Speculation Pointer targeting ssid[%d].\n",
                 my_id, ssid, id, fifo_container->size(),
                 speculationPointer->get_ssid());
+        DPRINTF(UVEFifo, "%s\n", print_fifo());
         return;
     }
     // Reserve the space -> When returns false the size is updated to the
@@ -212,6 +214,7 @@ StreamFifo::insert(uint16_t size, SubStreamID ssid, uint8_t width,
             "Insertion. Size[%d]. Speculation Pointer targeting ssid[%d].\n",
             my_id, ssid, id, fifo_container->size(),
             speculationPointer->get_ssid());
+        DPRINTF(UVEFifo, "%s\n", print_fifo());
         return;
     }
     else {
@@ -251,7 +254,35 @@ StreamFifo::merge_data(SubStreamID ssid, uint8_t *data) {
 
     DPRINTF(UVEFifo, "Data Merged on fifo[%d] ssid[%d]. Id is %d. %s\n", my_id,
             ssid, mapping.id, mapping.split ? "Splited Merge" : "");
+    DPRINTF(UVEFifo, "%s\n", print_fifo());
+    return SmartReturn::ok();
+}
 
+SmartReturn
+StreamFifo::merge_data_store(SubStreamID ssid, uint8_t *data, uint16_t valid) {
+    empty().NASSERT();
+    // Get corresponding fifo entry
+    auto it = this->map.begin() + ssid;
+    auto mapping = *it;
+    assert(!mapping.used);
+
+    auto list_it = fifo_container->rbegin();
+    advance(list_it, mapping.id);
+    list_it->merge_data(data, mapping.offset, MIN(mapping.size, valid));
+
+    if (mapping.split) {
+        list_it = fifo_container->rbegin();
+        advance(list_it, mapping.id2);
+        list_it->merge_data(data + mapping.size, mapping.offset2,
+                            MIN(mapping.size2, valid - mapping.size));
+    }
+
+    it->used = true;
+
+    DPRINTF(UVEFifo,
+            "Data Merged on fifo[%d] ssid[%d] size[%d]. Id is %d. %s\n", my_id,
+            ssid, valid, mapping.id, mapping.split ? "Splited Merge" : "");
+    DPRINTF(UVEFifo, "%s\n", print_fifo());
     return SmartReturn::ok();
 }
 
@@ -266,6 +297,8 @@ StreamFifo::get() {
             "ssid[%d]. %s\n",
             my_id, fifo_container->size(), speculationPointer->get_ssid(),
             specEntry.is_last() ? "Last Get." : "");
+    DPRINTF(UVEFifo, "%s\n", print_fifo());
+
     if (specEntry.is_last()) {
         // Set state as complete
         status = SEIterationStatus::Ended;
@@ -300,6 +333,7 @@ StreamFifo::commit() {
             my_id, elem.get_ssid(), fifo_container->size(),
             speculationPointer->get_ssid(),
             elem.is_last() ? "Last Commit." : "");
+    DPRINTF(UVEFifo, "%s\n", print_fifo());
     // Decrease by 1 all the id pointers in the map
     for (auto t = map.begin(); t != map.end(); ++t) {
         t->id = t->id <= 0 ? 0 : t->id - 1;
@@ -322,12 +356,14 @@ StreamFifo::squash() {
     DPRINTF(UVEFifo,
             "Squash on fifo[%d]. Size[%d]. Pointer Targeting ssid[%d].\n",
             my_id, fifo_container->size(), (*speculationPointer).get_ssid());
+    DPRINTF(UVEFifo, "%s\n", print_fifo());
     return SmartReturn::ok();
 }
 
 SmartReturn
 StreamFifo::shouldSquash() {
-    if (empty().isOk())
+    bool spec_iter_out_of_bounds = !speculationPointer.validOnDecrement();
+    if (empty().isOk() || spec_iter_out_of_bounds)
         return SmartReturn::nok();
     else
         return SmartReturn::ok();
@@ -371,6 +407,7 @@ StreamFifo::storeSquash(SubStreamID ssid) {
             // Remove entry
             fifo_container->erase(iter);
             speculationPointer--;
+            DPRINTF(UVEFifo, "%s\n", print_fifo());
             return SmartReturn::ok();
         }
         iter++;
@@ -385,6 +422,7 @@ StreamFifo::storeCommit(SubStreamID ssid) {
     while (iter != fifo_container->rend()) {
         if (iter->get_ssid() == ssid) {
             iter->set_ready_to_commit();
+            DPRINTF(UVEFifo, "%s\n", print_fifo());
             return SmartReturn::ok();
         }
         iter++;
@@ -400,12 +438,6 @@ StreamFifo::storeDiscard(SubStreamID ssid) {
 
     fifo_container->pop_back();
     speculationPointer--;
-    DPRINTF(
-        UVEFifo,
-        "Store Discard on fifo[%d] ssid[%d]. Size[%d]. Speculation Pointer "
-        "targeting ssid[%d]. %s\n",
-        my_id, elem.get_ssid(), fifo_container->size(),
-        speculationPointer->get_ssid(), elem.is_last() ? "Last Discard." : "");
     // Decrease by 1 all the id pointers in the map
     for (auto t = map.begin(); t != map.end(); ++t) {
         t->id = t->id <= 0 ? 0 : t->id - 1;
@@ -432,6 +464,7 @@ StreamFifo::storeGet() {
     DPRINTF(UVEFifo, "Store Get of fifo[%d]. Size[%d]. SSID[%d] %s\n", my_id,
             fifo_container->size(), entry.get_ssid(),
             entry.is_last() ? "Last Get." : "");
+    DPRINTF(UVEFifo, "%s\n", print_fifo());
     return entry;
 }
 
@@ -443,6 +476,7 @@ FifoEntry::merge_data(uint8_t *data, uint16_t offset, uint16_t _size) {
     }
     csize += _size;
     assert(!(csize > size));
+    set_valid(MIN(csize, size));
     if (csize == size && rstate == States::Complete) {
         cstate = States::Complete;
     }
