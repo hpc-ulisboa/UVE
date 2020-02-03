@@ -2,10 +2,12 @@
 #define __UVE_SE_UTILS_HH__
 
 #include <queue>
+#include <string>
 
 #include <boost/serialization/strong_typedef.hpp>
 
 #include "base/cprintf.hh"
+#include "cpu/inst_seq.hh"
 #include "cpu/thread_context.hh"
 #include "debug/JMDEVEL.hh"
 #include "sim/sim_object.hh"
@@ -312,6 +314,7 @@ class DimensionObject{
                 counter = -1;
             counter ++;
             if (counter > size - decrement) {
+                if (!isHead) counter--;
                 dimensionEnded = true;
             }
             else dimensionEnded = false;
@@ -354,8 +357,10 @@ class DimensionObject{
 
             if (isHead)
                 return counter*stride*width+offset;
-            else
+            else {
+                if (has_ended()) return get_initial_offset(true);
                 return (counter+offset)*width*stride;
+            }
         }
 
         void set_offset(){
@@ -369,6 +374,8 @@ class DimensionObject{
                 saved_offset = get_cur_offset();
             }
         }
+
+        bool has_ended() { return dimensionEnded; }
 
         void lower_ended(){
             lowerEnded = true;
@@ -387,8 +394,20 @@ class DimensionObject{
 };
 
 typedef enum { Ended, Running, Configured, Clean, Stalled } SEIterationStatus;
+typedef enum { BufferFull, DimensionSwap, End, NonCoallescing } StopReason;
 
 struct SERequestInfo{
+    SERequestInfo()
+        : initial_offset(0),
+          final_offset(0),
+          width(0),
+          status(SEIterationStatus::Clean),
+          sequence_number(0),
+          initial_paddr(0),
+          sid(0),
+          tc(nullptr),
+          mode(StreamMode::load),
+          stop_reason(StopReason::BufferFull){};
     DimensionOffset initial_offset;
     DimensionOffset final_offset;
     uint8_t width;
@@ -399,22 +418,8 @@ struct SERequestInfo{
     StreamID sid;
     ThreadContext * tc;
     StreamMode mode;
+    StopReason stop_reason;
 };
-
-SERequestInfo static makeSERequestInfo() {
-    SERequestInfo a;
-    a.initial_offset = 0;
-    a.final_offset = 0;
-    a.width = 0;
-    a.iterations = 0;
-    a.status = SEIterationStatus::Clean;
-    a.sequence_number = 0;
-    a.initial_paddr = 0;
-    a.sid = 0;
-    a.tc = nullptr;
-    a.mode = StreamMode::load;
-    return a;
-}
 
 class SEIter: public SEList<DimensionObject> {
     private:
@@ -436,280 +441,51 @@ class SEIter: public SEList<DimensionObject> {
         bool page_jump;
         Addr page_jump_vaddr;
         StreamMode mode;
-        typedef enum {
-            BufferFull,
-            DimensionSwap,
-            End,
-            NonCoallescing
-        }StopReason;
 
     public:
-     SEIter(SEStack* cmds, Tick _start_tick)
-         : SEList(),
-           elem_counter(0),
-           sequence_number(-1),
-           end_ssid(-1),
-           start_tick(_start_tick) {
-         // JMTODO: Create iterator from cmds
-         // Validate all commands
-         // Create iteration tree
-         // Empty Stack
-         status = SEIterationStatus::Configured;
-         DPRINTF(JMDEVEL, "SEIter constructor\n");
+     SEIter(SEStack* cmds, Tick _start_tick);
+     SEIter();
+     ~SEIter();
 
-         SECommand cmd = cmds->front().cmd;
-         width = cmd.get_width();
-         head_stride = cmd.get_dimension()->get_stride();
-         tc = cmd.get_tc();
-         sid = cmd.getStreamID();
-         mode = cmd.isLoad() ? StreamMode::load : StreamMode::store;
+     template <typename F>
+     void setCompareFunction(F f) {
+         pageFunction = f;
+     }
 
-         insert_dim(new DimensionObject(cmd.get_dimension(), width, true));
-         cmds->pop_front();
+     DimensionOffset initial_offset_calculation(tnode* cursor,
+                                                DimensionOffset offset,
+                                                bool zero);
 
-         DimensionObject* dimobj;
-         while (!cmds->empty()) {
-             cmd = cmds->front().cmd;
-             if (cmds->size() == 1) {
-                 dimobj = new DimensionObject(cmd.get_dimension(), width,
-                                              false, true);
-             } else {
-                 dimobj = new DimensionObject(cmd.get_dimension(), width);
-             }
+     DimensionOffset initial_offset_calculation(bool zero = false);
 
-             DPRINTF(JMDEVEL, "Inserting command: %s\n", cmd.to_string());
+     DimensionOffset offset_calculation(tnode* cursor, DimensionOffset offset);
 
-             if (cmd.isDimension())
-                 insert_dim(dimobj);
-             else
-                 insert_mod(dimobj);
-             cmds->pop_front();
-         }
-         DPRINTF(JMDEVEL, "Tree: \n%s\n", this->to_string());
-         initial_offset = initial_offset_calculation(true);
-         current_dim = get_end();
-        }
-        SEIter() {
-            status = SEIterationStatus::Clean;
-            pageFunction = nullptr;
-            sid = 0;
-            initial_offset = 0;
-            width = 0;
-            current_nd = nullptr;
-            current_dim = nullptr;
-            elem_counter = 0;
-            sequence_number = 0;
-            end_ssid = 0;
-            start_tick = 0;
-            head_stride = 0;
-            cur_request = makeSERequestInfo();
-            last_request = makeSERequestInfo();
-            tc = nullptr;
-            page_jump = false;
-            page_jump_vaddr = 0;
-            mode = StreamMode::load;
-        }
-        ~SEIter(){}
+     DimensionOffset offset_calculation();
 
-        template <typename F>
-        void setCompareFunction(F f){
-            pageFunction = f;
-        }
+     void stats(SERequestInfo result, StopReason sres);
 
-        DimensionOffset initial_offset_calculation(tnode * cursor,
-                            DimensionOffset offset, bool zero){
+     SERequestInfo advance(uint16_t max_size);
+     bool empty();
 
-            if (cursor->next != nullptr){
-                offset = initial_offset_calculation(cursor->next,
-                                                    offset, zero);
-            }
-            return offset + cursor->content->get_initial_offset(zero);
-        }
+     uint8_t getWidth();
 
-        DimensionOffset initial_offset_calculation(bool zero = false){
-            tnode * cursor = get_head();
-            DimensionOffset offset = 0;
-            if(cursor->next != nullptr)
-                offset = initial_offset_calculation(cursor->next,offset, zero);
-            offset += cursor->content->get_initial_offset(zero);
-            return offset;
-        }
+     uint8_t getCompressedWidth();
 
-        DimensionOffset offset_calculation(tnode * cursor,
-                                        DimensionOffset offset){
-            if (cursor->next != nullptr){
-                offset = offset_calculation(cursor->next, offset);
-            }
-            cursor->content->set_offset();
-            return offset + cursor->content->get_cur_offset();
-        }
+     bool translatePaddr(Addr* paddr);
 
-        DimensionOffset offset_calculation(){
-            tnode * cursor = get_head();
-            DimensionOffset offset = 0;
-            if(cursor->next != nullptr)
-                offset = offset_calculation(cursor->next,offset);
-            cursor->content->set_offset();
-            offset += cursor->content->get_cur_offset();
-            return offset;
-        }
+     void setPaddr(Addr paddr, bool new_page = false, Addr vaddr = 0);
 
-        void stats(SERequestInfo result, StopReason sres){
-            //Create results with this
-        };
+     SmartReturn ended();
+     int64_t get_end_ssid();
 
-        SERequestInfo advance(uint16_t max_size) {
-            //Iterate until request is generated
-            assert(status != SEIterationStatus::Ended &&
-                   status != SEIterationStatus::Clean &&
-                   status != SEIterationStatus::Stalled);
+     void stall();
+     void resume();
+     bool stalled();
+     bool is_load();
 
-            SERequestInfo request;
-            bool result = false;
-            status = SEIterationStatus::Running;
-            StopReason sres = StopReason::BufferFull;
+     Tick time();
 
-            while (elem_counter < max_size / (width * 8)) {
-                assert(current_dim != nullptr);
-
-                result = current_dim->content->advance();
-                if(result == true){//Dimension Change -> Issue request
-                    sres = StopReason::DimensionSwap;
-                    if(current_dim->next == nullptr){
-                        status = SEIterationStatus::Ended;
-                        sres = StopReason::End;
-                        break;
-                    }
-                    current_dim = current_dim->next;
-                    current_dim->content->lower_ended();
-
-                    // Do a peek to assure it is not the last iteration
-                    auto aux_dim = current_dim;
-                    while (aux_dim != nullptr) {
-                        if (aux_dim->content->peek()) {
-                            aux_dim = aux_dim->next;
-                        } else
-                            break;
-                    };
-                    if (aux_dim == nullptr) {
-                        status = SEIterationStatus::Ended;
-                        sres = StopReason::End;
-                    }
-                    break;
-                }
-                else {
-                    if(current_dim != get_head()) {
-                        //We are not in the lowest dimension
-                        // Need to go back to the lower dimension
-                        current_dim = current_dim->prev;
-                        continue;
-                    }
-                    else if(head_stride != 1){
-                        sres = StopReason::NonCoallescing;
-                        break;
-                    }
-                    else elem_counter ++;
-                }
-            }
-            elem_counter = 0;
-            request.mode = mode;
-            request.initial_offset = initial_offset_calculation();
-            request.final_offset = offset_calculation() + width;
-            request.iterations = 128;
-            request.status = status;
-            request.width = width;
-            request.tc = tc;
-            request.sid = sid;
-            request.sequence_number = ++sequence_number;
-            if (status == SEIterationStatus::Ended){
-                end_ssid = sequence_number - 1;
-            }
-            initial_offset = request.final_offset;
-            last_request = cur_request;
-            cur_request = request;
-            stats(request, sres);
-            return request;
-        }
-
-        bool empty(){ return (status == SEIterationStatus::Clean ||
-                              status == SEIterationStatus::Ended ) ?
-                        true : false;}
-
-        uint8_t getWidth(){return width;}
-
-        uint8_t getCompressedWidth() {
-            uint8_t _width = 0;
-            switch (width) {
-                case 1:
-                    _width = 0;
-                    break;
-                case 2:
-                    _width = 1;
-                    break;
-                case 4:
-                    _width = 2;
-                    break;
-                case 8:
-                    _width = 3;
-                    break;
-            }
-            return _width;
-        }
-
-        // returns true if it could not translate
-        // paddr is passed by referenced, contains the translation result
-        // if it succeds (return is true)
-        bool translatePaddr(Addr * paddr){
-            //First request must always be translated by TLB
-            if (sequence_number == 0) {
-                last_request = cur_request;
-                return false;
-            }
-
-            //Check if the page is mantained between last and current request
-            if (pageFunction(cur_request.initial_offset,
-                             cur_request.final_offset) &&
-                pageFunction(last_request.initial_offset,
-                             cur_request.initial_offset) &&
-                pageFunction(last_request.initial_offset,
-                             last_request.final_offset)) {
-                *paddr =
-                    last_request.initial_paddr +
-                    (cur_request.initial_offset - last_request.initial_offset);
-                return true;
-
-                // If the page is not mantained see if the current one is and
-                // check that the last translation targets a new page
-            } else if (pageFunction(cur_request.initial_offset,
-                                    cur_request.final_offset) &&
-                       page_jump) {
-                *paddr = last_request.initial_paddr +
-                         (cur_request.initial_offset - page_jump_vaddr);
-                return true;
-            } else {
-                // In this case it is not possible to infer the paddr
-                // Data is in new page
-                return false;
-            }
-        }
-
-        void setPaddr(Addr paddr, bool new_page = false, Addr vaddr = 0) {
-            cur_request.initial_paddr = paddr;
-            page_jump_vaddr = vaddr;
-            page_jump = new_page;
-        }
-
-        SmartReturn ended() {
-            return SmartReturn::compare(status == SEIterationStatus::Ended);
-        }
-        int64_t get_end_ssid() { return end_ssid; }
-
-        void stall() { status = SEIterationStatus::Stalled; }
-        void resume() { status = SEIterationStatus::Running; }
-        bool stalled() { return status == SEIterationStatus::Stalled; }
-        bool is_load() { return mode == StreamMode::load; }
-
-        Tick time() { return start_tick; }
+     const char* print_state();
 };
 
 using SEIterPtr = SEIter *;

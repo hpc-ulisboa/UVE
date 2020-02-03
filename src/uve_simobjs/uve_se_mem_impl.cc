@@ -51,15 +51,29 @@ SEprocessing::tick_load() {
         }
     }
 
-    DPRINTF(JMDEVEL, "Settled on load_auxID:%d\n", load_auxID);
+    DPRINTF(JMDEVEL, "Settled on load_auxID:%d advance_size(%d B)\n",
+            load_auxID, max_advance_size / 8);
     parent->streamProcessingCycles[load_auxID]++;
     load_pID = load_auxID;
     SERequestInfo request_info =
         iterQueue[load_pID]->advance(max_advance_size);
-    DPRINTF(UVESE, "Memory Request[%s][%d]: [%d->%d] w(%d)\n",
+    if (request_info.stop_reason == DimensionSwap) {
+        asm("nop\n\t");
+    }
+    DPRINTF(UVESE, "iterator sid:(%d) ssid:(%d): %s\n", load_pID,
+            request_info.sequence_number, iterQueue[load_pID]->print_state());
+    DPRINTF(UVESE,
+            "Memory Request[%s][%d] sz[%d B]: [%d->%d] w(%d)  StopReason:%s\n",
             request_info.mode == StreamMode::load ? "load" : "store",
-            request_info.sequence_number, request_info.initial_offset,
-            request_info.final_offset, request_info.width);
+            request_info.sequence_number,
+            (request_info.final_offset - request_info.initial_offset),
+            request_info.initial_offset, request_info.final_offset,
+            request_info.width,
+            (request_info.stop_reason == StopReason::DimensionSwap
+                 ? "Dimension Swap"
+                 : (request_info.stop_reason == StopReason::BufferFull
+                        ? "Buffer Full"
+                        : "End or Strided")));
     if (request_info.status == SEIterationStatus::Ended)
         DPRINTF(UVESE, "Iteration on stream %d ended!\n", load_pID);
     // Create and send request to memory
@@ -140,8 +154,9 @@ SEprocessing::clear(StreamID sid) {
 
 void
 SEprocessing::emitRequest(SERequestInfo info){
-    this->schedule(new RequestExecuteEvent(this, info),
-        parent->nextCycle());
+    // this->schedule(new RequestExecuteEvent(this, info),
+    //     parent->nextCycle());
+    executeRequest(info);
 }
 
 void
