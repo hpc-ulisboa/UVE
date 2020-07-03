@@ -106,81 +106,88 @@ let {{
         global header_output, exec_output, decoders
 
         genericArithThreeVecPredicated = '''
+        unsigned iCount = 0;
         auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
         auto src2_vc = (TheISA::VecRegContainer)Vs2_x;
         auto src1_vw = src1_vc.get_width();
         auto src2_vw = src2_vc.get_width();
-        check_equal_src_widths(src1_vw, src2_vw);
         auto src1_vi = src1_vc.get_valid() / (1 << src1_vw);
         auto src2_vi = src2_vc.get_valid() / (1 << src1_vw);
-        unsigned iCount = eCount /  (1<<src1_vw);
         auto dest_vi = get_dest_valid_index(src1_vi, src2_vi);
-        iCount = UVEMIN(iCount,dest_vi);
         auto p3_vc = (TheISA::VecPredRegContainer)Ps3_x;
         %(inst)s;
         TheISA::VecRegContainer output;
-        switch(src1_vw){
-            case 0:{
-                auto v1 = src1_vc.as<%(type8)s>();
-                auto v2 = src2_vc.as<%(type8)s>();
-                auto p  = p3_vc.as<%(type8)s>();
-                auto out = output.as<%(type8)s>();
-                %(cast8)s;
-                for(int i=0;i<iCount;i++){
-                    if(p[i]){
-                        %(generic_op)s
+
+        if(check_equal_src_widths(src1_vw, src2_vw) &&
+                                        src1_vi > 0 &&
+                                        src2_vi > 0 ){
+            iCount = UVEMIN(eCount / (1<<src1_vw),dest_vi);
+            switch(src1_vw){
+                case 0:{
+                    auto v1 = src1_vc.as<%(type8)s>();
+                    auto v2 = src2_vc.as<%(type8)s>();
+                    auto p  = p3_vc.as<%(type8)s>();
+                    auto out = output.as<%(type8)s>();
+                    %(cast8)s;
+                    for(int i=0;i<iCount;i++){
+                        if(p[i]){
+                            %(generic_op)s
+                        }
                     }
                 }
-            }
-            break;
-            case 1:{
-                auto v1 = src1_vc.as<%(type16)s>();
-                auto v2 = src2_vc.as<%(type16)s>();
-                auto p  = p3_vc.as<%(type16)s>();
-                auto out = output.as<%(type16)s>();
-                %(cast16)s;
-                for(int i=0;i<iCount;i++){
-                    if(p[i]){
-                        %(generic_op)s
+                break;
+                case 1:{
+                    auto v1 = src1_vc.as<%(type16)s>();
+                    auto v2 = src2_vc.as<%(type16)s>();
+                    auto p  = p3_vc.as<%(type16)s>();
+                    auto out = output.as<%(type16)s>();
+                    %(cast16)s;
+                    for(int i=0;i<iCount;i++){
+                        if(p[i]){
+                            %(generic_op)s
+                        }
                     }
                 }
-            }
-            break;
-            case 2: {
-                auto v1 = src1_vc.as<%(type32)s>();
-                auto v2 = src2_vc.as<%(type32)s>();
-                auto p  = p3_vc.as<%(type32)s>();
-                auto out = output.as<%(type32)s>();
-                %(cast32)s;
-                for(int i=0;i<iCount;i++){
-                    if(p[i]){
-                        %(generic_op)s
+                break;
+                case 2: {
+                    auto v1 = src1_vc.as<%(type32)s>();
+                    auto v2 = src2_vc.as<%(type32)s>();
+                    auto p  = p3_vc.as<%(type32)s>();
+                    auto out = output.as<%(type32)s>();
+                    %(cast32)s;
+                    for(int i=0;i<iCount;i++){
+                        if(p[i]){
+                            %(generic_op)s
+                        }
                     }
                 }
-            }
-            break;
-            default:
-            {
-                auto v1 = src1_vc.as<%(type64)s>();
-                auto v2 = src2_vc.as<%(type64)s>();
-                auto p  = p3_vc.as<%(type64)s>();
-                auto out = output.as<%(type64)s>();
-                %(cast64)s;
-                for(int i=0;i<iCount;i++){
-                    if(p[i]){
-                        %(generic_op)s
+                break;
+                default:
+                {
+                    auto v1 = src1_vc.as<%(type64)s>();
+                    auto v2 = src2_vc.as<%(type64)s>();
+                    auto p  = p3_vc.as<%(type64)s>();
+                    auto out = output.as<%(type64)s>();
+                    %(cast64)s;
+                    for(int i=0;i<iCount;i++){
+                        if(p[i]){
+                            %(generic_op)s
+                        }
                     }
                 }
+                break;
             }
-            break;
+
+            auto out = output.as<uint8_t>();
+            for(int i=0;i<eCount;i++)
+                Vd_x[i] = out[i];
+
+            Vd_x <= src1_vw;
+            Vd_x <<= iCount * (1 << src1_vw);
+        } else {
+            Vd_x <= src1_vw;
+            Vd_x <<= 0;
         }
-
-        auto out = output.as<uint8_t>();
-        for(int i=0;i<eCount;i++)
-            Vd_x[i] = out[i];
-
-        Vd_x <= src1_vw;
-        Vd_x <<= iCount * (1 << src1_vw);
         '''
 
         generic_fixed_code = "out[i] = v1[i] %(op)s v2[i];"

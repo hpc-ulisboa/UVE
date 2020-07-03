@@ -24,6 +24,32 @@ typedef struct stream_rename_map {
     StreamMode direction;
 } StreamRenameMap;
 
+class RegBufferCont {
+   public:
+    RegId areg/*Arch Reg*/;
+    PhysRegIdPtr preg /*Phys Reg*/;
+    bool prog /*Progress Control*/;
+    int ssid /*SSID*/;
+    bool sqct /*Squash Control*/;
+
+    RegBufferCont(RegId arch, PhysRegIdPtr phys){
+        areg = arch;
+        preg = phys;
+        prog = false;
+        ssid = 0;
+        sqct = false;
+    };
+    RegBufferCont(RegId arch, PhysRegIdPtr phys, int ssids){
+        areg = arch;
+        preg = phys;
+        prog = false;
+        ssid = ssids;
+        sqct = false;
+    };
+
+    ~RegBufferCont() {};
+};
+
 class StreamRename {
    private:
     StreamRenameMap makeSRM() {
@@ -82,6 +108,20 @@ class StreamRename {
         return std::make_pair(map[sid].used, map[sid].renamed);
     }
 
+    bool availableStream(){
+        std::stringstream stro;
+        FreePool tmp_q = pool; //copy the original queue to a temporary queue
+        uint64_t q_element = 0;
+        while (!tmp_q.empty())
+        {
+            q_element = (uint64_t)tmp_q.front();
+            stro << q_element <<" ,";
+            tmp_q.pop();
+        } 
+        DPRINTF(UVESEI, "Free Streams Status s(%d): %s\n", pool.size(),
+                                                        stro.str().c_str());
+        return pool.size() > 0;
+    }
    public:
     void freeStream(StreamID sid) {
         pool.push(sid);
@@ -93,6 +133,10 @@ class StreamRename {
     }
 
    public:
+    bool canRenameStream(){
+        return availableStream();
+    }
+
     std::pair<bool, StreamID> renameStreamLoad(StreamID sid) {
         return renameStream(sid, true);
     }
@@ -167,7 +211,7 @@ class SEInterface {
     bool sendCommand(SECommand cmd, InstSeqNum sn);
     bool isReady(StreamID sid);
 
-    void tick() { engine->tick(); }
+    void tick();
 
     bool isStreamLoad(StreamID sid) {
         return stream_rename.getStreamLoad(sid).first;
@@ -202,6 +246,16 @@ class SEInterface {
         stream_rename.freeStream(sid);
         // Clear register buffer
         registerBufferLoad[sid]->clear();
+        registerBufferLoadStatus[sid] = false;
+        registerBufferLoadOutstanding[sid] = 0;
+        std::stringstream stro;
+        for( int i = 0; i < registerBufferLoadStatus.size(); i++){
+            if(registerBufferLoadStatus[i] == true){
+                stro << i << "("<< registerBufferLoadOutstanding[i] <<")" <<" ,";   
+            }
+        }
+        DPRINTF(JMDEVEL, "del-registerBufferLoad Status: removed(%d) %s\n", sid, stro.str().c_str() );
+
 
         DPRINTF(UVERename, "Cleared Stream %d\n", sid);
     }
@@ -265,6 +319,15 @@ class SEInterface {
     }
 
    public:  // Config stream methods
+
+    /* True if any stream is available for configuration
+        Args: None
+        Returns: bool (true if any stream is available)
+    */
+    bool isStreamAvailable(){
+        return stream_rename.canRenameStream();
+    }
+
     std::pair<bool, StreamID> initializeStreamConfig(StreamID sid,
                                                      InstSeqNum sn,
                                                      bool load) {
@@ -344,7 +407,10 @@ class SEInterface {
             engine->synchronizeLoadLists(sid);
         }
         registerBufferLoad[sid]->push_front(
-            std::make_tuple(arch, phys, false, 0, false));
+            RegBufferCont(arch, phys, sid));
+
+        if(registerBufferLoadStatus[sid] == true)
+            registerBufferLoadOutstanding[sid] ++;
     }
     void markOnBufferLoad(const RegId &arch, PhysRegIdPtr phys,
                           InstSeqNum sn) {
@@ -355,50 +421,71 @@ class SEInterface {
         // DPRINTF(UVERename, "markOnBufferLoad: %p\n",phys);
         RegBufferIter it = registerBufferLoad[sid]->begin();
         while (it != registerBufferLoad[sid]->end()) {
-            if (phys->index() == std::get<1>(*it)->index()) {
-                std::get<2>(*it) = true;
+            if (phys->index() == it->preg->index()) {
+                it->prog = true;
             }
             it++;
         }
     }
-    std::pair<RegId, PhysRegIdPtr> consumeOnBufferLoad(StreamID psid) {
+    std::tuple<RegId, PhysRegIdPtr, StreamID> consumeOnBufferLoad(StreamID psid) {
         // Consume on buffer does not need stream lookup.
         // Sid is already physical
 
         if (!registerBufferLoad[psid]->empty() &&
             speculationPointerLoad[psid].valid()) {
-            if (std::get<2>(*speculationPointerLoad[psid])) {
+            if (speculationPointerLoad[psid]->prog) {
                 auto retval =
-                    std::make_pair(std::get<0>(*speculationPointerLoad[psid]),
-                                   std::get<1>(*speculationPointerLoad[psid]));
-                DPRINTF(UVERename, "consumeOnBufferLoad: %d, %p\n", psid,
-                        std::get<1>(*speculationPointerLoad[psid]));
-                auto val = *speculationPointerLoad[psid];
-                std::get<4>(val) = true;
+                    std::make_tuple(speculationPointerLoad[psid]->areg,
+                                   speculationPointerLoad[psid]->preg,
+                                   speculationPointerLoad[psid]->ssid);
+                speculationPointerLoad[psid]->sqct = true;
+                DPRINTF(UVERename, "consumeOnBufferLoad: %d, %p, (cons)%d\n",
+                        psid,
+                        speculationPointerLoad[psid]->preg,
+                        speculationPointerLoad[psid]->sqct);
                 speculationPointerLoad[psid]++;
 
                 return retval;
             }
-            return std::make_pair(RegId(), (PhysRegIdPtr) nullptr);
+            return std::make_tuple(RegId(), (PhysRegIdPtr) nullptr, 0);
         }
-        return std::make_pair(RegId(), (PhysRegIdPtr) nullptr);
+        return std::make_tuple(RegId(), (PhysRegIdPtr) nullptr, 0);
     }
     void squashToBufferLoad(const RegId &arch, PhysRegIdPtr phys,
                             InstSeqNum sn) {
+        
         if (!isInstMeaningful(sn)) return;
         StreamID sid = getStreamLoad(arch.index());
         DPRINTF(UVERename, "squashToBufferLoadTry: %d, %p. SeqNum[%d] \n",
                 arch.index(), phys, sn);
 
+        std::stringstream sout;
+
         if (!registerBufferLoad[sid]->empty()) {
-            if (std::get<1>(registerBufferLoad[sid]->front()) == phys &&
-                std::get<0>(registerBufferLoad[sid]->front()) == arch) {
+            if (registerBufferLoad[sid]->front().preg == phys &&
+                registerBufferLoad[sid]->front().areg == arch) {
                 bool already_consumed =
-                    std::get<4>(registerBufferLoad[sid]->front());
+                    registerBufferLoad[sid]->front().sqct;
+                
+
+                auto it = registerBufferLoad[sid]->begin();
+                while (it != registerBufferLoad[sid]->end()) {
+                    sout << "(" << it->areg << "," <<
+                                   it->preg << "," <<
+                                   it->prog << "," <<
+                                   it->ssid << "," <<
+                                   it->sqct << ");  ";
+                    it++;
+                }
+
+                DPRINTF(UVERename, "registerBufferLoad[%d]: %s\n", 
+                                    sid ,sout.str().c_str() );
+
                 registerBufferLoad[sid]->pop_front();
                 auto lookup_stream = stream_rename.getStreamLoad(arch.index());
                 if (already_consumed &&
                     engine->shouldSquashLoad(lookup_stream.second).isOk()) {
+                    //JMFIXME: If squash targets a last: remove last flag.
                     SmartReturn result =
                         engine->squashLoad(lookup_stream.second);
                     if (result.isNok() || result.isError()) panic("Error");
@@ -426,13 +513,13 @@ class SEInterface {
         DPRINTF(UVERename, "CommitToBufferLoadTry: %d, %p. SeqNum[%d]. \n",
                 sid, phys, sn);
         auto bufferEnd = registerBufferLoad[sid]->back();
-        if (std::get<2>(bufferEnd)) {
-            if (std::get<1>(bufferEnd) == phys &&
-                std::get<0>(bufferEnd) == arch) {
+        if (bufferEnd.prog) {
+            if (bufferEnd.preg == phys &&
+                bufferEnd.areg == arch) {
                 registerBufferLoad[sid]->pop_back();
                 speculationPointerLoad[sid]--;
                 auto lookup_stream = stream_rename.getStreamLoad(
-                    std::get<0>(bufferEnd).index());
+                    bufferEnd.areg.index());
                 SmartReturn result = engine->commitLoad(lookup_stream.second);
                 DPRINTF(
                     UVERename,
@@ -472,7 +559,7 @@ class SEInterface {
         }
         SubStreamID ssid = engine->reserveStoreEntry(sid);
         registerBufferStore[sid]->push_front(
-            std::make_tuple(arch, phys, false, ssid, false));
+            RegBufferCont(arch, phys, ssid));
     }
     bool fillOnBufferStore(const RegId &arch, PhysRegIdPtr phys,
                            CoreContainer val, InstSeqNum sn) {
@@ -486,11 +573,11 @@ class SEInterface {
         if (!registerBufferStore[sid]->empty()) {
             auto iter = registerBufferStore[sid]->begin();
             while (iter != registerBufferStore[sid]->end()) {
-                if (std::get<1>(*iter) == phys && std::get<0>(*iter) == arch) {
+                if (iter->preg == phys && iter->areg == arch) {
                     DPRINTF(UVERename,
                             "fillOnBufferStore: %d, %p. SeqNum[%d]\n", sid,
                             phys, sn);
-                    SubStreamID ssid = std::get<3>(*iter);
+                    SubStreamID ssid = iter->ssid;
                     engine->setDataStore(sid, ssid, val);
                     return true;
                 }
@@ -508,10 +595,10 @@ class SEInterface {
         DPRINTF(UVERename, "squashToBufferStoreTry: %d, %p. SeqNum[%d] \n",
                 arch.index(), phys, sn);
         if (!registerBufferStore[sid]->empty()) {
-            if (std::get<1>(registerBufferStore[sid]->front()) == phys &&
-                std::get<0>(registerBufferStore[sid]->front()) == arch) {
+            if (registerBufferStore[sid]->front().preg == phys &&
+                registerBufferStore[sid]->front().areg == arch) {
                 SubStreamID ssid =
-                    std::get<3>(registerBufferStore[sid]->front());
+                    registerBufferStore[sid]->front().ssid;
                 registerBufferStore[sid]->pop_front();
                 auto lookup_stream =
                     stream_rename.getStreamStore(arch.index());
@@ -540,12 +627,12 @@ class SEInterface {
         DPRINTF(UVERename, "commitToBufferStoreTry: %d, %p. SeqNum[%d] \n",
                 arch.index(), phys, sn);
         auto bufferEnd = registerBufferStore[sid]->back();
-        if (std::get<1>(bufferEnd) == phys && std::get<0>(bufferEnd) == arch) {
-            SubStreamID ssid = std::get<3>(bufferEnd);
+        if (bufferEnd.preg == phys && bufferEnd.areg == arch) {
+            SubStreamID ssid = bufferEnd.ssid;
             registerBufferStore[sid]->pop_back();
             speculationPointerStore[sid]--;
             auto lookup_stream =
-                stream_rename.getStreamStore(std::get<0>(bufferEnd).index());
+                stream_rename.getStreamStore(bufferEnd.areg.index());
             SmartReturn result =
                 engine->commitStore(lookup_stream.second, ssid);
             DPRINTF(UVERename,
@@ -584,10 +671,9 @@ class SEInterface {
     /* Completion Lookup Table (Updated in rename phase) */
     std::map<InstSeqNum, bool> UVECondLookup;
 
+
     using RegBufferList =
-        std::list<std::tuple<RegId /*Arch Reg*/, PhysRegIdPtr /*Phys Reg*/,
-                             bool /*Progress Control*/, int /*SSID*/,
-                             bool /*Squash Control*/>>;
+        std::list<RegBufferCont>;
     /***Squash Control and Progress Control***
      *            Init   Mark    Cons    Comm
      * Progress     0     1        1       1
@@ -601,6 +687,8 @@ class SEInterface {
     std::vector<RegBufferList *> registerBufferLoad, registerBufferStore;
     std::vector<SpecBufferIter> speculationPointerLoad,
         speculationPointerStore;
+    std::vector<bool> registerBufferLoadStatus;
+    std::vector<int> registerBufferLoadOutstanding;
 
     StreamRename stream_rename;
     InstSeqNumSet inst_validator;

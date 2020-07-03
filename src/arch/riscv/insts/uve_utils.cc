@@ -50,12 +50,14 @@ namespace RiscvISA{
         return ((Ret&) val);
     }
 
-    void check_equal_src_widths(size_t width1,size_t width2){
+    bool check_equal_src_widths(size_t width1,size_t width2){
         //JMTODO: Use assert in the future
         if (width1!=width2){
             DPRINTF(UVEUtils,"Src widths differ..(%d)!=(%d)\n",
             width1, width2);
+            return false;
         }
+        return true;
     }
 
     uint16_t get_dest_valid_index(uint16_t a, uint16_t b){

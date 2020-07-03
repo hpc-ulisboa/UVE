@@ -20,6 +20,8 @@ SEInterface<Impl>::SEInterface(O3CPU *cpu_ptr, Decode *dec_ptr, IEW *iew_ptr,
       registerBufferStore(32),
       speculationPointerLoad(32),
       speculationPointerStore(32),
+      registerBufferLoadStatus(32),
+      registerBufferLoadOutstanding(32),
       inst_validator() {
     dcachePort = &(cpu_ptr->getDataPort());
     if (params->streamEngine.size() == 1) {
@@ -34,6 +36,8 @@ SEInterface<Impl>::SEInterface(O3CPU *cpu_ptr, Decode *dec_ptr, IEW *iew_ptr,
         speculationPointerLoad[i] = SpecBufferIter(registerBufferLoad[i]);
         registerBufferStore[i] = new RegBufferList();
         speculationPointerStore[i] = SpecBufferIter(registerBufferStore[i]);
+        registerBufferLoadStatus[i] = false;
+        registerBufferLoadOutstanding[i] = 0;
     }
 }
 
@@ -128,22 +132,67 @@ SEInterface<Impl>::_signalEngineReady(CallbackInfo info) {
     for (int i = 0; i < info.psids_size; i++) {
         StreamID psid = info.psids[i];
 
+        // DPRINTF(JMDEVEL, "Trying to consume on signal(%d)\n", psid );
+
         auto regs = consumeOnBufferLoad(psid);
-        if (regs.second == nullptr) continue;
+        // DPRINTF(JMDEVEL, "Consumed on signal(%d): %d, %p, sid(%d) \n", psid,
+        //                         std::get<0>(regs),std::get<1>(regs),
+        //                         std::get<2>(regs) );
+
+        if (std::get<1>(regs) == nullptr) continue;
         // Ask Engine for the data
-        auto lookup_result = getStreamLoad(regs.first.index());
-        SmartReturn result = engine->getDataLoad(lookup_result);
+        SmartReturn result = engine->getDataLoad(std::get<2>(regs));
+        DPRINTF(JMDEVEL, "Consumed on signal(%d):Data: (%d) %s \n", psid,
+                                std::get<2>(regs),
+                                result.isOk() ? "OK" : "NOK" );
         if (result.isNok()) continue;
         CoreContainer *cnt = (CoreContainer *)result.getData();
         // assert(cnt->is_streaming());
         // Set data in reg file
-        cpu->setVecReg(regs.second, *cnt);
+        cpu->setVecReg(std::get<1>(regs), *cnt);
+
+        // If the container marks the end of a transaction: mark the
+        // registerBufferLoad as ended
+        if(cnt->is_last()){
+            registerBufferLoadStatus[psid] = true; 
+            std::stringstream stro;
+            for( int i = 0; i < registerBufferLoadStatus.size(); i++){
+                if(registerBufferLoadStatus[i] == true){
+                    stro << i << " ,";   
+                }
+            }
+            DPRINTF(JMDEVEL, "registerBufferLoad Status: new(%d) %s\n", psid, stro.str().c_str() );
+        } 
+
         delete cnt;
         // Wake Dependents and set scoreboard
-        iewStage->instQueue.wakeDependents(regs.second);
+        iewStage->instQueue.wakeDependents(std::get<1>(regs));
         return;
     }
     assert(false || "Code should be unreacheable");
+}
+
+
+template <class Impl>
+void SEInterface<Impl>::tick() { 
+    std::tuple<RegId, PhysRegIdPtr,StreamID> regis;
+    
+    engine->tick();
+    //Solve the outstanding requests issue:
+    for(int i = 0; i < registerBufferLoadStatus.size(); i++){
+        if (registerBufferLoadStatus[i] == true &&
+                    registerBufferLoadOutstanding[i] > 0 ){
+            
+            DPRINTF(JMDEVEL, "Detecting Outstanding (%d)\n", i);
+            // regis = consumeOnBufferLoad(i);
+            // if (std::get<1>(regis) == nullptr) continue;
+            // iewStage->instQueue.wakeDependents(std::get<1>(regis));
+            // registerBufferLoadOutstanding[i] --;
+            // if (registerBufferLoadOutstanding[i] < 0) 
+            //     registerBufferLoadOutstanding[i] = 0;
+            // DPRINTF(JMDEVEL, "Outstanding (%d) with phys(%p); Sent ghost vector\n", i, std::get<1>(regis));
+        }
+    }
 }
 
 #endif  // __CPU_O3_SE_INTERFACE_IMPL_HH__

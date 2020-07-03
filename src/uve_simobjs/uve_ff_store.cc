@@ -10,7 +10,8 @@ UVEStoreFifo::UVEStoreFifo(UVEStreamingEngineParams *params)
     for (int i = 0; i < fifos.size(); i++) {
         reservation_ssid[i] = -1;
         fifos[i] = new StreamFifo(confParams->width, confParams->fifo_depth,
-                                  confParams->max_request_size, i);
+                                  confParams->max_request_size, i,
+                                  false /*is of store type*/);
     }
 }
 

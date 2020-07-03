@@ -158,6 +158,9 @@ DefaultRename<Impl>::regStats()
     renameUVESLFFullEvents.name(name() + ".UVESLFFullEvents")
         .desc("Number of times rename has blocked due to UVE SLFifo full")
         .prereq(renameUVESLFFullEvents);
+    renameUVE_STMS_FullEvents.name(name() + ".UVE_STMS_FullEvents")
+        .desc("Number of times rename has blocked due to lack of streams")
+        .prereq(renameUVE_STMS_FullEvents);
     renameFullRegistersEvents.name(name() + ".FullRegisterEvents")
         .desc("Number of times there has been no free registers")
         .prereq(renameFullRegistersEvents);
@@ -695,7 +698,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             // the outer loop.
             if (!fifo_available) {
                 source = SSF;
-                incrFullStat(SSF);
+                incrFullStat(source);
                 DPRINTF(JMDEVEL,
                         "Rename: Store FIFO full, delaying "
                         "instruction seqnum(%d) due to arch fifo\n",
@@ -720,7 +723,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             // the outer loop.
             if (!fifo_available) {
                 source = SLF;
-                incrFullStat(SLF);
+                incrFullStat(source);
                 DPRINTF(JMDEVEL,
                         "Rename: Load FIFO full, delaying "
                         "instruction seqnum(%d) due to arch "
@@ -729,6 +732,22 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 break;
             }
         }
+
+        //JMFIXME: Check if there are free streams, in the case of a starting stream config.
+        //Detect if the instruction is starting a new stream (flag: IsStreamStart)
+        if(inst->isStreamStart()){
+            //Ask if there are free streams for configuration
+            if(!cpu->getSEICpuPtr()->isStreamAvailable()) {
+                source = STMS;
+                incrFullStat(source);
+                DPRINTF(JMDEVEL,
+                            "Rename: No available streams, delaying "
+                            "instruction seqnum(%d) due to lack of streams\n",
+                            inst->seqNum);
+                break;
+            }
+        }
+
 
         insts_to_rename.pop_front();
 
@@ -1653,6 +1672,9 @@ DefaultRename<Impl>::incrFullStat(const FullSource &source)
           break;
       case SLF:
           ++renameUVESLFFullEvents;
+          break;
+      case STMS:
+          ++renameUVE_STMS_FullEvents;
           break;
       default:
         panic("Rename full stall stat should be incremented for a reason!");

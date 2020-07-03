@@ -8,7 +8,8 @@ UVELoadFifo::UVELoadFifo(UVEStreamingEngineParams *params)
       fifo_depth(confParams->fifo_depth) {
     for (int i = 0; i < fifos.size(); i++) {
         fifos[i] = new StreamFifo(confParams->width, confParams->fifo_depth,
-                                  confParams->max_request_size, i);
+                                  confParams->max_request_size, i,
+                                  true /*is of load type*/);
     }
 }
 
@@ -37,7 +38,7 @@ UVELoadFifo::tick(CallbackInfo *info) {
 SmartReturn
 UVELoadFifo::getData(StreamID sid) {
     // Check if fifo is ready and if so, organize data to the cpu;
-    if (fifos[sid]->ready().isTrue()) {
+    if (fifos[sid]->ready().isOk()) {
         auto entry = fifos[sid]->get();
         entry_time[sid].sample(Cycles(curTick() - entry.time()));
         return SmartReturn::ok((void *)new CoreContainer(entry));
@@ -293,9 +294,9 @@ StreamFifo::get() {
     FifoEntry specEntry = *speculationPointer;
     speculationPointer++;
     DPRINTF(UVEFifo,
-            "Get of fifo[%d]. Size[%d]. Speculation Pointer targeting "
+            "Get of fifo[%d]. Size[%d]. elements(%d) Speculation Pointer targeting "
             "ssid[%d]. %s\n",
-            my_id, fifo_container->size(), speculationPointer->get_ssid(),
+            my_id, fifo_container->size(), specEntry.getSize(), speculationPointer->get_ssid(),
             specEntry.is_last() ? "Last Get." : "");
     DPRINTF(UVEFifo, "%s\n", print_fifo());
 
@@ -363,6 +364,8 @@ StreamFifo::squash() {
 SmartReturn
 StreamFifo::shouldSquash() {
     bool spec_iter_out_of_bounds = !speculationPointer.validOnDecrement();
+    //JMNOTE: If the fifo is for store, ignore the speculationPointer.
+    if (!load_nstore) spec_iter_out_of_bounds = false;
     if (empty().isOk() || spec_iter_out_of_bounds)
         return SmartReturn::nok();
     else

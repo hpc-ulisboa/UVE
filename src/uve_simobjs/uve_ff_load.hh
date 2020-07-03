@@ -126,16 +126,18 @@ class StreamFifo {
 
     SpeculativeIter speculationPointer;
     int my_id;
+    bool load_nstore;
 
    public:
     StreamFifo(uint16_t _cfg_sz, uint8_t depth, uint32_t _max_request_size,
-               int id)
+               int id, bool is_load=false)
         : max_size(depth),
           max_request_size(_max_request_size),
           config_size(_cfg_sz),
           status(SEIterationStatus::Clean),
           map(),
-          my_id(id) {
+          my_id(id),
+          load_nstore(is_load) {
         fifo_container = new FifoContainer();
         speculationPointer = SpeculativeIter(fifo_container);
     }

@@ -473,7 +473,7 @@ class DefaultRename
      */
     // JMNOTE: Added SSF(stream store fifo) and SLF(stream load fifo) as
     // reasons
-    enum FullSource { ROB, IQ, LQ, SQ, SSF, SLF, NONE };
+    enum FullSource { ROB, IQ, LQ, SQ, SSF, SLF, STMS, NONE };
 
     /** Function used to increment the stat that corresponds to the source of
      * the stall.
@@ -508,6 +508,7 @@ class DefaultRename
     // reasons
     Stats::Scalar renameUVESSFFullEvents;
     Stats::Scalar renameUVESLFFullEvents;
+    Stats::Scalar renameUVE_STMS_FullEvents;
     /** Stat for total number of times that rename runs out of free registers
      * to use to rename. */
     Stats::Scalar renameFullRegistersEvents;
