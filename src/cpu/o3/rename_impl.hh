@@ -737,7 +737,15 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         //Detect if the instruction is starting a new stream (flag: IsStreamStart)
         if(inst->isStreamStart()){
             //Ask if there are free streams for configuration
-            if(!cpu->getSEICpuPtr()->isStreamAvailable()) {
+            uint64_t sid = inst->getStreamRegister();
+            bool status = false;
+            if(cpu->getSEICpuPtr()->isRenameActive()){
+                status = cpu->getSEICpuPtr()->isStreamAvailable();
+            } else {
+                status = cpu->getSEICpuPtr()->isStreamAvailable(sid);
+            }
+            
+            if(!status) {
                 source = STMS;
                 incrFullStat(source);
                 DPRINTF(JMDEVEL,
@@ -1081,38 +1089,49 @@ DefaultRename<Impl>::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
            hb_it->instSeqNum > squashed_seq_num) {
         assert(hb_it != historyBuffer[tid].end());
 
-        DPRINTF(Rename, "[tid:%i] Removing history entry with sequence "
-                "number %i (archReg: %d, newPhysReg: %d, prevPhysReg: %d).\n",
-                tid, hb_it->instSeqNum, hb_it->archReg.index(),
-                hb_it->newPhysReg->index(), hb_it->prevPhysReg->index());
+        if(!hb_it->type){
+            DPRINTF(Rename, "[tid:%i] Removing history entry with sequence "
+                    "number %i (archReg: %d, newPhysReg: %d, prevPhysReg: %d).\n",
+                    tid, hb_it->instSeqNum, hb_it->archReg.index(),
+                    hb_it->newPhysReg->index(), hb_it->prevPhysReg->index());
 
-        // Undo the rename mapping only if it was really a change.
-        // Special regs that are not really renamed (like misc regs
-        // and the zero reg) can be recognized because the new mapping
-        // is the same as the old one.  While it would be merely a
-        // waste of time to update the rename table, we definitely
-        // don't want to put these on the free list.
-        if (hb_it->newPhysReg != hb_it->prevPhysReg) {
-            // Tell the rename map to set the architected register to the
-            // previous physical register that it was renamed to.
-            renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg);
+            // Undo the rename mapping only if it was really a change.
+            // Special regs that are not really renamed (like misc regs
+            // and the zero reg) can be recognized because the new mapping
+            // is the same as the old one.  While it would be merely a
+            // waste of time to update the rename table, we definitely
+            // don't want to put these on the free list.
+            if (hb_it->newPhysReg != hb_it->prevPhysReg) {
+                // Tell the rename map to set the architected register to the
+                // previous physical register that it was renamed to.
+                renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg);
 
-            // Put the renamed physical register back on the free list.
-            freeList->addReg(hb_it->newPhysReg);
+                // Put the renamed physical register back on the free list.
+                freeList->addReg(hb_it->newPhysReg);
 
-            // Need to squash in streaming engine
-            if (hb_it->archReg.isVecReg()) {
-                cpu->getSEICpuPtr()->squashDestToBuffer(hb_it->archReg,
-                                                        hb_it->newPhysReg,
-                                                        hb_it->instSeqNum);
+                // Need to squash in streaming engine
+                if (hb_it->archReg.isVecReg()) {
+                    cpu->getSEICpuPtr()->squashDestToBuffer(hb_it->archReg,
+                                                            hb_it->newPhysReg,
+                                                            hb_it->instSeqNum);
+                }
             }
-        }
 
-        // Notify potential listeners that the register mapping needs to be
-        // removed because the instruction it was mapped to got squashed. Note
-        // that this is done before hb_it is incremented.
-        ppSquashInRename->notify(std::make_pair(hb_it->instSeqNum,
-                                                hb_it->newPhysReg));
+            // Notify potential listeners that the register mapping needs to be
+            // removed because the instruction it was mapped to got squashed. Note
+            // that this is done before hb_it is incremented.
+            ppSquashInRename->notify(std::make_pair(hb_it->instSeqNum,
+                                                    hb_it->newPhysReg));
+        }
+        else {
+            DPRINTF(JMDEVEL,
+                    "doSquash: Freeing up older stream rename of"
+                    " stream %d (new %d) (last %d), [sn:%llu].\n",
+                    hb_it->archStream, hb_it->newStream, hb_it->prevStream,
+                    hb_it->instSeqNum);
+            cpu->getSEICpuPtr()->squashStreamConfig(
+                    hb_it->archStream, hb_it->instSeqNum);
+        }
 
         historyBuffer[tid].erase(hb_it++);
 
@@ -1154,17 +1173,27 @@ DefaultRename<Impl>::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
     while (!historyBuffer[tid].empty() &&
            hb_it != historyBuffer[tid].end() &&
            hb_it->instSeqNum <= inst_seq_num) {
-        DPRINTF(Rename,
+
+        if( !hb_it->type ){
+            DPRINTF(Rename,
                 "[tid:%i] Freeing up older rename of reg %i (%s), "
                 "[sn:%llu].\n",
                 tid, hb_it->prevPhysReg->index(),
                 hb_it->prevPhysReg->className(), hb_it->instSeqNum);
+            // Don't free special phys regs like misc and zero regs, which
+            // can be recognized because the new mapping is the same as
+            // the old one.
+            if (hb_it->newPhysReg != hb_it->prevPhysReg) {
+                freeList->addReg(hb_it->prevPhysReg);
+            }
 
-        // Don't free special phys regs like misc and zero regs, which
-        // can be recognized because the new mapping is the same as
-        // the old one.
-        if (hb_it->newPhysReg != hb_it->prevPhysReg) {
-            freeList->addReg(hb_it->prevPhysReg);
+        }
+        else {
+            DPRINTF(JMDEVEL,
+                    "removeFromHistory:(Commit freeing) Freeing up older"
+                    " stream rename of stream %d (last %d), [sn:%llu].\n",
+                    hb_it->archStream, hb_it->prevStream,
+                    hb_it->instSeqNum);
         }
 
         ++renameCommittedMaps;
@@ -1208,9 +1237,11 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
 
             // Make reservation in the fifo. Set the physical register as
             // destination of the data
-            cpu->getSEICpuPtr()->addToBufferLoad(src_reg, rename_result.first,
-                                                 inst->getSeqNum());
-
+            inst->setPhysStreamGlobal(src_idx,
+                cpu->getSEICpuPtr()->addToBufferLoad(src_reg,
+                                                    rename_result.first,
+                                                    inst->getSeqNum())
+            );
             // Save streamed register
             streamedRegIdx = src_reg.index();
 
@@ -1314,8 +1345,17 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
             auto rename_result = cpu->getSEICpuPtr()->initializeStreamConfig(
                 inst->getStreamRegister(), inst->getSeqNum(),
                 inst->isStreamLoad());
-            assert(rename_result.first || "Could not rename!! Should have.");
-            inst->setPhysStream(rename_result.second);
+            assert(std::get<0>(rename_result) || "Could not rename!! Should have.");
+            inst->setPhysStream(std::get<1>(rename_result));
+
+            //Add to history buffer
+            RenameHistory hb_entry_streamconfig(inst->getSeqNum(),
+                                    inst->getStreamRegister(),
+                                    std::get<1>(rename_result),
+                                    std::get<2>(rename_result));
+
+            historyBuffer[tid].push_front(hb_entry_streamconfig);
+
         } else {
             // A stream end or stream append
             // Get the phys stream id
@@ -1693,6 +1733,7 @@ DefaultRename<Impl>::dumpHistory()
         buf_it = historyBuffer[tid].begin();
 
         while (buf_it != historyBuffer[tid].end()) {
+            if(!(*buf_it).type)
             cprintf("Seq num: %i\nArch reg[%s]: %i New phys reg:"
                     " %i[%s] Old phys reg: %i[%s]\n",
                     (*buf_it).instSeqNum,

@@ -24,6 +24,8 @@ class UVEStreamingEngine(ClockedObject):
 
     start_addr = Param.Addr(0, "First address for Streaming Cache")
 
+    do_rename = Param.Bool(True, "Activate or deactivate stream id renaming")
+
     system = Param.System(Parent.any, "The system this cache is part of")
 
     tlb = Param.RiscvTLB(RiscvTLB(), "TLB/MMU to walk page table")

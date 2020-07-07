@@ -9,7 +9,9 @@ SEprocessing::SEprocessing(UVEStreamingEngineParams *params,
       tlb(params->tlb),
       offsetMask(mask(floorLog2(RiscvISA::PageBytes))),
       cacheLineSize(params->system->cacheLineSize()),
-      write_boss() {
+      write_boss(),
+      outstanding_errors(32),
+      outstanding_requests(32) {
     parent = _parent;
     write_boss.set_owner(this);
     for (int i = 0; i < 32; i++) {
@@ -149,6 +151,10 @@ SEprocessing::clear(StreamID sid) {
     iterQueue[sid] = new SEIter();
     this->ssidArray[sid] = -1;
     write_boss.squash(sid);
+
+    outstanding_errors[sid] = outstanding_requests[sid];
+    outstanding_requests[sid].empty();
+    
     return SmartReturn::ok();
 }
 
@@ -319,6 +325,8 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
         parent->getMemPort(read /*read=>Load/!Write*/)
             ->schedTimingReq(pkt, parent->nextAvailableCycle());
         parent->numStreamMemAccesses[sid]++;
+
+        if (read) outstanding_requests[sid].insert(ssid);
         if (!read) {
             if (last_packet) {
                 if (write_boss.is_end(sid, old_ssid))
@@ -370,6 +378,16 @@ SEprocessing::recvData(PacketPtr pkt){
 
     SEIterPtr iter = iterQueue[sid];
     // Special case for in-fligth transactions on canceled streams
+    if(outstanding_errors[sid].find(ssid) 
+            != outstanding_errors[sid].end()){
+        DPRINTF(
+            JMDEVEL,
+            "Iteration Object with sid %d and ssid %d was invalid. In-fligth transaction "
+            "detected.\n",
+            sid, ssid);
+        outstanding_errors[sid].erase(ssid);
+        return;
+    }
     if (iter->empty() && iter->ended().isNok()) {
         DPRINTF(
             JMDEVEL,
@@ -378,32 +396,47 @@ SEprocessing::recvData(PacketPtr pkt){
             sid);
         return;
     }
-    uint8_t width = iter->getWidth();
-    int size = pkt->getSize()/width;
 
-    switch(width){
-        case 1:
-            DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
-                    v_print(memData.as<uint8_t>(), size));
-            break;
-        case 2:
-            DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
-                    v_print(memData.as<uint16_t>(), size));
-            break;
-        case 4:
-            DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
-                    v_print(memData.as<uint32_t>(), size));
-            break;
-        default:
-            DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
-                    v_print(memData.as<uint64_t>(), size));
+    if(outstanding_requests[sid].find(ssid) 
+            != outstanding_requests[sid].end()){
+        
+        outstanding_requests[sid].erase(ssid);
+
+        uint8_t width = iter->getWidth();
+        int size = pkt->getSize()/width;
+
+        switch(width){
+            case 1:
+                DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                        v_print(memData.as<uint8_t>(), size));
+                break;
+            case 2:
+                DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                        v_print(memData.as<uint16_t>(), size));
+                break;
+            case 4:
+                DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                        v_print(memData.as<uint32_t>(), size));
+                break;
+            default:
+                DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                        v_print(memData.as<uint64_t>(), size));
+        }
+        //Insert data into fifo
+        parent->ld_fifo.insert(sid, ssid, memData);
+        Tick start_time = pkt->req->time();
+        Tick end_time = curTick();
+        parent->memRequestCycles[sid].sample(Cycles(end_time - start_time));
+        parent->numStreamMemBytes[sid] += pkt->getSize();
+        return;
     }
-    //Insert data into fifo
-    parent->ld_fifo.insert(sid, ssid, memData);
-    Tick start_time = pkt->req->time();
-    Tick end_time = curTick();
-    parent->memRequestCycles[sid].sample(Cycles(end_time - start_time));
-    parent->numStreamMemBytes[sid] += pkt->getSize();
+
+    DPRINTF(
+            JMDEVEL,
+            "Iteration Object with sid %d was not matched."
+            " Something strange occured.\n",
+            sid);
+    return;
 }
 
 void

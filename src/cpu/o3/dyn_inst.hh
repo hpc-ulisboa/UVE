@@ -444,6 +444,14 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     }
 
     InstSeqNum getSeqNum() { return this->seqNum; }
+
+    #define LIMIT(m, M, o) (o < m) ? m : ( (o > M) ? M : o)
+
+    uint64_t getPhysStream(int id) { 
+        return LIMIT(0, 31, this->physStreamGlobal[id]); }
+    void setPhysStreamGlobal(int id, uint64_t stream) {
+        this->physStreamGlobal[id] = stream; }
+
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

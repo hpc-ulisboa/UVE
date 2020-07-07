@@ -79,9 +79,6 @@ def template UveStreamExecuteT {{
         DPRINTF(UVEMem, "%(class_name)s->execute\n");
 
         SECommand *cmd = new %(cmd_code)s;
-        // auto sei = (SEInterface<O3CPUImpl>*) xc->getSEIPtr();
-        // sei->sendCommand(cmd);
-
 
         xc->sendSEIcmd((void *) cmd);
         %(op_wb)s;

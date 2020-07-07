@@ -10,7 +10,8 @@ UVEStreamingEngine::UVEStreamingEngine(UVEStreamingEngineParams* params)
       st_fifo(params),
       confAddr(params->start_addr),
       confSize(32),
-      cycler(0) {
+      cycler(0),
+      renameActive(params->do_rename) {
     callback = nullptr;
 }
 
@@ -70,6 +71,11 @@ UVEStreamingEngine::addStreamConfig(StreamID sid, InstSeqNum sn) {
 SmartReturn
 UVEStreamingEngine::squashStreamConfig(StreamID sid, InstSeqNum sn) {
     return confCore.squashCmd(sid, sn);
+}
+
+bool
+UVEStreamingEngine::isRenameActive() {
+    return renameActive;
 }
 
 bool

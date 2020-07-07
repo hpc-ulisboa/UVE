@@ -63,7 +63,7 @@ class StreamRename {
     }
     using Arch2PhysMap = std::vector<StreamRenameMap>;
     Arch2PhysMap map;
-    using FreePool = std::queue<StreamID>;
+    using FreePool = std::deque<StreamID>;
     FreePool pool;
 
    public:
@@ -77,27 +77,52 @@ class StreamRename {
    private:
     StreamID getFreeStream() {
         auto retval = pool.front();
-        pool.pop();
+        pool.pop_front();
         return retval;
     }
+    StreamID getFreeStream(uint64_t sid) {
+        auto it = pool.begin();
+        while (it != pool.end()){
+            if (*it == sid) pool.erase(it);
+            it++;
+        }
+        return sid;
+    }
+
     bool anyStream() { return pool.size() != 0; }
-    std::pair<bool, StreamID> renameStream(StreamID sid, bool load) {
+
+    std::tuple<bool, StreamID, StreamID> renameStream(StreamID sid, bool load,
+                                                    bool rename){
         if (anyStream()) {
-            auto available_stream = getFreeStream();
-            map[sid].last_used = map[sid].used;
-            map[sid].last_rename = map[sid].renamed;
-            map[sid].used = true;
-            map[sid].renamed = available_stream;
-            map[sid].direction = load ? StreamMode::load : StreamMode::store;
-            DPRINTF(UVESEI, "Rename: Stream %d was renamed to %d\n", sid,
-                    available_stream);
-            return std::make_pair(true, available_stream);
+            if(rename) {
+                auto available_stream = getFreeStream();
+                map[sid].last_used = map[sid].used;
+                map[sid].last_rename = map[sid].renamed;
+                map[sid].used = true;
+                map[sid].renamed = available_stream;
+                map[sid].direction = load ? StreamMode::load : StreamMode::store;
+                DPRINTF(UVESEI, "Rename: Stream %d was renamed to %d\n", sid,
+                        available_stream);
+                return std::make_tuple(true, available_stream,
+                map[sid].last_rename);
+            } else {
+                auto available_stream = getFreeStream(sid);
+                map[sid].last_used = map[sid].used;
+                map[sid].last_rename = map[sid].renamed;
+                map[sid].used = true;
+                map[sid].renamed = available_stream;
+                map[sid].direction = load ? StreamMode::load : StreamMode::store;
+                DPRINTF(UVESEI, "Rename: Stream %d was renamed to %d\n", sid,
+                        available_stream);
+                return std::make_tuple(true, available_stream,
+                map[sid].last_rename);
+            }
         } else {
             DPRINTF(
                 UVESEI,
                 "Rename: Stream %d was not renamed, no streams available.\n",
                 sid);
-            return std::make_pair(false, (StreamID)0);
+            return std::make_tuple(false, (StreamID)0, (StreamID)0);
         }
     }
 
@@ -116,15 +141,30 @@ class StreamRename {
         {
             q_element = (uint64_t)tmp_q.front();
             stro << q_element <<" ,";
-            tmp_q.pop();
+            tmp_q.pop_front();
         } 
         DPRINTF(UVESEI, "Free Streams Status s(%d): %s\n", pool.size(),
                                                         stro.str().c_str());
         return pool.size() > 0;
     }
+
+
+    bool availableStream(uint64_t sid){
+        std::stringstream stro;
+        bool can_rename = false;
+        FreePool tmp_q = pool; //copy the original queue to a temporary queue
+        uint64_t q_element = 0;
+        while (!tmp_q.empty())
+        {
+            q_element = (uint64_t)tmp_q.front();
+            if(q_element == sid) can_rename = true;
+            tmp_q.pop_front();
+        }
+        return can_rename;
+    }
    public:
     void freeStream(StreamID sid) {
-        pool.push(sid);
+        pool.push_front(sid);
         auto result = reverseLookup(sid);
         if (result.first) {
             map[result.second].used = false;
@@ -136,12 +176,21 @@ class StreamRename {
     bool canRenameStream(){
         return availableStream();
     }
-
-    std::pair<bool, StreamID> renameStreamLoad(StreamID sid) {
-        return renameStream(sid, true);
+    bool canRenameStream(uint64_t sid){
+        return availableStream(sid);
     }
-    std::pair<bool, StreamID> renameStreamStore(StreamID sid) {
-        return renameStream(sid, false);
+
+    std::tuple<bool, StreamID, StreamID> renameStreamLoad(StreamID sid) {
+        return renameStream(sid, true, true);
+    }
+    std::tuple<bool, StreamID, StreamID> renameStreamStore(StreamID sid) {
+        return renameStream(sid, false, true);
+    }
+    std::tuple<bool, StreamID, StreamID> nrenameStreamLoad(StreamID sid) {
+        return renameStream(sid, true, false);
+    }
+    std::tuple<bool, StreamID, StreamID> nrenameStreamStore(StreamID sid) {
+        return renameStream(sid, false, false);
     }
 
     std::pair<bool, StreamID> getStreamStore(StreamID sid) {
@@ -181,6 +230,40 @@ class StreamRename {
         if (!map[sid].last_used) return std::make_pair(false, 0);
         map[sid].last_used = false;
         return std::make_pair(true, map[sid].last_rename);
+    }
+
+    bool rollback(StreamID sid) {
+        if (!map[sid].last_used) return false;
+        pool.push_front(map[sid].renamed);
+
+        map[sid].used = map[sid].last_used;
+        map[sid].renamed = map[sid].last_rename;
+        
+        map[sid].last_used = false;
+        map[sid].last_rename = 0;
+        
+        return true;
+    }
+
+    std::string print(){
+        std::stringstream stro;
+        FreePool tmp_q = pool; //copy the original queue to a temporary queue
+        uint64_t q_element = 0;
+        stro << "Free Streams:";
+        while (!tmp_q.empty())
+        {
+            q_element = (uint64_t)tmp_q.front();
+            stro << q_element <<" ,";
+            tmp_q.pop_front();
+        }
+        stro << "|  Status: ";
+        for(int i = 0; i < map.size(); i ++){
+            stro << "(" << i <<  "): " << ((int)map[i].renamed) << 
+                (map[i].used ? "[U]:" : ":") <<
+                ((int)map[i].last_rename) << (map[i].last_used ? "[U]" : "")
+                << ", ";
+        }
+        return stro.str();
     }
 };
 
@@ -239,6 +322,10 @@ class SEInterface {
         return stream_rename.getStreamConfig(asid).second;
     }
 
+    bool isRenameActive(){
+        return engine->isRenameActive();
+    }
+
    private:  // Private Methods
     void clearBuffer(StreamID sid) {
         // Sid must be a real stream. Not a rename alias.
@@ -283,7 +370,7 @@ class SEInterface {
             if (result.first) {
                 // registerBufferLoad[result.first]->clear();
                 // speculationPointerLoad[result.first].clear();
-                stream_rename.freeStream(result.first);
+                stream_rename.freeStream(result.second);
                 DPRINTF(UVERename, "SquashDestToBuffer: %d, %p. SeqNum[%d]\n",
                         result.first, phys, sn);
             }
@@ -327,25 +414,36 @@ class SEInterface {
     bool isStreamAvailable(){
         return stream_rename.canRenameStream();
     }
+    bool isStreamAvailable(uint64_t sid){
+        return stream_rename.canRenameStream(sid);
+    }
 
-    std::pair<bool, StreamID> initializeStreamConfig(StreamID sid,
+    std::tuple<bool, StreamID, StreamID> initializeStreamConfig(StreamID sid,
                                                      InstSeqNum sn,
                                                      bool load) {
         // This method is only called on stream configs
         // Add inst sequence number to hash map
         insertMeaningfulInst(sn);
-        std::pair<bool, StreamID> result;
-        if (load) {
-            result = stream_rename.renameStreamLoad(sid);
+        std::tuple<bool, StreamID, StreamID> result;
+        if(engine->isRenameActive()){
+            if (load) {
+                result = stream_rename.renameStreamLoad(sid);
+            } else {
+                result = stream_rename.renameStreamStore(sid);
+            }
         } else {
-            result = stream_rename.renameStreamStore(sid);
+            if (load) {
+                result = stream_rename.nrenameStreamLoad(sid);
+            } else {
+                result = stream_rename.nrenameStreamStore(sid);
+            }
         }
-        insertStreamConfigInst(sn, result.second);
-        engine->addStreamConfig(result.second, sn);
+        insertStreamConfigInst(sn, std::get<1>(result));
+        engine->addStreamConfig(std::get<1>(result), sn);
         DPRINTF(UVERename,
-                "Initialized Stream [%d], renamed to sid[%d] with inst "
-                "SeqNum[%d]\n",
-                sid, result.second, sn);
+                "Initialized Stream [%d], renamed to sid[%d] (last:%d) "
+                "with inst SeqNum[%d]\n",
+                sid, std::get<1>(result), std::get<2>(result), sn);
         return result;
     }
 
@@ -365,7 +463,9 @@ class SEInterface {
     void squashStreamConfig(StreamID asid, InstSeqNum sn) {
         if (isInstMeaningful(sn) && isInstStreamConfig(sn)) {
             StreamID sid = getStreamConfigSid(sn);
-            stream_rename.freeStream(sid);
+            DPRINTF(JMDEVEL,"StreamRename: %s\n",
+                    stream_rename.print().c_str());
+            stream_rename.rollback(asid);
             retireStreamConfigInst(sn);
             engine->squashStreamConfig(sid, sn);
             engine->endStreamFromSquash(sid);
@@ -394,7 +494,8 @@ class SEInterface {
     bool isLoadStream(StreamID sid) {
         return stream_rename.getStreamLoad(sid).first;
     }
-    void addToBufferLoad(const RegId &arch, PhysRegIdPtr phys, InstSeqNum sn) {
+    StreamID addToBufferLoad(const RegId &arch, PhysRegIdPtr phys,
+                            InstSeqNum sn) {
         insertMeaningfulInst(sn);
         StreamID sid = getAssertedStreamLoad(arch.index());
 
@@ -402,7 +503,7 @@ class SEInterface {
                 sn);
         if (registerBufferLoad[sid]->empty()) {
             speculationPointerLoad[sid]++;
-            // Also update the fifo speculationPointerLoad due to
+            // Also update the fifo speculation Pointer Load due to
             // desyncronization with This one
             engine->synchronizeLoadLists(sid);
         }
@@ -411,6 +512,7 @@ class SEInterface {
 
         if(registerBufferLoadStatus[sid] == true)
             registerBufferLoadOutstanding[sid] ++;
+        return sid;
     }
     void markOnBufferLoad(const RegId &arch, PhysRegIdPtr phys,
                           InstSeqNum sn) {
@@ -503,24 +605,34 @@ class SEInterface {
         }
     }
     void commitToBufferLoad(const RegId &arch, PhysRegIdPtr phys,
-                            InstSeqNum sn) {
+                            InstSeqNum sn, uint64_t sid) {
         if (!isInstMeaningful(sn)) return;
         // JMFIXME: Not sure if this does anything. Maybe it should be done
         // in a specific method for stream config
         retireStreamConfigInst(sn);
-
-        StreamID sid = getStreamLoad(arch.index());
         DPRINTF(UVERename, "CommitToBufferLoadTry: %d, %p. SeqNum[%d]. \n",
                 sid, phys, sn);
+
+        std::stringstream sout;
+        auto it = registerBufferLoad[sid]->begin();
+        while (it != registerBufferLoad[sid]->end()) {
+            sout << "(" << it->areg << "," <<
+                            it->preg << "," <<
+                            it->prog << "," <<
+                            it->ssid << "," <<
+                            it->sqct << ");  ";
+            it++;
+        }
+        DPRINTF(UVERename, "registerBufferLoad[%d]: %s\n",
+                sid, sout.str().c_str() );
+        
         auto bufferEnd = registerBufferLoad[sid]->back();
         if (bufferEnd.prog) {
             if (bufferEnd.preg == phys &&
                 bufferEnd.areg == arch) {
                 registerBufferLoad[sid]->pop_back();
                 speculationPointerLoad[sid]--;
-                auto lookup_stream = stream_rename.getStreamLoad(
-                    bufferEnd.areg.index());
-                SmartReturn result = engine->commitLoad(lookup_stream.second);
+                SmartReturn result = engine->commitLoad(sid);
                 DPRINTF(
                     UVERename,
                     "commitToBufferLoad: %d, %p. SeqNum[%d]. \t "
@@ -528,11 +640,13 @@ class SEInterface {
                     sid, phys, sn,
                     result.isOk() ? "Ok" : (result.isEnd() ? "End" : "Nok"));
                 if (result.isEnd()) {
-                    clearBuffer(lookup_stream.second);
+                    clearBuffer(sid);
                 }
                 retireMeaningfulInst(sn);
                 if (result.isNok() || result.isError()) panic("Error");
             }
+        } else {
+            //Try the last rename (this can happen due to a bad rename)
         }
     }
     bool checkLoadOccupancy(const RegId &arch) {

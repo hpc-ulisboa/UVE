@@ -136,6 +136,8 @@ class SEprocessing : SimObject
     const Addr offsetMask;
     unsigned cacheLineSize;
     MemoryWriteHandler write_boss;
+    std::vector<std::set<uint64_t>> outstanding_errors;
+    std::vector<std::set<uint64_t>> outstanding_requests;
 
    public:
     /** constructor
@@ -311,6 +313,7 @@ class UVEStreamingEngine : public ClockedObject
     Addr confAddr;
     Addr confSize;
     Tick cycler;
+    bool renameActive;
     std::function<void(CallbackInfo)> callback;
 
    public:
@@ -330,6 +333,9 @@ class UVEStreamingEngine : public ClockedObject
         else
             return &memoryPortStore;
     }
+
+
+    bool isRenameActive();
 
     SmartReturn recvCommand(SECommand cmd, InstSeqNum sn);
     SmartReturn addStreamConfig(StreamID sid, InstSeqNum sn);

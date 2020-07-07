@@ -179,20 +179,22 @@ void SEInterface<Impl>::tick() {
     
     engine->tick();
     //Solve the outstanding requests issue:
+#if defined (UVE_OUTSTANDING_DETECTION) 
     for(int i = 0; i < registerBufferLoadStatus.size(); i++){
         if (registerBufferLoadStatus[i] == true &&
                     registerBufferLoadOutstanding[i] > 0 ){
             
             DPRINTF(JMDEVEL, "Detecting Outstanding (%d)\n", i);
-            // regis = consumeOnBufferLoad(i);
-            // if (std::get<1>(regis) == nullptr) continue;
-            // iewStage->instQueue.wakeDependents(std::get<1>(regis));
-            // registerBufferLoadOutstanding[i] --;
-            // if (registerBufferLoadOutstanding[i] < 0) 
-            //     registerBufferLoadOutstanding[i] = 0;
-            // DPRINTF(JMDEVEL, "Outstanding (%d) with phys(%p); Sent ghost vector\n", i, std::get<1>(regis));
+            regis = consumeOnBufferLoad(i);
+            if (std::get<1>(regis) == nullptr) continue;
+            iewStage->instQueue.wakeDependents(std::get<1>(regis));
+            registerBufferLoadOutstanding[i] --;
+            if (registerBufferLoadOutstanding[i] < 0) 
+                registerBufferLoadOutstanding[i] = 0;
+            DPRINTF(JMDEVEL, "Outstanding (%d) with phys(%p); Sent ghost vector\n", i, std::get<1>(regis));
         }
     }
+#endif
 }
 
 #endif  // __CPU_O3_SE_INTERFACE_IMPL_HH__

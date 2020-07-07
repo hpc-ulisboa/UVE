@@ -235,6 +235,9 @@ class BaseDynInst : public ExecContext, public RefCounted
     int16_t sqIdx;
     SQIterator sqIt;
 
+    //JMNOTE: Physical Stream
+    uint64_t physStreamGlobal[32];
+
 
     /////////////////////// TLB Miss //////////////////////
     /**

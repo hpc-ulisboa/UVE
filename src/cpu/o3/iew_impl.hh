@@ -1407,6 +1407,8 @@ DefaultIEW<Impl>::executeInsts()
                 DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: "
                         "Redirecting fetch to PC: %s\n",
                         tid,inst->seqNum,inst->pcState());
+
+                
                 // If incorrect, then signal the ROB that it must be squashed.
                 squashDueToBranch(inst, tid);
 

@@ -307,6 +307,16 @@ class DefaultRename
             : instSeqNum(_instSeqNum), archReg(_archReg),
               newPhysReg(_newPhysReg), prevPhysReg(_prevPhysReg)
         {
+          type = false;
+        }
+
+        RenameHistory(InstSeqNum _instSeqNum, uint64_t _archStream,
+                      uint64_t _newStream,
+                      uint64_t _prevStream)
+            : instSeqNum(_instSeqNum), archStream(_archStream),
+              newStream(_newStream), prevStream(_prevStream)
+        {
+          type = true;
         }
 
         /** The sequence number of the instruction that renamed. */
@@ -318,6 +328,10 @@ class DefaultRename
         /** The old physical register that the arch. register was renamed to.
          */
         PhysRegIdPtr prevPhysReg;
+
+        uint64_t archStream, newStream, prevStream;
+
+        bool type;
     };
 
     /** A per-thread list of all destination register renames, used to either
