@@ -107,3 +107,21 @@ def template UveStreamExecute {{
         return fault;
     }
 }};
+
+
+def template UveStreamModifierDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _VDest, uint8_t _RS1, uint8_t _target, uint8_t _behaviour,
+            uint8_t _RS3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _VDest, _RS1, _target, _behaviour, _RS3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};

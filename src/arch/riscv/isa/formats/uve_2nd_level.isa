@@ -524,10 +524,34 @@ namespace Uve
         uint8_t offset = (uint8_t) bits(machInst, 19, 15);
         uint8_t size = (uint8_t) bits(machInst, 24, 20);
         uint8_t stride = (uint8_t) bits(machInst, 31, 27);
+        uint8_t variation = stride;
+        uint8_t origin_stream = stride;
 
-        //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
+        //Selects if it is a dimension, modifier or indirect
+        uint8_t modif = (uint8_t) bits(machInst, 14, 13);
+        //Selects on indirect: scatter-gather or modifier
+        uint8_t mtype = (uint8_t) bits(machInst, 12);
 
-        return new UveStreamApp("ss.app", machInst, stream, offset, size, stride);
+        //Specifies the behaviour of the modifier
+        uint8_t behaviour = (uint8_t) bits(machInst, 24, 22);
+        //Specifies the target of the modifier
+        uint8_t target = (uint8_t) bits(machInst, 21, 20);
+
+        switch (modif)
+        {
+        case 0b00:
+        case 0b01: //Dimension
+            return new UveStreamApp("ss.app", machInst, stream, offset, size,
+                                    stride);
+        case 0b10: //Modifier
+            return new UveStreamAppModifier("ss.app.mod", machInst, stream,
+                                             size, target, behaviour,
+                                             variation);
+        case 0b11: //Indirection (Not implemented)
+            return new Unknown(machInst);
+        default:
+            return new Unknown(machInst);
+        }
 
     }  // decodeStreamAppend
     StaticInstPtr
@@ -537,10 +561,34 @@ namespace Uve
         uint8_t offset = (uint8_t) bits(machInst, 19, 15);
         uint8_t size = (uint8_t) bits(machInst, 24, 20);
         uint8_t stride = (uint8_t) bits(machInst, 31, 27);
+        uint8_t variation = stride;
+        uint8_t origin_stream = stride;
 
-        //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
+        //Selects if it is a dimension, modifier or indirect
+        uint8_t modif = (uint8_t) bits(machInst, 14, 13);
+        //Selects on indirect: scatter-gather or modifier
+        uint8_t mtype = (uint8_t) bits(machInst, 12);
 
-        return new UveStreamEnd("ss.end", machInst, stream, offset, size, stride);
+        //Specifies the behaviour of the modifier
+        uint8_t behaviour = (uint8_t) bits(machInst, 24, 22);
+        //Specifies the target of the modifier
+        uint8_t target = (uint8_t) bits(machInst, 21, 20);
+
+        switch (modif)
+        {
+        case 0b00:
+        case 0b01: //Dimension
+            return new UveStreamEnd("ss.end", machInst, stream, offset, size,
+                                    stride);
+        case 0b10: //Modifier
+            return new UveStreamEndModifier("ss.end.mod", machInst, stream,
+                                             size, target, behaviour,
+                                             variation);
+        case 0b11: //Indirection (Not implemented)
+            return new Unknown(machInst);
+        default:
+            return new Unknown(machInst);
+        }
 
     }  // decodeStreamEnd
 

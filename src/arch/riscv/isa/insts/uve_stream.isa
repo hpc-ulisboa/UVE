@@ -115,4 +115,37 @@ let {{
                             Rs1_ud, Rs2_ud, Rs3_ud, StreamType::end)
                     ''', 'End')
 
+
+
+    def emitUveStreamModifierInsts(cmdCode, variant, mode):
+        global header_output, exec_output, decoders
+        # JMNOTE: Here the memAccessSize comes from the value of rs2 ->
+        #If its zero: memAccessSize = eCount * sizeOf(RegElemType);
+
+
+        StreamIop = InstObjParams('ss',
+            'UveStream' + mode + variant,
+            'UveBaseModifierStream',
+            {
+             'cmd_code': cmdCode,
+             'op_class': 'UveStreamOp'},
+            ['IsStreamConfig'])
+            # 'IsNonSpeculative',
+
+        header_output += UveStreamModifierDeclare.subst(StreamIop)
+
+        exec_output += (
+            UveStreamExecute.subst(StreamIop)
+        )
+
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, target, behaviour, Rs3_ud,
+                    StreamType::append, StreamSetting::modifier)
+            ''','App', 'Modifier')
+
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, target, behaviour, Rs3_ud,
+                    StreamType::end, StreamSetting::modifier)
+            ''','End', 'Modifier')
+
 }};
