@@ -525,12 +525,12 @@ namespace Uve
         uint8_t size = (uint8_t) bits(machInst, 24, 20);
         uint8_t stride = (uint8_t) bits(machInst, 31, 27);
         uint8_t variation = stride;
-        uint8_t origin_stream = stride;
+        // uint8_t origin_stream = stride;
 
         //Selects if it is a dimension, modifier or indirect
         uint8_t modif = (uint8_t) bits(machInst, 14, 13);
         //Selects on indirect: scatter-gather or modifier
-        uint8_t mtype = (uint8_t) bits(machInst, 12);
+        // uint8_t mtype = (uint8_t) bits(machInst, 12);
 
         //Specifies the behaviour of the modifier
         uint8_t behaviour = (uint8_t) bits(machInst, 24, 22);
@@ -544,9 +544,47 @@ namespace Uve
             return new UveStreamApp("ss.app", machInst, stream, offset, size,
                                     stride);
         case 0b10: //Modifier
-            return new UveStreamAppModifier("ss.app.mod", machInst, stream,
-                                             size, target, behaviour,
+            switch(target){
+                case 0b00: //Size
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierAppSizeInc(
+                                            "ss.app.mod.siz.inc", machInst,
+                                             stream, size, target, behaviour,
                                              variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierAppSizeDec(
+                                            "ss.app.mod.siz.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+                case 0b01: //Stride
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierAppStrideInc(
+                                            "ss.app.mod.str.inc", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierAppStrideDec(
+                                            "ss.app.mod.str.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+                case 0b10: //Offset
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierAppOffsetInc(
+                                            "ss.app.mod.ofs.inc", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierAppOffsetDec(
+                                            "ss.app.mod.ofs.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+
+                default:
+                    return new Unknown(machInst);
+            }
         case 0b11: //Indirection (Not implemented)
             return new Unknown(machInst);
         default:
@@ -562,12 +600,12 @@ namespace Uve
         uint8_t size = (uint8_t) bits(machInst, 24, 20);
         uint8_t stride = (uint8_t) bits(machInst, 31, 27);
         uint8_t variation = stride;
-        uint8_t origin_stream = stride;
+        // uint8_t origin_stream = stride;
 
         //Selects if it is a dimension, modifier or indirect
         uint8_t modif = (uint8_t) bits(machInst, 14, 13);
         //Selects on indirect: scatter-gather or modifier
-        uint8_t mtype = (uint8_t) bits(machInst, 12);
+        // uint8_t mtype = (uint8_t) bits(machInst, 12);
 
         //Specifies the behaviour of the modifier
         uint8_t behaviour = (uint8_t) bits(machInst, 24, 22);
@@ -581,9 +619,47 @@ namespace Uve
             return new UveStreamEnd("ss.end", machInst, stream, offset, size,
                                     stride);
         case 0b10: //Modifier
-            return new UveStreamEndModifier("ss.end.mod", machInst, stream,
-                                             size, target, behaviour,
+            switch(target){
+                case 0b00: //Size
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierEndSizeInc(
+                                            "ss.end.mod.siz.inc", machInst,
+                                             stream, size, target, behaviour,
                                              variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierEndSizeDec(
+                                            "ss.end.mod.siz.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+                case 0b01: //Stride
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierEndStrideInc(
+                                            "ss.end.mod.str.inc", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierEndStrideDec(
+                                            "ss.end.mod.str.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+                case 0b10: //Offset
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierEndOffsetInc(
+                                            "ss.end.mod.ofs.inc", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierEndOffsetDec(
+                                            "ss.end.mod.ofs.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+
+                default:
+                    return new Unknown(machInst);
+            }
         case 0b11: //Indirection (Not implemented)
             return new Unknown(machInst);
         default:

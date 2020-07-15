@@ -22,7 +22,7 @@
 template <typename T>
 T mult_all(std::vector<T> * vec){
     uint64_t result = 1;
-    for(auto&& x: *vec){
+    for (auto&& x: *vec){
         result *= x;
     }
     return (T)result;
@@ -31,6 +31,25 @@ T mult_all(std::vector<T> * vec){
 typedef uint64_t DimensionSize;
 typedef uint64_t DimensionOffset;
 typedef uint64_t DimensionStride;
+typedef uint64_t DimensionVariation;
+typedef enum  {
+    incr = 'i',
+    decr = 'd',
+    add  = 'a',
+    sub  = 's',
+    set  = 't'
+}DimensionBehaviour;
+typedef enum  {
+    size = 's',
+    stride = 't',
+    offset = 'o'
+}DimensionTarget;
+
+typedef enum  {
+    dimension = 'd',
+    modifier = 'm',
+    indirection = 'i'
+}StreamSetting;
 
 class SEDimension
 {
@@ -42,25 +61,56 @@ class SEDimension
         DimensionSize   size;
         DimensionOffset offset;
         DimensionStride stride;
+        DimensionVariation variation;
+        DimensionBehaviour behaviour;
+        DimensionTarget target;
+        StreamSetting setting;
         specification type;
     public:
         SEDimension(DimensionSize size, DimensionOffset offset,
             DimensionStride stride):
                 size(size), offset(offset), stride(stride)
-            {   type = specification::complete;}
+            {
+                setting = StreamSetting::dimension;
+                type = specification::complete;
+            }
         SEDimension(DimensionOffset offset):
                 offset(offset)
-            {   type = specification::init;}
+            {
+                setting = StreamSetting::dimension;
+                type = specification::init;
+            }
+        SEDimension(DimensionSize size, DimensionBehaviour behav,
+                    DimensionTarget target, DimensionVariation variation):
+                size(size), offset(0), stride(0), variation(variation),
+                behaviour(behav), target(target)
+            {
+                setting = StreamSetting::modifier;
+                type = specification::complete;
+            }
         ~SEDimension() {}
 
         std::string
         to_string(){
-            return csprintf("S(%d):O(%d):St(%d)", size, offset, stride);
+            switch (setting)
+            {
+            case StreamSetting::modifier:
+                return csprintf("S(%d):V(%d):B(%c):T(%c)", size, variation,
+                                (char)behaviour, (char)target);
+            case StreamSetting::dimension:
+                return csprintf("S(%d):O(%d):St(%d)", size, offset, stride);
+            default:
+                return csprintf("--==Dimension not implemented==--");
+            }
         }
 
         DimensionSize get_size() { return size; }
         DimensionStride get_stride() { return stride; }
         DimensionOffset get_offset() { return offset; }
+        DimensionVariation get_variation() { return variation; }
+        StreamSetting get_setting() { return setting; }
+        DimensionBehaviour get_behaviour() { return behaviour; }
+        DimensionTarget get_target() { return target; }
 
 };
 
@@ -99,6 +149,7 @@ class SEStream
         StreamWidth width;
         StreamMode mode;
         StreamType type;
+        StreamSetting setting;
 
     public:
         SEStream(StreamID stream, StreamWidth width, StreamMode mode,
@@ -107,21 +158,32 @@ class SEStream
         {
             assert(stream < MaximumStreams);
             id = stream;
+            setting = StreamSetting::dimension;
         }
-        //Append and End dont now width or mode
+        //Append and End dont know width or mode
         SEStream(StreamID stream, StreamType type):
              type(type)
         {
             assert(type == StreamType::append || type == StreamType::end);
             assert(stream < MaximumStreams);
             id = stream;
+            setting = StreamSetting::dimension;
+        }
+        //Append and End for modifiers
+        SEStream(StreamID stream, StreamType type, StreamSetting _setting):
+             type(type)
+        {
+            assert(type == StreamType::append || type == StreamType::end);
+            assert(stream < MaximumStreams);
+            id = stream;
+            setting = _setting;
         }
         ~SEStream(){}
 
         std::string
         to_string(){
-            return csprintf("ID(%d):T(%c):W(%c):%c",id, (char) type,
-                (char)width, (char)mode);
+            return csprintf("ID(%d):T(%c):W(%c):::M(%c)::S(%c)",id, (char)type,
+                (char)width, (char)mode, (char)setting);
         }
 
         StreamID getID(){
@@ -168,8 +230,11 @@ class SEStream
         StreamType getType(){
             return type;
         }
+        StreamSetting getSetting(){
+            return setting;
+        }
         void setType(StreamType _type){
-            if(type==start)
+            if (type==start)
                 type = StreamType::simple;
             else
                 type = StreamType::end;
@@ -216,6 +281,15 @@ class SECommand {
          dimension = new SEDimension(_sz, _o, _st);
          tc = _tc;
      }
+     // Create command for modified append and end
+     SECommand(ThreadContext* _tc, StreamID _s, DimensionSize _sz,
+               DimensionTarget _tg, DimensionBehaviour _bh,
+               DimensionVariation _dv, StreamType _typ, StreamSetting _mod
+               ) {
+         stream = new SEStream(_s, _typ, _mod);
+         dimension = new SEDimension(_sz, _bh, _tg, _dv);
+         tc = _tc;
+     }
      // Create command for end and append
      // SECommand(StreamID _s, StreamModif _sm, StreamConfig _cfg,
      //     DimensionSize _sz, DimensionOffset _o, DimensionStride _st,
@@ -248,8 +322,10 @@ class SECommand {
      bool isStartEnd() { return stream->getType() == StreamType::simple; }
 
      bool isDimension() {
-         return true;
-         // JMTODO: Support modifiers
+         return stream->getSetting() == StreamSetting::dimension;
+     }
+     bool isModifier() {
+         return stream->getSetting() == StreamSetting::modifier;
      }
 
      bool isLast() {
