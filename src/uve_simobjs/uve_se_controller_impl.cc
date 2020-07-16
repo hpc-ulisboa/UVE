@@ -13,7 +13,7 @@ SmartReturn
 SEcontroller::recvCommand(SECommand cmd, InstSeqNum sn) {
     //Parse command (switch case)
     //Handle request, return time
-    DPRINTF(UVESE, "recvCommand %s, sn %d\n", cmd.to_string(), sn);
+    DPRINTF(UVESE, PR_INFO("recvCommand %s, sn %d\n"), cmd.to_string(), sn);
 
     uint8_t sID = cmd.getStreamID();
 
@@ -29,8 +29,8 @@ SEcontroller::recvCommand(SECommand cmd, InstSeqNum sn) {
         SEIterPtr stream_iterator = new SEIter(que, curTick());
         //Send iterator to processing engine
         if (!memCore->setIterator(sID, stream_iterator)) {
-            DPRINTF(UVESE, "Starting Stream: Stream %d is not available.\n",
-                    sID);
+            DPRINTF(UVESE, PR_ERR("Starting Stream: Stream %d is not"
+                    " available.\n"), sID);
             delete stream_iterator;
         } else {
             parent->numStreamConfig[sID]++;
@@ -47,7 +47,7 @@ SEcontroller::addCmd(StreamID sid, InstSeqNum sn) {
     csw.sn = sn;
     csw.sid = sid;
     cmds_list.push_front(csw);
-    DPRINTF(UVESE, "queueCommand sid %d, sn %d\n", sid, sn);
+    DPRINTF(UVESE, PR_ANN("queueCommand sid %d, sn %d\n"), sid, sn);
     return SmartReturn::ok();
 }
 

@@ -76,19 +76,20 @@ class SEprocessing : SimObject
             uint64_t s_hash = 0;
             s_hash = (uint64_t)((uint64_t)sid << 32) | (uint64_t)ssid;
             end_set.insert(s_hash);
-            owner->DEBUG_PRINT(
-                "Set as store end: sid %d, ssid %d with hash %d\n", sid, ssid,
+            owner->DEBUG_PRINT(PR_INFO(
+                "Set as store end: sid %d, ssid %d with hash %d\n"), sid, ssid,
                 s_hash);
         }
         bool is_end(StreamID sid, SubStreamID ssid) {
             uint64_t s_hash = 0;
             s_hash = (uint64_t)((uint64_t)sid << 32) | (uint64_t)ssid;
             auto e_set_iter = end_set.find(s_hash);
-            owner->DEBUG_PRINT("Find as store end: hash %d\n", s_hash);
+            owner->DEBUG_PRINT(PR_INFO("Find as store end: hash %d\n"),
+                              s_hash);
             if (e_set_iter != end_set.end()) {
                 end_set.erase(e_set_iter);
-                owner->DEBUG_PRINT(
-                    "Found as store end: sid %d, ssid %d with hash %d\n", sid,
+                owner->DEBUG_PRINT(PR_INFO(
+                    "Found as store end: sid %d, ssid %d with hash %d\n"), sid,
                     ssid, s_hash);
                 return true;
             }

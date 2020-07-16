@@ -53,7 +53,7 @@ SEprocessing::tick_load() {
         }
     }
 
-    DPRINTF(JMDEVEL, "Settled on load_auxID:%d advance_size(%d B)\n",
+    DPRINTF(JMDEVEL, PR_INFO("Settled on load_auxID:%d advance_size(%d B)\n"),
             load_auxID, max_advance_size / 8);
     parent->streamProcessingCycles[load_auxID]++;
     load_pID = load_auxID;
@@ -62,11 +62,11 @@ SEprocessing::tick_load() {
     if (request_info.stop_reason == DimensionSwap) {
         asm("nop\n\t");
     }
-    DPRINTF(UVESE, "iterator sid:(%d) ssid:(%d): %s\n", load_pID,
+    DPRINTF(UVESE, PR_ANN("iterator sid:(%d) ssid:(%d): %s\n"), load_pID,
             request_info.sequence_number, iterQueue[load_pID]->print_state());
-    DPRINTF(UVESE,
-            "Memory Request[%s][%d] sz[%d B]: [%d->%d] w(%d)  StopReason:%s\n",
-            request_info.mode == StreamMode::load ? "load" : "store",
+    DPRINTF(UVESE, PR_INFO(
+            "Memory Request[%s][%d] sz[%d B]: [%d->%d] w(%d)  StopReason:%s\n")
+            , request_info.mode == StreamMode::load ? "load" : "store",
             request_info.sequence_number,
             (request_info.final_offset - request_info.initial_offset),
             request_info.initial_offset, request_info.final_offset,
@@ -77,7 +77,7 @@ SEprocessing::tick_load() {
                         ? "Buffer Full"
                         : "End or Strided")));
     if (request_info.status == SEIterationStatus::Ended)
-        DPRINTF(UVESE, "Iteration on stream %d ended!\n", load_pID);
+        DPRINTF(UVESE, PR_WARN("Iteration on stream %d ended!\n"), load_pID);
     // Create and send request to memory
     emitRequest(request_info);
 };
@@ -115,17 +115,17 @@ SEprocessing::tick_store() {
         }
     }
 
-    DPRINTF(JMDEVEL, "Settled on store_auxID:%d\n", store_auxID);
+    DPRINTF(JMDEVEL, PR_ANN("Settled on store_auxID:%d\n"), store_auxID);
     parent->streamProcessingCycles[store_auxID]++;
     store_pID = store_auxID;
     SERequestInfo request_info =
         iterQueue[store_pID]->advance(max_advance_size);
-    DPRINTF(UVESE, "Memory Request[%s][%d]: [%d->%d] w(%d)\n",
+    DPRINTF(UVESE, PR_INFO("Memory Request[%s][%d]: [%d->%d] w(%d)\n"),
             request_info.mode == StreamMode::load ? "load" : "store",
             request_info.sequence_number, request_info.initial_offset,
             request_info.final_offset, request_info.width);
     if (request_info.status == SEIterationStatus::Ended)
-        DPRINTF(UVESE, "Iteration on stream %d ended!\n", store_pID);
+        DPRINTF(UVESE, PR_WARN("Iteration on stream %d ended!\n"), store_pID);
     //Create and send request to memory
     emitRequest(request_info);
 };
@@ -154,7 +154,7 @@ SEprocessing::clear(StreamID sid) {
 
     outstanding_errors[sid] = outstanding_requests[sid];
     outstanding_requests[sid].empty();
-    
+
     return SmartReturn::ok();
 }
 
@@ -168,7 +168,7 @@ SEprocessing::emitRequest(SERequestInfo info){
 void
 SEprocessing::executeRequest(SERequestInfo info){
 
-    DPRINTF(UVESE,"Execute Memory Request[%d]: [%d->%d] w(%d)\n",
+    DPRINTF(UVESE,PR_ANN("Execute Memory Request[%d]: [%d->%d] w(%d)\n"),
     info.sequence_number, info.initial_offset,
     info.final_offset, info.width );
     uint64_t size = info.final_offset- info.initial_offset;
@@ -194,7 +194,8 @@ SEprocessing::accessMemory(Addr addr, int size, StreamID sid, SubStreamID ssid,
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
         // req->setFlags(Request::PREFETCH);
-        DPRINTF(JMDEVEL, "Translating for addr %#x\n", req->getVaddr());
+        DPRINTF(JMDEVEL, PR_DBG("Translating for addr %#x\n"),
+                     req->getVaddr());
 
         // Check if the data is only in one page:
         if (!this->isSinglePage(addr, size)) {
@@ -243,8 +244,8 @@ SEprocessing::finishTranslation(WholeTranslationState *state)
         // speculation can give rise to page faults
         // panic("Page fault in SEprocessing. Addr: %#x, Name: %s\n",
         //       state->mainReq->getVaddr(), state->getFault()->name());
-        DPRINTF(JMDEVEL,
-                "Page fault found, prooceding. For now doing nothing.\n");
+        DPRINTF(JMDEVEL, PR_ERR(
+                "Page fault found, prooceding. For now doing nothing.\n"));
         delete state;
         return;
     }
@@ -253,15 +254,15 @@ SEprocessing::finishTranslation(WholeTranslationState *state)
     auto sid = state->mainReq->streamId();
 
     if (!state->isSplit) {
-        DPRINTF(JMDEVEL, "Got response for translation. %#x -> %#x\n",
+        DPRINTF(JMDEVEL, PR_INFO("Got response for translation. %#x -> %#x\n"),
                 state->mainReq->getVaddr(), state->mainReq->getPaddr());
         sendDataRequest(state->mainReq, state->data,
                         state->mode == BaseTLB::Read);
         iterQueue[sid]->setPaddr(state->mainReq->getPaddr(), false);
     } else {
-        DPRINTF(JMDEVEL,
+        DPRINTF(JMDEVEL, PR_INFO(
                 "Got response for split translation. 1(%#x -> %#x) 2(%#x -> "
-                "%#x)\n",
+                "%#x)\n"),
                 state->sreqLow->getVaddr(), state->sreqLow->getPaddr(),
                 state->sreqHigh->getVaddr(), state->sreqHigh->getPaddr());
         sendSplitDataRequest(state->sreqLow, state->sreqHigh, state->mainReq,
@@ -276,7 +277,8 @@ SEprocessing::finishTranslation(WholeTranslationState *state)
 void
 SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
                               bool split_not_last) {
-    DPRINTF(JMDEVEL, "Sending request for addr [P%#x]\n", ireq->getPaddr());
+    DPRINTF(JMDEVEL, PR_INFO("Sending request for addr [P%#x]\n"),
+     ireq->getPaddr());
 
     RequestPtr req = NULL;
     auto sid = ireq->streamId();
@@ -298,7 +300,8 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
 
         // if (!parent->ld_fifo.full(sid)){
         bool last_packet = (ended && gen.last() && !split_not_last);
-        if (last_packet) DPRINTF(JMDEVEL, "Last packet for sid (%d)\n", sid);
+        if (last_packet) DPRINTF(JMDEVEL, PR_WARN("Last packet for sid (%d)\n")
+                                , sid);
         if (read)
             parent->ld_fifo.reserve(sid, ssid, gen.size(), width, last_packet);
 
@@ -314,13 +317,13 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
         pkt->dataDynamic(data_blk);
 
         if (read)
-            DPRINTF(JMDEVEL,
-                    "--[%s] Queuing for addr: %#x size: %d ssid[%d]\n",
+            DPRINTF(JMDEVEL, PR_INFO(
+                    "--[%s] Queuing for addr: %#x size: %d ssid[%d]\n"),
                     read ? "Read" : "Write", gen.addr(), gen.size(), ssid);
         else
-            DPRINTF(JMDEVEL,
-                    "--[%s] Queuing for addr: %#x size: %d ssid[%d] old[%d]\n",
-                    read ? "Read" : "Write", gen.addr(), gen.size(), ssid,
+            DPRINTF(JMDEVEL, PR_INFO(
+                    "--[%s] Queuing for addr: %#x size: %d ssid[%d] old[%d]\n")
+                    , read ? "Read" : "Write", gen.addr(), gen.size(), ssid,
                     old_ssid);
         parent->getMemPort(read /*read=>Load/!Write*/)
             ->schedTimingReq(pkt, parent->nextAvailableCycle());
@@ -341,8 +344,8 @@ SEprocessing::sendSplitDataRequest(const RequestPtr &req1,
                                    const RequestPtr &req2,
                                    const RequestPtr &req, uint8_t *data,
                                    bool read) {
-    DPRINTF(JMDEVEL, "Sending split request for addrs [P%#x] & [P%#x]\n",
-            req1->getPaddr(), req2->getPaddr());
+    DPRINTF(JMDEVEL, PR_INFO("Sending split request for addrs [P%#x] & "
+                            "[P%#x]\n"), req1->getPaddr(), req2->getPaddr());
 
     sendDataRequest(req1, data, read, true);
     sendDataRequest(req2, data + req1->getSize(), read, false);
@@ -378,28 +381,28 @@ SEprocessing::recvData(PacketPtr pkt){
 
     SEIterPtr iter = iterQueue[sid];
     // Special case for in-fligth transactions on canceled streams
-    if(outstanding_errors[sid].find(ssid) 
+    if (outstanding_errors[sid].find(ssid)
             != outstanding_errors[sid].end()){
         DPRINTF(
-            JMDEVEL,
-            "Iteration Object with sid %d and ssid %d was invalid. In-fligth transaction "
-            "detected.\n",
+            JMDEVEL, PR_WARN(
+            "Iteration Object with sid %d and ssid %d was invalid. "
+            "In-fligth transaction detected.\n"),
             sid, ssid);
         outstanding_errors[sid].erase(ssid);
         return;
     }
     if (iter->empty() && iter->ended().isNok()) {
         DPRINTF(
-            JMDEVEL,
+            JMDEVEL, PR_WARN(
             "Iteration Object with sid %d was empty. In-fligth transaction "
-            "detected.\n",
+            "detected.\n"),
             sid);
         return;
     }
 
-    if(outstanding_requests[sid].find(ssid) 
+    if (outstanding_requests[sid].find(ssid)
             != outstanding_requests[sid].end()){
-        
+
         outstanding_requests[sid].erase(ssid);
 
         uint8_t width = iter->getWidth();
@@ -407,19 +410,23 @@ SEprocessing::recvData(PacketPtr pkt){
 
         switch(width){
             case 1:
-                DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                DPRINTF(JMDEVEL, PR_ANN("Data(%d:%d) w(%d)\n%s\n")
+                        , sid, ssid, width,
                         v_print(memData.as<uint8_t>(), size));
                 break;
             case 2:
-                DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                DPRINTF(JMDEVEL, PR_ANN("Data(%d:%d) w(%d)\n%s\n"),
+                        sid, ssid, width,
                         v_print(memData.as<uint16_t>(), size));
                 break;
             case 4:
-                DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                DPRINTF(JMDEVEL, PR_ANN("Data(%d:%d) w(%d)\n%s\n"),
+                        sid, ssid, width,
                         v_print(memData.as<uint32_t>(), size));
                 break;
             default:
-                DPRINTF(JMDEVEL, "Data(%d:%d) w(%d)\n%s\n", sid, ssid, width,
+                DPRINTF(JMDEVEL, PR_ANN("Data(%d:%d) w(%d)\n%s\n"),
+                        sid, ssid, width,
                         v_print(memData.as<uint64_t>(), size));
         }
         //Insert data into fifo
@@ -432,9 +439,9 @@ SEprocessing::recvData(PacketPtr pkt){
     }
 
     DPRINTF(
-            JMDEVEL,
+            JMDEVEL, PR_ERR(
             "Iteration Object with sid %d was not matched."
-            " Something strange occured.\n",
+            " Something strange occured.\n"),
             sid);
     return;
 }
@@ -514,14 +521,14 @@ SEprocessing::MemoryWriteHandler::consume_data_unit(uint64_t sz) {
         memcpy(data, data_block->raw_ptr<uint8_t>() + data_block_index, sz);
         // Handle remains
         data_block_index += sz;
-        owner->DEBUG_PRINT(
-            "data_block: has(%s) idx(%d) valid(%d) || req:sz(%d)\n",
+        owner->DEBUG_PRINT( PR_INFO(
+            "data_block: has(%s) idx(%d) valid(%d) || req:sz(%d)\n"),
             has_data_block ? "T" : "F", data_block_index,
             data_block->get_valid(), sz);
         if (data_block_index >= data_block->get_valid()) {
-            owner->DEBUG_PRINT(
+            owner->DEBUG_PRINT( PR_INFO(
                 "Data unit has same size as requested.. has_data_block = "
-                "false\n");
+                "false\n"));
             has_data_block = false;
             delete data_block;
         }
@@ -563,7 +570,8 @@ SEprocessing::MemoryWriteHandler::write_mem(SERequestInfo *info) {
         if (info->status == SEIterationStatus::Ended) {
             add_end(info->sid, info->sequence_number);
         }
-        owner->DEBUG_PRINT("Writing request, sid(%d) ssid(%d) sz(%d)\n",
+        owner->DEBUG_PRINT(PR_INFO("Writing request, sid(%d) ssid(%d) "
+                           "sz(%d)\n"),
                            info->sid, info->sequence_number, sz);
         owner->accessMemory(info->initial_offset, sz, info->sid,
                             info->sequence_number, BaseTLB::Mode::Write,
@@ -574,10 +582,10 @@ SEprocessing::MemoryWriteHandler::write_mem(SERequestInfo *info) {
         // Confirm that partial request happened
         assert(has_partial_data);
         delayed_address = info;
-        owner->DEBUG_PRINT(
+        owner->DEBUG_PRINT( PR_INFO(
             "Data was not sufficient for request, retrying next "
             "cycle, sid(%d) "
-            "ssid(%d) new_sz(%d)\n",
+            "ssid(%d) new_sz(%d)\n"),
             delayed_address->sid, delayed_address->sequence_number,
             partial_data_size);
         return SmartReturn::nok();
@@ -610,8 +618,8 @@ SEprocessing::MemoryWriteHandler::write_mem_partial() {
         if (delayed_address->status == SEIterationStatus::Ended) {
             add_end(delayed_address->sid, delayed_address->sequence_number);
         }
-        owner->DEBUG_PRINT(
-            "Writing partial request, sid(%d) ssid(%d) sz(%d)\n",
+        owner->DEBUG_PRINT( PR_INFO(
+            "Writing partial request, sid(%d) ssid(%d) sz(%d)\n"),
             delayed_address->sid, delayed_address->sequence_number, sz);
         owner->accessMemory(
             delayed_address->initial_offset, sz, delayed_address->sid,
@@ -633,10 +641,10 @@ SEprocessing::MemoryWriteHandler::write_mem_partial() {
             free(mem_block);
             partial_data_size = data_offset + partial_data_size;
             partial_data = aux_block;
-            owner->DEBUG_PRINT(
+            owner->DEBUG_PRINT( PR_WARN(
                 "Data was not sufficient for partial request, retrying next "
                 "cycle, sid(%d) "
-                "ssid(%d) new_sz(%d)\n",
+                "ssid(%d) new_sz(%d)\n"),
                 delayed_address->sid, delayed_address->sequence_number,
                 partial_data_size);
         } else {
@@ -657,7 +665,7 @@ SEprocessing::MemoryWriteHandler::consume_addr_unit() {
             _back = addr_queue.back();
         }
         addr_queue.pop_back();
-        owner->DEBUG_PRINT("ConsumeAQ %s\n", print_addr_queue());
+        owner->DEBUG_PRINT(PR_ANN("ConsumeAQ %s\n"), print_addr_queue());
         return SmartReturn::ok((void *)_back.second);
     } else
         return SmartReturn::nok();
@@ -670,12 +678,12 @@ SEprocessing::MemoryWriteHandler::squash(StreamID sid) {
         if (iter->first == sid) iter->first = -1;
         iter++;
     }
-    owner->DEBUG_PRINT("SquashAQ %s\n", print_addr_queue());
+    owner->DEBUG_PRINT(PR_INFO("SquashAQ %s\n"), print_addr_queue());
 }
 
 void
 SEprocessing::MemoryWriteHandler::queueMemoryWrite(SERequestInfo info) {
     addr_queue.push_front(
         std::make_pair((StreamID)info.sid, new SERequestInfo(info)));
-    owner->DEBUG_PRINT("QueuedAQ %s\n", print_addr_queue());
+    owner->DEBUG_PRINT(PR_INFO("QueuedAQ %s\n"), print_addr_queue());
 }

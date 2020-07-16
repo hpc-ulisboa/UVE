@@ -19,6 +19,13 @@
 
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 
+#define PR_ANN(x) "\033[32m" x "\033[0m"
+#define PR_INFO(x) "\033[36m" x "\033[0m"
+#define PR_WARN(x) "\033[33m" x "\033[0m"
+#define PR_ERR(x) "\033[31m" x "\033[0m"
+#define PR_DBG(x) "\033[35m" x "\033[0m"
+
+
 template <typename T>
 T mult_all(std::vector<T> * vec){
     uint64_t result = 1;

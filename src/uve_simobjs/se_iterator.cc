@@ -11,8 +11,6 @@ SEIter::SEIter(SEStack* cmds, Tick _start_tick)
     // Create iteration tree
     // Empty Stack
     status = SEIterationStatus::Configured;
-    DPRINTF(JMDEVEL, "SEIter constructor\n");
-
     SECommand cmd = cmds->front().cmd;
     width = cmd.get_width();
     head_stride = cmd.get_dimension()->get_stride();
@@ -33,7 +31,7 @@ SEIter::SEIter(SEStack* cmds, Tick _start_tick)
             dimobj = new DimensionObject(cmd.get_dimension(), width);
         }
 
-        DPRINTF(JMDEVEL, "Inserting command: %s\n", cmd.to_string());
+        DPRINTF(JMDEVEL, PR_INFO("Inserting command: %s\n"), cmd.to_string());
 
         if (cmd.isDimension())
             insert_dim(dimobj);
@@ -41,7 +39,7 @@ SEIter::SEIter(SEStack* cmds, Tick _start_tick)
             insert_mod(dimobj);
         cmds->pop_front();
     }
-    DPRINTF(JMDEVEL, "Tree: \n%s\n", this->to_string());
+    DPRINTF(JMDEVEL, PR_ANN("Tree: \n%s\n"), this->to_string());
     initial_offset = initial_offset_calculation(true);
     current_dim = get_end();
 }
