@@ -69,7 +69,11 @@ std::string SEList<Container>::to_string(tnode * nd, std::string str){
     // D
     std::string node_str = "";
     if(nd->sibling != nullptr){
-        node_str += "D---M\n" "|  /\n" "| /\n";
+        node_str += "D---M";
+        node_str += csprintf("  :D:%s\n",nd->content->to_string());
+        node_str += "|  /";
+        node_str += csprintf("  :M:%s\n",nd->sibling->content->to_string());
+        node_str += "| /\n";
     }
     else{
         node_str += csprintf("D  :%s\n",nd->content->to_string());

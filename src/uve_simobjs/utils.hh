@@ -182,8 +182,22 @@ class SEStream
 
         std::string
         to_string(){
-            return csprintf("ID(%d):T(%c):W(%c):::M(%c)::S(%c)",id, (char)type,
-                (char)width, (char)mode, (char)setting);
+            switch (setting)
+            {
+            case StreamSetting::dimension:
+                if (type == StreamType::start || type == StreamType::simple)
+                return csprintf("ID(%d):T(%c):W(%c):::M(%c)::S(%c)",id,
+                    (char)type, (char)width, (char)mode, (char)setting);
+                else
+                return csprintf("ID(%d):T(%c)::S(%c)",id, (char)type,
+                                (char)setting);
+            case StreamSetting::modifier:
+                return csprintf("ID(%d):T(%c)::S(%c)",id, (char)type,
+                                (char)setting);
+            case StreamSetting::indirection:
+            default:
+                return csprintf("Stream not implemented for this setting");
+            }
         }
 
         StreamID getID(){

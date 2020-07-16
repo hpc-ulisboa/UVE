@@ -233,7 +233,12 @@ class StreamRename {
     }
 
     bool rollback(StreamID sid) {
-        if (!map[sid].last_used) return false;
+        if (!map[sid].last_used) {
+            pool.push_front(map[sid].renamed);
+            map[sid].used = false;
+            map[sid].renamed = 0;
+            return false;
+        }
         pool.push_front(map[sid].renamed);
 
         map[sid].used = map[sid].last_used;
