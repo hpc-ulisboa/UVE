@@ -28,7 +28,7 @@ namespace Uve
     StaticInstPtr decodeStreamStart(ExtMachInst machInst);
     StaticInstPtr decodeStreamEnd(ExtMachInst machInst);
 
-    StaticInstPtr decodeSBranchNC(ExtMachInst machInst);
+    StaticInstPtr decodeSBranch(ExtMachInst machInst);
 
 }
 }};
@@ -55,9 +55,9 @@ namespace Uve
 
     StaticInstPtr
     decodeUveSOLoop(ExtMachInst machInst){
-        switch (bits(machInst, 14, 12)){
+        switch (bits(machInst, 12)){
             case 0x0:
-                return decodeSBranchNC(machInst);
+                return decodeSBranch(machInst);
             default:
                 return new Unknown(machInst);
         }
