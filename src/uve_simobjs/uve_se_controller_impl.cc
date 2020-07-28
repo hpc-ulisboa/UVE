@@ -13,12 +13,13 @@ SmartReturn
 SEcontroller::recvCommand(SECommand cmd, InstSeqNum sn) {
     //Parse command (switch case)
     //Handle request, return time
-    DPRINTF(UVESE, PR_INFO("recvCommand %s, sn %d\n"), cmd.to_string(), sn);
 
     uint8_t sID = cmd.getStreamID();
 
     // Add command to list
     fill_cmd(sID, sn, cmd).ASSERT();
+    DPRINTF(UVESE, PR_INFO("recvCommand %s, sn %d; cmdstack size(%d)\n"),
+                 cmd.to_string(), sn, cmdQueue[sID].size());
 
     if (cmds_ready(sID).isOk()) {
         auto* que = &cmdQueue[sID];
@@ -53,17 +54,23 @@ SEcontroller::addCmd(StreamID sid, InstSeqNum sn) {
 
 SmartReturn
 SEcontroller::squashCmd(StreamID sid, InstSeqNum sn) {
+    bool squashed = false;
     SEStack& cmds_list = cmdQueue[sid];
     // Insert
     auto iter = cmds_list.begin();
     while (iter != cmds_list.end()) {
-        if (iter->sid == sid && iter->sn == sn) {
-            cmds_list.erase(iter);
-            return SmartReturn::ok();
+        if (iter->sid == sid && iter->sn >= sn) {
+            auto trash_iter = iter;
+            iter++;
+            cmds_list.erase(trash_iter);
+            squashed = true;
+            continue;
         }
         iter++;
     }
-    return SmartReturn::nok();
+
+    if (squashed) return SmartReturn::ok();
+    else return SmartReturn::nok();
 }
 
 SmartReturn
