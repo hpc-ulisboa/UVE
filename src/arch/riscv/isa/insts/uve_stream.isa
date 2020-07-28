@@ -140,68 +140,68 @@ let {{
 
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::size,
-                    DimensionBehaviour::incr, Rs3_ud,
+                    DimensionBehaviour::increment, Rs3_ud,
                     StreamType::append, StreamSetting::modifier)
             ''','App', 'Modifier', 'Size', 'Inc')
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::size,
-                    DimensionBehaviour::decr , Rs3_ud,
+                    DimensionBehaviour::decrement , Rs3_ud,
                     StreamType::append, StreamSetting::modifier)
             ''','App', 'Modifier', 'Size', 'Dec')
 
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::offset,
-                    DimensionBehaviour::incr, Rs3_ud,
+                    DimensionBehaviour::increment, Rs3_ud,
                     StreamType::append, StreamSetting::modifier)
             ''','App', 'Modifier', 'Offset', 'Inc')
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::offset,
-                    DimensionBehaviour::decr , Rs3_ud,
+                    DimensionBehaviour::decrement , Rs3_ud,
                     StreamType::append, StreamSetting::modifier)
             ''','App', 'Modifier', 'Offset', 'Dec')
 
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::stride,
-                    DimensionBehaviour::incr, Rs3_ud,
+                    DimensionBehaviour::increment, Rs3_ud,
                     StreamType::append, StreamSetting::modifier)
             ''','App', 'Modifier', 'Stride', 'Inc')
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::stride,
-                    DimensionBehaviour::decr , Rs3_ud,
+                    DimensionBehaviour::decrement , Rs3_ud,
                     StreamType::append, StreamSetting::modifier)
             ''','App', 'Modifier', 'Stride', 'Dec')
 
 
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::size,
-                    DimensionBehaviour::incr, Rs3_ud,
+                    DimensionBehaviour::increment, Rs3_ud,
                     StreamType::end, StreamSetting::modifier)
             ''','End', 'Modifier', 'Size', 'Inc')
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::size,
-                    DimensionBehaviour::decr , Rs3_ud,
+                    DimensionBehaviour::decrement , Rs3_ud,
                     StreamType::end, StreamSetting::modifier)
             ''','End', 'Modifier', 'Size', 'Dec')
 
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::offset,
-                    DimensionBehaviour::incr, Rs3_ud,
+                    DimensionBehaviour::increment, Rs3_ud,
                     StreamType::end, StreamSetting::modifier)
             ''','End', 'Modifier', 'Offset', 'Inc')
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::offset,
-                    DimensionBehaviour::decr , Rs3_ud,
+                    DimensionBehaviour::decrement , Rs3_ud,
                     StreamType::end, StreamSetting::modifier)
             ''','End', 'Modifier', 'Offset', 'Dec')
 
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::stride,
-                    DimensionBehaviour::incr, Rs3_ud,
+                    DimensionBehaviour::increment, Rs3_ud,
                     StreamType::end, StreamSetting::modifier)
             ''','End', 'Modifier', 'Stride', 'Inc')
     emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
                     Rs1_ud, DimensionTarget::stride,
-                    DimensionBehaviour::decr , Rs3_ud,
+                    DimensionBehaviour::decrement , Rs3_ud,
                     StreamType::end, StreamSetting::modifier)
             ''','End', 'Modifier', 'Stride', 'Dec')
 

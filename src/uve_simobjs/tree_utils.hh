@@ -1,8 +1,8 @@
 #ifndef __UVE_SE_TREE_UTILS_HH__
 #define __UVE_SE_TREE_UTILS_HH__
 
-#include "stdio.h"
 #include "assert.h"
+#include "stdio.h"
 
 template <class Container>
 struct node {
@@ -36,7 +36,7 @@ class SEList
 
     private:
         void destroy_list(tnode * nd){
-            if(nd!=NULL)
+            if (nd!=NULL)
             {
                 destroy_list(nd->next);
                 delete (nd->sibling);
@@ -68,20 +68,24 @@ std::string SEList<Container>::to_string(tnode * nd, std::string str){
     // | /
     // D
     std::string node_str = "";
-    if(nd->sibling != nullptr){
+    if (nd->sibling != nullptr){
         node_str += "D---M";
-        node_str += csprintf("  :D:%s\n",nd->content->to_string());
+        node_str += csprintf("  :D:%s      (%p)\n",nd->content->to_string(),
+                              nd->content);
         node_str += "|  /";
-        node_str += csprintf("  :M:%s\n",nd->sibling->content->to_string());
+        node_str += csprintf("  :M:%s      (%p)\n",
+                        nd->sibling->content->to_string(),
+                        nd->sibling);
         node_str += "| /\n";
     }
     else{
-        node_str += csprintf("D  :%s\n",nd->content->to_string());
+        node_str += csprintf("D  :%s       (%p)\n",nd->content->to_string(),
+                            nd->content);
         node_str += "|\n" "|\n";
 
     }
 
-    if(nd->next != nullptr){
+    if (nd->next != nullptr){
         return to_string(nd->next, str + node_str);
     }
     else{
@@ -93,36 +97,38 @@ std::string SEList<Container>::to_string(tnode * nd, std::string str){
 template <class Container>
 void SEList<Container>::insert(Container * content, tnode * nd,
                                     bool dim){
-    if(dim){
-        if(nd->next == nullptr){
+    if (dim){
+        if (nd->next == nullptr){
             tnode * new_nd = new tnode;
             new_nd->content = content;
             new_nd->next = nullptr;
             new_nd->sibling = nullptr;
             new_nd->prev = nd;
             nd->next = new_nd;
-            if(nd->sibling != nullptr){
+            if (nd->sibling != nullptr){
                 nd->sibling->next = new_nd;
             }
         }
         else insert(content, nd->next, true);
     }
     else {
-        if(nd->next == nullptr){
+        if (nd->next == nullptr){
             assert(nd->sibling == nullptr);
             tnode * new_nd = new tnode;
             new_nd->content = content;
+            new_nd->content->set_target_dim(nd->prev->content);
             new_nd->next = nullptr;
             new_nd->sibling = nullptr;
-            new_nd->prev = nd;
+            new_nd->prev = nd->prev;
             nd->sibling = new_nd;
         }
+        else insert(content, nd->next, false);
     }
 }
 
 template <class Container>
 void SEList<Container>::insert_dim(Container * content){
-    if(head != nullptr){
+    if (head != nullptr){
         insert(content, head, true);
     }
     else {

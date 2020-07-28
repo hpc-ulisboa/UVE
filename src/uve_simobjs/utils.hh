@@ -25,6 +25,9 @@
 #define PR_ERR(x) "\033[31m" x "\033[0m"
 #define PR_DBG(x) "\033[35m" x "\033[0m"
 
+#define LIMIT_VALUE(x, y) if (x < 0) x = 0;     \
+    if (x > numeric_limits<y>::max()) x = numeric_limits<y>::max();
+
 
 template <typename T>
 T mult_all(std::vector<T> * vec){
@@ -40,8 +43,8 @@ typedef uint64_t DimensionOffset;
 typedef uint64_t DimensionStride;
 typedef uint64_t DimensionVariation;
 typedef enum  {
-    incr = 'i',
-    decr = 'd',
+    increment = 'i',
+    decrement = 'd',
     add  = 'a',
     sub  = 's',
     set  = 't'
@@ -57,6 +60,23 @@ typedef enum  {
     modifier = 'm',
     indirection = 'i'
 }StreamSetting;
+
+typedef enum  {
+    none = 'd',
+    dimen = 'm',
+    stream = 'i'
+}LinkageSetting;
+
+typedef enum  {
+    first = 0,
+    second,
+    third,
+    forth,
+    fifth,
+    sixth,
+    seventh,
+    last
+}DimensionHop;
 
 class SEDimension
 {
@@ -383,34 +403,100 @@ class DimensionObject{
         DimensionSize size;
         DimensionStride stride;
         DimensionOffset saved_offset = 0;
+        DimensionVariation variation;
+        DimensionBehaviour behaviour;
+        DimensionTarget target;
+        StreamSetting setting;
         uint8_t width;
         bool isHead;
         bool isEnd;
         bool isTerminated;
         uint8_t decrement;
 
+        DimensionSize cfg_size;
+        DimensionStride cfg_stride;
+        DimensionOffset cfg_offset;
+        LinkageSetting linkage;
+        DimensionHop breakdim;
+        DimensionHop last_data_hop;
+
+        DimensionObject * target_dim;
+
     public:
      DimensionObject(SEDimension* dimension, uint8_t _width, bool head = false,
                      bool end = false)
-         : counter(-1),
-           offset(dimension->get_offset()),
-           size(dimension->get_size()),
-           stride(dimension->get_stride()),
-           width(_width),
-           isHead(head),
-           isEnd(end),
-           isTerminated(false) {
-         decrement = isHead ? 2 : 1;
-         saved_offset = isHead ? offset : offset * stride * width;
+         {
+            counter = -1;
+            width = _width;
+            isHead = head;
+            isEnd = end;
+            isTerminated = false;
+
+            setting = dimension->get_setting();
+            if ( setting == StreamSetting::dimension){
+                offset = dimension->get_offset();
+                size = dimension->get_size();
+                stride = dimension->get_stride();
+                cfg_size = size;
+                cfg_stride = stride;
+                cfg_offset = offset;
+                linkage = LinkageSetting::none;
+            }
+            else {
+                size = dimension->get_size();
+                variation = dimension->get_variation();
+                behaviour = dimension->get_behaviour();
+                target = dimension->get_target();
+                //Todo infer linkage from dimension or stream
+                //Todo infer breakdim from dimension or stream
+            }
+
+            decrement = isHead ? 2 : 1;
+            saved_offset = isHead ? offset : offset * stride * width;
+
+            target_dim = nullptr;
         }
         ~DimensionObject(){}
 
+        void set_target_dim(DimensionObject * tgt_dim){
+            target_dim = tgt_dim;
+        }
+
+        bool advance_mod(){
+
+            if (dimensionEnded){
+                //It is time to reset the linked dimension
+                    target_dim->reset_target(target);
+            }
+            lowerEnded = false;
+            if (dimensionEnded){
+                counter = -1;
+            }
+            counter ++;
+            if ( (int) counter > ((int) size - (int) decrement)) {
+                if (!isHead) counter--;
+                dimensionEnded = true;
+            }
+            else {
+                affect(target_dim);
+                dimensionEnded = false;
+            }
+            return dimensionEnded;
+        }
+
+        void affect(DimensionObject * obj){
+            DPRINTF(JMDEVEL, "Affect: T(%c), B(%c): V(%d)      (%p)\n",
+                        (char)target, (char) behaviour, variation, obj);
+            target_behav_sw(obj, target, behaviour, variation);
+        }
+
         bool advance(){
+            if (setting == StreamSetting::modifier) return advance_mod();
             lowerEnded = false;
             if (dimensionEnded)
                 counter = -1;
             counter ++;
-            if (counter > size - decrement) {
+            if ( (int) counter > ((int) size - (int) decrement)) {
                 if (!isHead) counter--;
                 dimensionEnded = true;
             }
@@ -424,7 +510,7 @@ class DimensionObject{
 
             if (aux_dimensionEnded) aux_counter = -1;
             aux_counter++;
-            if (aux_counter > size - decrement) {
+            if ( (int)aux_counter > ((int) size - (int) decrement)) {
                 aux_dimensionEnded = true;
             } else
                 aux_dimensionEnded = false;
@@ -480,13 +566,215 @@ class DimensionObject{
 
         std::string
         to_string(){
+            if ( setting == StreamSetting::dimension)
             return csprintf("S(%d):O(%d):St(%d)", size, offset, stride);
+            else
+            return csprintf("S(%d):B(%c):T(%c):V(%d)", size,(char)behaviour,
+                             (char)target, variation);
         }
 
         bool hasBottomEnded() {
             bool res = isEnd && isTerminated;
             isTerminated = true;
             return res;
+        }
+
+        void target_behav_sw(DimensionObject * obj, DimensionTarget _target,
+                       DimensionBehaviour _behav, uint64_t variation = 1,
+                       DimensionHop hop_state = DimensionHop::last)
+        {
+            switch(_target){
+                case DimensionTarget::size:
+                    return behav_size_sw(obj, _behav, variation, hop_state);
+                case DimensionTarget::stride:
+                    return behav_stride_sw(obj, _behav, variation, hop_state);
+                case DimensionTarget::offset:
+                    return behav_offset_sw(obj, _behav, variation, hop_state);
+                default:
+                    panic("Not supported target on modifier");
+                    return;
+            }
+        }
+
+
+        void behav_size_sw(DimensionObject * obj, DimensionBehaviour _behav,
+                       uint64_t variation = 1,
+                       DimensionHop hop_state = DimensionHop::last)
+        {
+            switch(_behav){
+                case DimensionBehaviour::increment:
+                    obj->inc_size(variation, hop_state);
+                    return;
+                case DimensionBehaviour::decrement:
+                    obj->dec_size(variation, hop_state);
+                    return;
+                case DimensionBehaviour::add:
+                    obj->add_size(variation, hop_state);
+                    return;
+                case DimensionBehaviour::sub:
+                    obj->sub_size(variation, hop_state);
+                    return;
+                case DimensionBehaviour::set:
+                    obj->set_size(variation, hop_state);
+                    return;
+                default:
+                    panic("Not supported behaviour on modifier");
+                    return;
+            }
+        }
+        void behav_stride_sw(DimensionObject * obj, DimensionBehaviour _behav,
+                       uint64_t variation = 1,
+                       DimensionHop hop_state = DimensionHop::last)
+        {
+            switch(_behav){
+                case DimensionBehaviour::increment:
+                    obj->inc_stride(variation, hop_state);
+                    return;
+                case DimensionBehaviour::decrement:\
+                    obj->dec_stride(variation, hop_state);
+                    return;
+                case DimensionBehaviour::add:\
+                    obj->add_stride(variation, hop_state);
+                    return;
+                case DimensionBehaviour::sub:\
+                    obj->sub_stride(variation, hop_state);
+                    return;
+                case DimensionBehaviour::set:\
+                    obj->set_stride(variation, hop_state);
+                    return;
+                default:\
+                    panic("Not supported behaviour on modifier");
+                    return;
+            }
+        }
+        void behav_offset_sw(DimensionObject * obj, DimensionBehaviour _behav,
+                       uint64_t variation = 1,
+                       DimensionHop hop_state = DimensionHop::last)
+        {   switch(_behav){
+                case DimensionBehaviour::increment:
+                    obj->inc_offset(variation, hop_state);
+                    return;
+                case DimensionBehaviour::decrement:
+                    obj->dec_offset(variation, hop_state);
+                    return;
+                case DimensionBehaviour::add:
+                    obj->add_offset(variation, hop_state);
+                    return;
+                case DimensionBehaviour::sub:
+                    obj->sub_offset(variation, hop_state);
+                    return;
+                case DimensionBehaviour::set:
+                    obj->set_offset(variation, hop_state);
+                    return;
+                default:
+                    panic("Not supported behaviour on modifier");
+                    return;
+            }
+        }
+
+        void inc_size(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            size += variation;
+            last_data_hop = hop_state;
+        }
+        void dec_size(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            size -= variation;
+            last_data_hop = hop_state;
+        }
+        void inc_stride(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            stride += variation;
+            last_data_hop = hop_state;
+        }
+        void dec_stride(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            stride -= variation;
+            last_data_hop = hop_state;
+        }
+        void inc_offset(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            offset += variation;
+            last_data_hop = hop_state;
+        }
+        void dec_offset(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            offset -= variation;
+            last_data_hop = hop_state;
+        }
+        void add_size(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            size = variation + cfg_size;
+            last_data_hop = hop_state;
+        }
+        void sub_size(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            size = cfg_size - variation ;
+            last_data_hop = hop_state;
+        }
+        void add_stride(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            stride = variation + cfg_stride;
+            last_data_hop = hop_state;
+        }
+        void sub_stride(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            stride = cfg_stride - variation;
+            last_data_hop = hop_state;
+        }
+        void add_offset(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            offset = variation + cfg_offset;
+            last_data_hop = hop_state;
+        }
+        void sub_offset(uint64_t variation = 1,
+                        DimensionHop hop_state = DimensionHop::last){
+            offset = cfg_offset - variation;
+            last_data_hop = hop_state;
+        }
+        void set_size(uint64_t variation,
+                        DimensionHop hop_state = DimensionHop::last){
+            size = variation;
+            last_data_hop = hop_state;
+        }
+        void set_stride(uint64_t variation,
+                        DimensionHop hop_state = DimensionHop::last){
+            stride = variation;
+            last_data_hop = hop_state;
+        }
+        void set_offset(uint64_t variation,
+                        DimensionHop hop_state = DimensionHop::last){
+            offset = variation;
+            last_data_hop = hop_state;
+        }
+
+        void reset_target(DimensionTarget _target){
+            DPRINTF(JMDEVEL, "Reset Target(%c)\n",
+                        (char)_target);
+            switch(_target) {
+                case DimensionTarget::size:
+                    return reset_size();
+                case DimensionTarget::stride:
+                    return reset_stride();
+                case DimensionTarget::offset:
+                    return reset_offset();
+            }
+        }
+        void reset_size(){size = cfg_size;}
+        void reset_stride(){stride = cfg_stride;}
+        void reset_offset(){offset = cfg_offset;}
+
+        DimensionHop when_breaks(){
+            return breakdim;
+        }
+        bool is_breaking_in(DimensionHop hop){
+            return hop == breakdim;
+        }
+        bool is_stream_linked(){
+            return linkage == LinkageSetting::stream;
+        }
+        bool is_dimension_linked(){
+            return linkage == LinkageSetting::dimen;
         }
 };
 

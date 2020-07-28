@@ -57,18 +57,20 @@ SEprocessing::tick_load() {
             load_auxID, max_advance_size / 8);
     parent->streamProcessingCycles[load_auxID]++;
     load_pID = load_auxID;
+
+    DPRINTF(UVESE, PR_ANN("pre-iterator sid:(%d) : %s\n"), load_pID,
+     iterQueue[load_pID]->print_state());
     SERequestInfo request_info =
         iterQueue[load_pID]->advance(max_advance_size);
-    if (request_info.stop_reason == DimensionSwap) {
-        asm("nop\n\t");
-    }
     DPRINTF(UVESE, PR_ANN("iterator sid:(%d) ssid:(%d): %s\n"), load_pID,
             request_info.sequence_number, iterQueue[load_pID]->print_state());
     DPRINTF(UVESE, PR_INFO(
-            "Memory Request[%s][%d] sz[%d B]: [%d->%d] w(%d)  StopReason:%s\n")
+            "Memory Request[%s][%d] sz[%d B].elems[%d]: [%d->%d] w(%d) "
+            "StopReason:%s\n")
             , request_info.mode == StreamMode::load ? "load" : "store",
             request_info.sequence_number,
             (request_info.final_offset - request_info.initial_offset),
+            request_info.iterations+1,
             request_info.initial_offset, request_info.final_offset,
             request_info.width,
             (request_info.stop_reason == StopReason::DimensionSwap

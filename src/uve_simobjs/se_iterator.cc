@@ -19,6 +19,9 @@ SEIter::SEIter(SEStack* cmds, Tick _start_tick)
     mode = cmd.isLoad() ? StreamMode::load : StreamMode::store;
 
     insert_dim(new DimensionObject(cmd.get_dimension(), width, true));
+    DPRINTF(JMDEVEL, PR_INFO("Inserting first command: %s\n"),
+            cmd.to_string());
+
     cmds->pop_front();
 
     DimensionObject* dimobj;
@@ -39,7 +42,8 @@ SEIter::SEIter(SEStack* cmds, Tick _start_tick)
             insert_mod(dimobj);
         cmds->pop_front();
     }
-    DPRINTF(JMDEVEL, PR_ANN("Tree: \n%s\n"), this->to_string());
+    DPRINTF(JMDEVEL, PR_ANN("Tree SID(%d): \n%s\n"), this->sid,
+                                             this->to_string());
     initial_offset = initial_offset_calculation(true);
     current_dim = get_end();
 }
@@ -126,6 +130,9 @@ SEIter::advance(uint16_t max_size) {
         assert(current_dim != nullptr);
 
         result = current_dim->content->advance();
+        if (current_dim != get_head() && current_dim->sibling != nullptr){
+            current_dim->sibling->content->advance();
+        }
         if (result) {  // Dimension Change -> Issue request
             sres = StopReason::DimensionSwap;
             if (current_dim->next == nullptr) {
@@ -140,10 +147,19 @@ SEIter::advance(uint16_t max_size) {
             auto aux_dim = current_dim;
             while (aux_dim != nullptr) {
                 if (aux_dim->content->peek()) {
+                    aux_dim->content->advance();
+                    if (aux_dim != get_head() && aux_dim->sibling != nullptr){
+            aux_dim->sibling->content->advance();}
                     aux_dim = aux_dim->next;
                     // current_dim->content->advance();
                     // current_dim = aux_dim;
                 } else {
+                    if (aux_dim != current_dim){
+                        aux_dim->content->advance();
+                        if (aux_dim != get_head() &&
+                            aux_dim->sibling != nullptr){
+                            aux_dim->sibling->content->advance();}
+                    }
                     break;
                 }
             };
@@ -183,7 +199,9 @@ SEIter::advance(uint16_t max_size) {
     }
     request.mode = mode;
     request.initial_offset = initial_offset_calculation();
-    request.final_offset = offset_calculation() + width;
+    request.final_offset = request.initial_offset + width * elem_counter +
+                           width;
+    offset_calculation();
     request.iterations = elem_counter;
     request.status = status;
     request.width = width;
@@ -310,18 +328,27 @@ SEIter::time() {
 const char*
 SEIter::print_state() {
     std::stringstream sout;
-    sout << "[●";
+    sout << "[";
     auto aux_node = current_dim;
     while (aux_node->prev != nullptr) {
         aux_node = aux_node->prev;
     }
-
+    sout << "<dim>";
     while (aux_node != nullptr) {
+        if (aux_node == current_dim){
+            sout << "●";
+        }
         sout << "{";
         sout << "c(" << aux_node->content->get_counter() << ")";
         sout << "s(" << aux_node->content->get_size() << ")";
         sout << "end(" << (aux_node->content->has_ended() ? "T" : "F") << ")";
         sout << "}  ";
+        if (aux_node->sibling != nullptr){
+            aux_node = aux_node->sibling;
+            sout << "<mod>";
+            continue;
+        }
+        if (aux_node->next != nullptr) sout << "<dim>";
         aux_node = aux_node->next;
     }
     sout << "]";
