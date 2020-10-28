@@ -99,9 +99,19 @@ class ISA : public SimObject
     //JMNOTE: uveVs set Uve vector type
     void setUveVecType(ThreadContext *tc, uint8_t vector_register_id,
       uint8_t width);
+    void setUvePVecType(ThreadContext *tc, uint8_t vector_register_id,
+      uint8_t width);
 
     //JMNOTE: uveVs get Uve vector type
     uint8_t getUveVecType(ThreadContext *tc, uint8_t vector_register_id);
+    uint8_t getUvePVecType(ThreadContext *tc, uint8_t vector_register_id);
+
+    //JMNOTE: uveVI set Uve vector valid index
+    void setUveValidIndex(ThreadContext *tc, uint8_t vector_register_id,
+      uint16_t valid_index);
+
+    //JMNOTE: uveVI get Uve vector valid index
+    uint16_t getUveValidIndex(ThreadContext *tc, uint8_t vector_register_id);
 
     //JMNOTE:uveVl Get Uve vector length
     //Usage: RiscvStaticInst::getCurUveVecLen(xc->tcBase());

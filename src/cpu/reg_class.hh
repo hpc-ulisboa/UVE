@@ -133,7 +133,7 @@ class RegId {
     }
 
     /**
-     * JMNOTE: UVE register zero
+     * // JMNOTE: UVE register zero
      * Check if this is the zero register.
      * Returns true if this register is a zero register (needs to have a
      * constant zero value throughout the execution).
@@ -149,7 +149,7 @@ class RegId {
     }
 
     /**
-     * JMNOTE: UVE predicate register one
+     * // JMNOTE: UVE predicate register zero
      * Check if this is the one predicate register.
      * Returns true if this register is a one register (needs to have a
      * constant one value throughout the execution).
@@ -236,7 +236,8 @@ class RegId {
  * Although the Impl might be a better for this, but there are a few classes
  * that need this typedef yet are not templated on the Impl.
  */
-using PhysRegIndex = short int;
+//JMNOTE: Changed from short int to int, to allow for more registers
+using PhysRegIndex = int;
 
 /** Physical register ID.
  * Like a register ID but physical. The inheritance is private because the

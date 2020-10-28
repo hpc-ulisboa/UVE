@@ -68,6 +68,8 @@
 #include "sim/stat_control.hh"
 #include "sim/system.hh"
 
+#include "debug/JMDEVEL.hh"
+
 #if THE_ISA == ALPHA_ISA
 #include "arch/alpha/osfpal.hh"
 #include "debug/Activity.hh"
@@ -114,7 +116,9 @@ template <class Impl>
 bool
 FullO3CPU<Impl>::DcachePort::recvTimingResp(PacketPtr pkt)
 {
-    return lsq->recvTimingResp(pkt);
+    //JMTODO: Do forwarding to SEInterface
+    return sei->recvTimingResp(pkt);
+
 }
 
 template <class Impl>
@@ -126,14 +130,16 @@ FullO3CPU<Impl>::DcachePort::recvTimingSnoopReq(PacketPtr pkt)
             cpu->wakeup(tid);
         }
     }
-    lsq->recvTimingSnoopReq(pkt);
+    //JMTODO: Do forwarding to SEInterface
+    sei->recvTimingSnoopReq(pkt);
 }
 
 template <class Impl>
 void
 FullO3CPU<Impl>::DcachePort::recvReqRetry()
 {
-    lsq->recvReqRetry();
+    //JMTODO: Do forwarding to SEInterface, just dispatch to both
+    sei->recvReqRetry();
 }
 
 template <class Impl>
@@ -165,6 +171,9 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
               params->numPhysCCRegs,
               vecMode),
 
+      /*JMNOTE: SEInterface Instantiation*/
+      sei(this, &decode, &iew, &commit, params),
+
       freeList(name() + ".freelist", &regFile),
 
       rob(this, params),
@@ -175,7 +184,7 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       isa(numThreads, NULL),
 
       icachePort(&fetch, this),
-      dcachePort(&iew.ldstQueue, this),
+      dcachePort(&iew.ldstQueue, &sei, this),
 
       timeBuffer(params->backComSize, params->forwardComSize),
       fetchQueue(params->backComSize, params->forwardComSize),
@@ -599,6 +608,8 @@ FullO3CPU<Impl>::tick()
 
     commit.tick();
 
+    sei.tick();
+
     // Now advance the time buffers
     timeBuffer.advance();
 
@@ -675,6 +686,8 @@ FullO3CPU<Impl>::startup()
     iew.startupStage();
     rename.startupStage();
     commit.startupStage();
+
+    sei.startupComponent();
 }
 
 template <class Impl>
@@ -1264,6 +1277,8 @@ auto
 FullO3CPU<Impl>::readVecReg(PhysRegIdPtr phys_reg) const
         -> const VecRegContainer&
 {
+    // DPRINTF(JMDEVEL, "cpu.1267 readVecReg\n");
+
     vecRegfileReads++;
     return regFile.readVecReg(phys_reg);
 }

@@ -85,13 +85,12 @@ class PCState : public GenericISA::UPCState<MachInst>
 
   // JMFIXME: Change in the future
   // JMNOTE: vec_reg.hh (L.159) sets the limit to 2048 (256 bytes).
-  constexpr unsigned MaxUveVecLenInBits = 1024;
-  static_assert(MaxUveVecLenInBits >= 64 &&
-                  MaxUveVecLenInBits <= 8192 &&
-                  MaxUveVecLenInBits % 64 == 0,
-                  "Unsupported max. UVE vector length");
-  constexpr unsigned MaxUveVecLenInBytes  = MaxUveVecLenInBits >> 3;
-  constexpr unsigned MaxUveVecLenInWords  = MaxUveVecLenInBits >> 5;
+  constexpr unsigned MaxUveVecLenInBits = 2048;
+  static_assert(MaxUveVecLenInBits >= 64 && MaxUveVecLenInBits <= 2048 &&
+                    MaxUveVecLenInBits % 64 == 0,
+                "Unsupported max. UVE vector length");
+  constexpr unsigned MaxUveVecLenInBytes = MaxUveVecLenInBits >> 3;
+  constexpr unsigned MaxUveVecLenInWords = MaxUveVecLenInBits >> 5;
   constexpr unsigned MaxUveVecLenInDWords = MaxUveVecLenInBits >> 6;
 
   constexpr unsigned VecRegSizeBytes = MaxUveVecLenInBytes;

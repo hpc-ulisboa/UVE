@@ -52,6 +52,9 @@ output header {{
 #include "arch/riscv/insts/static_inst.hh"
 #include "arch/riscv/insts/unknown.hh"
 #include "arch/riscv/insts/uve_arithmetic.hh"
+#include "arch/riscv/insts/uve_branch.hh"
+#include "arch/riscv/insts/uve_predicate.hh"
+#include "arch/riscv/insts/uve_stream.hh"
 #include "arch/riscv/insts/uve_utils.hh"
 #include "arch/riscv/insts/uve_vector_mem.hh"
 #include "cpu/static_inst.hh"
@@ -68,6 +71,9 @@ output decoder {{
 #include <cmath>
 #include <limits>
 #include <string>
+
+/* JMNOTE:m5ops include */
+#include <gem5/asm/generic/m5ops.h>
 
 #include "arch/riscv/decoder.hh"
 #include "arch/riscv/faults.hh"
@@ -108,6 +114,14 @@ output exec {{
 
 /* JMNOTE:UVEMem Debug flag include */
 #include "debug/UVEMem.hh"
+
+/* JMNOTE:m5ops include */
+#include "sim/pseudo_inst.hh"
+
+/* JMNOTE:SE include */
+#include "uve_simobjs/utils.hh"
+#include "cpu/o3/dyn_inst.hh"
+#include "cpu/o3/impl.hh"
 
 using namespace RiscvISA;
 using namespace std;

@@ -1,0 +1,550 @@
+/////////////////////////////////
+//
+// Uve vector predicate configuration operations instructions definition
+// -----------------
+// João Domingos
+//
+
+output header {{
+
+    /*
+    template <class Base>
+    StaticInstPtr
+    decodePredicateInstTemplated(const char * mn,
+                                uint8_t width,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1)
+    {
+        switch (width) {
+            case 0x0:
+                return new Base<uint8_t>(mn, machInst, rd, rs1);
+                break;
+            case 0x1:
+                return new Base<uint16_t>(mn, machInst, rd, rs1);
+                break;
+            case 0x2:
+                return new Base<uint32_t>(mn, machInst, rd, rs1);
+                break;
+            default:
+                return new Base<uint64_t>(mn, machInst, rd, rs1);
+                break;
+        }
+    }
+    */
+}};
+
+
+let {{
+    header_output = ''
+    exec_output = ''
+    decoders = { 'Generic': {} }
+
+    TypeUnsigned = {
+        'type8': 'uint8_t',
+        'type16': 'uint16_t',
+        'type32': 'uint32_t',
+        'type64': 'uint64_t',
+        'acc_type': 'uint64_t'
+    }
+    TypeSigned = {
+        'type8': 'int8_t',
+        'type16': 'int16_t',
+        'type32': 'int32_t',
+        'type64': 'int64_t',
+        'acc_type': 'int64_t'
+    }
+    TypeFP = {
+        'type8': 'uint8_t',
+        'type16': 'uint16_t',
+        'type32': 'float',
+        'type64': 'double',
+        'acc_type': 'double'
+    }
+
+
+
+    # JMNOTE: Unary (zero, one)
+    def emitUvePredUnaryPredicatedInsts(mnemonic, class_name, code):
+        global header_output, exec_output, decoders
+
+        genericCode = '''
+        auto src1_vc = (TheISA::VecPredRegContainer)Ps3_x;
+        TheISA::VecPredRegContainer output;
+        switch(src1_vw){
+            case 0:{
+                auto v1 = src1_vc.as<%(type8)s>();
+                auto out = output.as<%(type8)s>();
+                for(int i=0;i<iCount;i++){
+                    if(v1[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            case 1:{
+                auto v1 = src1_vc.as<%(type16)s>();
+                auto out = output.as<%(type16)s>();
+                for(int i=0;i<iCount;i++){
+                    if(v1[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            case 2: {
+                auto v1 = src1_vc.as<%(type32)s>();
+                auto out = output.as<%(type32)s>();
+                for(int i=0;i<iCount;i++){
+                    if(v1[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            default:
+            {
+                auto v1 = src1_vc.as<%(type64)s>();
+                auto out = output.as<%(type64)s>();
+                for(int i=0;i<iCount;i++){
+                    if(v1[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+        }
+
+        auto out = output.as<uint8_t>();
+        for(int i=0;i<eCount;i++)
+            Pd_x[i] = out[i];
+        '''
+
+        generic_code = "out[i] = %(op)s;"
+        fixed_code = generic_code % {"op":code}
+        code_dict = TypeUnsigned
+        code_dict.update({"generic_op":fixed_code})
+
+        full_code = genericCode % code_dict
+
+        Iop = InstObjParams(mnemonic,
+            class_name,
+            'UveBasePredUnaryPredicated',
+            {'ex_code' : full_code,
+            'op_class': 'SimdPredAluOp'},
+            [])
+
+        header_output += UvePredUnaryPredicatedDeclare.subst(Iop)
+        exec_output += UvePredUnaryPredicatedExecute.subst(Iop)
+        exec_output += UvePredicateExecDeclare.subst(Iop)
+
+    # JMNOTE: One Vec (vr)
+    def emitUvePredOneVecPredicatedInsts(mnemonic, class_name, code):
+        global header_output, exec_output, decoders
+
+        genericCode = '''
+        auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        auto pred_vc = (TheISA::VecPredRegContainer)Ps3_x;
+        TheISA::VecPredRegContainer output;
+        switch(src1_vw){
+            case 0:{
+                auto v1 = src1_vc.as<%(type8)s>();
+                auto pv = pred_vc.as<%(type8)s>();
+                auto out = output.as<%(type8)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            case 1:{
+                auto v1 = src1_vc.as<%(type16)s>();
+                auto pv = pred_vc.as<%(type16)s>();
+                auto out = output.as<%(type16)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            case 2: {
+                auto v1 = src1_vc.as<%(type32)s>();
+                auto pv = pred_vc.as<%(type32)s>();
+                auto out = output.as<%(type32)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            default:
+            {
+                auto v1 = src1_vc.as<%(type64)s>();
+                auto pv = pred_vc.as<%(type64)s>();
+                auto out = output.as<%(type64)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+        }
+
+        auto out = output.as<uint8_t>();
+        for(int i=0;i<eCount;i++)
+            Pd_x[i] = out[i];
+        '''
+
+        generic_code = "out[i] = %(op)s;"
+        fixed_code = generic_code % {"op":code}
+        code_dict = TypeUnsigned
+        code_dict.update({"generic_op":fixed_code})
+
+        full_code = genericCode % code_dict
+
+        Iop = InstObjParams(mnemonic,
+            class_name,
+            'UveBasePredOneVecPredicated',
+            {'ex_code' : full_code,
+            'op_class': 'SimdPredAluOp'},
+            [])
+
+        header_output += UvePredOneVecPredicatedDeclare.subst(Iop)
+        exec_output += UvePredOneVecPredicatedExecute.subst(Iop)
+        exec_output += UvePredicateExecDeclare.subst(Iop)
+
+    # JMNOTE: One PVec (not, mv, mvt)
+    def emitUvePredOnePVecPredicatedInsts(mnemonic, class_name, code):
+        global header_output, exec_output, decoders
+
+        genericCode = '''
+        auto src1_vc = (TheISA::VecPredRegContainer)Ps1_x;
+        auto pred_vc = (TheISA::VecPredRegContainer)Ps3_x;
+        TheISA::VecPredRegContainer output;
+        switch(src1_vw){
+            case 0:{
+                auto v1 = src1_vc.as<%(type8)s>();
+                auto pv = pred_vc.as<%(type8)s>();
+                auto out = output.as<%(type8)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            case 1:{
+                auto v1 = src1_vc.as<%(type16)s>();
+                auto pv = pred_vc.as<%(type16)s>();
+                auto out = output.as<%(type16)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            case 2: {
+                auto v1 = src1_vc.as<%(type32)s>();
+                auto pv = pred_vc.as<%(type32)s>();
+                auto out = output.as<%(type32)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            default:
+            {
+                auto v1 = src1_vc.as<%(type64)s>();
+                auto pv = pred_vc.as<%(type64)s>();
+                auto out = output.as<%(type64)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+        }
+
+        auto out = output.as<uint8_t>();
+        for(int i=0;i<eCount;i++)
+            Pd_x[i] = out[i];
+        '''
+
+        generic_code = "out[i] = %(op)s;"
+        fixed_code = generic_code % {"op":code}
+        code_dict = TypeUnsigned
+        code_dict.update({"generic_op":fixed_code})
+
+        full_code = genericCode % code_dict
+
+        Iop = InstObjParams(mnemonic,
+            class_name,
+            'UveBasePredOnePVecPredicated',
+            {'ex_code' : full_code,
+            'op_class': 'SimdPredAluOp'},
+            [])
+
+        header_output += UvePredOnePVecPredicatedDeclare.subst(Iop)
+        exec_output += UvePredOnePVecPredicatedExecute.subst(Iop)
+        exec_output += UvePredicateExecDeclare.subst(Iop)
+
+    # JMNOTE: One PVec Unpredicated (conv)
+    def emitUvePredOnePVecInsts(mnemonic, class_name, code):
+        global header_output, exec_output, decoders
+        pass
+
+
+    # JMNOTE: Two Vec (egt, eq, lt)
+    def emitUvePredTwoVecPredicatedFPInsts(mnemonic, class_name,
+                                    code = None, generic_code = None,
+                                    generic_code_float = None,
+                                    generic_code_signed = None,
+                                    dest_as_source = False):
+        global header_output, exec_output, decoders
+
+        genericArithThreeVecPredicated = '''
+        auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        auto src2_vc = (TheISA::VecRegContainer)Vs2_x;
+        auto pred_vc = (TheISA::VecPredRegContainer)Ps3_x;
+        TheISA::VecRegContainer output;
+        switch(src1_vw){
+            case 0:{
+                auto v1 = src1_vc.as<%(type8)s>();
+                auto v2 = src2_vc.as<%(type8)s>();
+                auto pv = pred_vc.as<%(type8)s>();
+                auto out = output.as<%(type8)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            case 1:{
+                auto v1 = src1_vc.as<%(type16)s>();
+                auto v2 = src2_vc.as<%(type16)s>();
+                auto pv = pred_vc.as<%(type16)s>();
+                auto out = output.as<%(type16)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            case 2: {
+                auto v1 = src1_vc.as<%(type32)s>();
+                auto v2 = src2_vc.as<%(type32)s>();
+                auto pv = pred_vc.as<%(type32)s>();
+                auto out = output.as<%(type32)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+            default:
+            {
+                auto v1 = src1_vc.as<%(type64)s>();
+                auto v2 = src2_vc.as<%(type64)s>();
+                auto pv = pred_vc.as<%(type64)s>();
+                auto out = output.as<%(type64)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op)s
+                    }
+                }
+            }
+            break;
+        }
+
+        auto out = output.as<uint8_t>();
+        for(int i=0;i<eCount;i++)
+            Pd_x[i] = out[i];
+        '''
+
+        generic_fixed_code = "out[i] = %(op)s;"
+
+
+        type_suffixes = ["Unsigned", "Signed", "FP"]
+
+        if code is not None:
+            fixed_code = generic_fixed_code % {"op":code}
+
+        for idx, suffix in enumerate(type_suffixes):
+            full_class_name = class_name + suffix
+            code_dict = eval("Type" + suffix)
+
+            if generic_code is not None:
+                if suffix == "FP" and generic_code_float is not None:
+                    aux_gen = generic_code_float
+                elif suffix == "Signed" and generic_code_signed is not None:
+                    aux_gen = generic_code_signed
+                else:
+                    aux_gen = generic_code
+                code_dict.update({"generic_op":aux_gen})
+            else:
+                code_dict.update({"generic_op":fixed_code})
+            full_code = genericArithThreeVecPredicated % code_dict
+
+            Iop = InstObjParams(mnemonic,
+                full_class_name,
+                'UveBasePredTwoVecPredicated',
+                {'ex_code' : full_code,
+                'op_class': 'SimdPredAluOp'},
+                [])
+
+            header_output += UvePredTwoVecPredicatedDeclare.subst(Iop)
+            exec_output += UvePredTwoVecPredicatedExecute.subst(Iop)
+            exec_output += UvePredicateExecDeclare.subst(Iop)
+
+    # JMNOTE: Vec Sca (egts, eqs, lts)
+    def emitUvePredVecScaPredicatedFPInsts(mnemonic, class_name,
+                                    code = None, generic_code = None,
+                                    generic_code_float = None,
+                                    generic_code_signed = None,
+                                    dest_as_source = False):
+        global header_output, exec_output, decoders
+
+        genericArithThreeVecPredicated = '''
+        auto src1_vc = (TheISA::VecRegContainer)Vs1_x;
+        auto pred_vc = (TheISA::VecPredRegContainer)Ps3_x;
+        TheISA::VecRegContainer output;
+        switch(src1_vw){
+            case 0:{
+                auto v1 = src1_vc.as<%(type8)s>();
+                auto pv = pred_vc.as<%(type8)s>();
+                auto out = output.as<%(type8)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op8)s
+                    }
+                }
+            }
+            break;
+            case 1:{
+                auto v1 = src1_vc.as<%(type16)s>();
+                auto pv = pred_vc.as<%(type16)s>();
+                auto out = output.as<%(type16)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op16)s
+                    }
+                }
+            }
+            break;
+            case 2: {
+                auto v1 = src1_vc.as<%(type32)s>();
+                auto pv = pred_vc.as<%(type32)s>();
+                auto out = output.as<%(type32)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op32)s
+                    }
+                }
+            }
+            break;
+            default:
+            {
+                auto v1 = src1_vc.as<%(type64)s>();
+                auto pv = pred_vc.as<%(type64)s>();
+                auto out = output.as<%(type64)s>();
+                for(int i=0;i<iCount;i++){
+                    if(pv[i]){
+                        %(generic_op64)s
+                    }
+                }
+            }
+            break;
+        }
+
+        auto out = output.as<uint8_t>();
+        for(int i=0;i<eCount;i++)
+            Pd_x[i] = out[i];
+        '''
+
+        generic_fixed_code = "out[i] = %(op)s;"
+
+
+        type_suffixes = ["Unsigned", "Signed", "FP"]
+
+        if code is not None:
+            fixed_code = generic_fixed_code % {"op":code}
+
+        for idx, suffix in enumerate(type_suffixes):
+            full_class_name = class_name + suffix
+            code_dict = eval("Type" + suffix)
+
+            if generic_code is not None:
+                if suffix == "FP" and generic_code_float is not None:
+                    aux_gen = generic_code_float
+                elif suffix == "Signed" and generic_code_signed is not None:
+                    aux_gen = generic_code_signed
+                else:
+                    aux_gen = generic_code
+            else:
+                aux_gen = fixed_code
+
+            code_dict.update({"generic_op8" :aux_gen %
+                                    {"type":code_dict["type8"]},
+                              "generic_op16":aux_gen %
+                                    {"type":code_dict["type16"]},
+                              "generic_op32":aux_gen %
+                                    {"type":code_dict["type32"]},
+                              "generic_op64":aux_gen %
+                                    {"type":code_dict["type64"]}
+                              })
+            full_code = genericArithThreeVecPredicated % code_dict
+
+            Iop = InstObjParams(mnemonic,
+                full_class_name,
+                'UveBasePredVecScaPredicated',
+                {'ex_code' : full_code,
+                'op_class': 'SimdPredAluOp'},
+                [])
+
+            header_output += UvePredVecScaPredicatedDeclare.subst(Iop)
+            exec_output += UvePredVecScaPredicatedExecute.subst(Iop)
+            exec_output += UvePredicateExecDeclare.subst(Iop)
+
+
+
+    emitUvePredUnaryPredicatedInsts("so.p.zero","UvePredZero","0")
+    emitUvePredUnaryPredicatedInsts("so.p.one","UvePredOne","1")
+
+    emitUvePredOneVecPredicatedInsts("so.p.vr","UvePredVecReg",
+    '''
+    (v1[i]==0)?v1[i]:v1[i];//JMTODO: Code still to define
+    '''
+    )
+
+    emitUvePredOnePVecPredicatedInsts("so.p.not","UvePredNot","(v1[i]==0)?1:0")
+    emitUvePredOnePVecPredicatedInsts("so.p.mv","UvePredMove","v1[i]")
+    emitUvePredOnePVecPredicatedInsts("so.p.mvt","UvePredMoveT","v1[iCount-i]")
+
+    #JMTODO: Convert predicate widht instruction
+
+    emitUvePredTwoVecPredicatedFPInsts("so.p.egt","UvePredEGT",
+                                        "(uveEGT(v1[i],v2[i]))?1:0")
+    emitUvePredTwoVecPredicatedFPInsts("so.p.eq","UvePredEQ",
+                                        "(uveEQ(v1[i],v2[i]))?1:0")
+    emitUvePredTwoVecPredicatedFPInsts("so.p.lt","UvePredLT",
+                                        "(uveLT(v1[i],v2[i]))?1:0")
+
+    emitUvePredVecScaPredicatedFPInsts("so.p.egts","UvePredEGTS",
+                "(uveEGT(v1[i],castBitsToRetType<%(type)s>(Rs2_ud)))?1:0")
+    emitUvePredVecScaPredicatedFPInsts("so.p.eqs","UvePredEQS",
+                "(uveEQ(v1[i],castBitsToRetType<%(type)s>(Rs2_ud)))?1:0")
+    emitUvePredVecScaPredicatedFPInsts("so.p.lts","UvePredLTS",
+                "(uveLT(v1[i],castBitsToRetType<%(type)s>(Rs2_ud)))?1:0")
+
+}};

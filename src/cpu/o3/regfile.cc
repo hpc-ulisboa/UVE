@@ -115,6 +115,10 @@ PhysRegFile::PhysRegFile(unsigned _numPhysicalIntRegs,
     // The next batch of the registers are the predicate physical
     // registers; put them onto the predicate free list.
     for (phys_reg = 0; phys_reg < numPhysicalVecPredRegs; phys_reg++) {
+        #if THE_ISA == RISCV_ISA
+        //JMNOTE: Setting vecPredRegFile for one pred reg
+        vecPredRegFile[phys_reg].set();
+        #endif
         vecPredRegIds.emplace_back(VecPredRegClass, phys_reg, flat_reg_idx++);
     }
 

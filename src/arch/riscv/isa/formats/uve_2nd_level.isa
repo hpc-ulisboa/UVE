@@ -339,4 +339,377 @@ namespace Uve
         return new Unknown(machInst);
     }
 } // namespace Uve
+
+
+//Vector Predicate Instructions
+namespace Uve
+{
+    StaticInstPtr
+    decodePredicateControl(ExtMachInst machInst)
+    {
+        uint8_t dest = (uint8_t) bits(machInst, 10, 7);
+        uint8_t src1 = (uint8_t) bits(machInst, 18, 15);
+        uint8_t src1_vector = (uint8_t) bits(machInst, 19, 15);
+        uint8_t src2_vector = (uint8_t) bits(machInst, 24, 20);
+        uint8_t pred = (uint8_t) bits(machInst, 27, 25);
+
+        // uint8_t width = (uint8_t) bits(machInst, 21, 20);
+
+        uint8_t decoder = (uint8_t) bits(machInst, 14,11);
+
+        switch(decoder){
+            case 0b0000:
+                return new UvePredZero("so.p.zero", machInst, dest, pred);
+            case 0b0001:
+                return new UvePredOne("so.p.one", machInst, dest, pred);
+            // case 0b0010:
+            //     return new UvePredVecReg("so.p.vr", machInst, dest,
+            //         src1_vector, pred);
+            case 0b0011:
+                return new UvePredNot("so.p.not", machInst, dest,
+                    src1, pred);
+
+            case 0b0100:
+                return new UvePredMove("so.p.mv", machInst, dest,
+                        src1, pred);
+            case 0b0101:
+                return new UvePredMoveT("so.p.mvt", machInst, dest,
+                    src1, pred);
+            //     }
+            // case 0b0110:
+            //     return  decodePredicateInstTemplated<UvePredConv>
+            //         ("so.p.cv", width, machInst,
+            //         dest, src1);
+
+            // EGTS
+            case 0b1000:
+                return new UvePredEGTSUnsigned("so.p.egts.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1010:
+                return new UvePredEGTSFP("so.p.egts.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1100:
+                return new UvePredEGTSSigned("so.p.egts.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+            // EGT
+            case 0b1001:
+                return new UvePredEGTUnsigned("so.p.egt.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1011:
+                return new UvePredEGTFP("so.p.egt.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1101:
+                return new UvePredEGTSigned("so.p.egt.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+        }
+        return new Unknown(machInst);
+    }
+
+    StaticInstPtr
+    decodePredicateLogic(ExtMachInst machInst)
+    {
+        uint8_t dest = (uint8_t) bits(machInst, 10, 7);
+        uint8_t src1_vector = (uint8_t) bits(machInst, 19, 15);
+        uint8_t src2_vector = (uint8_t) bits(machInst, 24, 20);
+        uint8_t pred = (uint8_t) bits(machInst, 27, 25);
+
+        uint8_t decoder = (uint8_t) bits(machInst, 14,11);
+
+        switch(decoder){
+            // EQS
+            case 0b0000:
+                return new UvePredEQSUnsigned("so.p.eqs.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b0010:
+                return new UvePredEQSFP("so.p.eqs.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b0100:
+                return new UvePredEQSSigned("so.p.eqs.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+            // EQ
+            case 0b0001:
+                return new UvePredEQUnsigned("so.p.eq.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b0011:
+                return new UvePredEQFP("so.p.eq.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b0101:
+                return new UvePredEQSigned("so.p.eq.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+            // LTS
+            case 0b1000:
+                return new UvePredLTSUnsigned("so.p.lts.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1010:
+                return new UvePredLTSFP("so.p.lts.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1100:
+                return new UvePredLTSSigned("so.p.lts.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+            // LT
+            case 0b1001:
+                return new UvePredLTUnsigned("so.p.lt.us", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1011:
+                return new UvePredLTFP("so.p.lt.fp", machInst, dest,
+                    src1_vector, src2_vector, pred);
+            case 0b1101:
+                return new UvePredLTSigned("so.p.lt.sg", machInst, dest,
+                    src1_vector, src2_vector, pred);
+
+        }
+        return new Unknown(machInst);
+    }
+
+
+} // namespace Uve
+
+
+//Stream Instructions
+namespace Uve
+{
+    StaticInstPtr
+    decodeStreamSimple(ExtMachInst machInst)
+    {
+        uint8_t stream = (uint8_t) bits(machInst, 11, 7);
+        uint8_t offset = (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) bits(machInst, 24, 20);
+        uint8_t stride = (uint8_t) bits(machInst, 31, 27);
+
+        uint8_t width = (uint8_t) bits(machInst, 13, 12);
+        bool load_nstore = (bits(machInst, 14) == 1);
+
+        //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
+
+        if(load_nstore)
+            return decodeStreamTemplated<UveStreamLoad>("ss.ld",
+                width, machInst, stream, offset, size, stride);
+        else
+            return decodeStreamTemplated<UveStreamStore>("ss.st",
+                width, machInst, stream, offset, size, stride);
+
+
+    }  // decodeStreamSimple
+
+    StaticInstPtr
+    decodeStreamStart(ExtMachInst machInst)
+    {
+        uint8_t stream = (uint8_t) bits(machInst, 11, 7);
+        uint8_t offset = (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) bits(machInst, 24, 20);
+        uint8_t stride = (uint8_t) bits(machInst, 31, 27);
+
+        uint8_t width = (uint8_t) bits(machInst, 13, 12);
+        bool load_nstore = (bits(machInst, 14) == 1);
+
+        //Args are: uint8_t _VDest, uint8_t _RS1, uint8_t _RS2
+        if(load_nstore)
+            return decodeStreamTemplated<UveStreamStaLoad>("ss.sta.ld",
+                width, machInst, stream, offset, size, stride);
+        else
+            return decodeStreamTemplated<UveStreamStaStore>("ss.sta.st",
+                width, machInst, stream, offset, size, stride);
+
+    }  // decodeStreamStart
+
+    StaticInstPtr
+    decodeStreamAppend(ExtMachInst machInst)
+    {
+        uint8_t stream = (uint8_t) bits(machInst, 11, 7);
+        uint8_t offset = (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) bits(machInst, 24, 20);
+        uint8_t stride = (uint8_t) bits(machInst, 31, 27);
+        uint8_t variation = stride;
+        // uint8_t origin_stream = stride;
+
+        //Selects if it is a dimension, modifier or indirect
+        uint8_t modif = (uint8_t) bits(machInst, 14, 13);
+        //Selects on indirect: scatter-gather or modifier
+        // uint8_t mtype = (uint8_t) bits(machInst, 12);
+
+        //Specifies the behaviour of the modifier
+        uint8_t behaviour = (uint8_t) bits(machInst, 24, 22);
+        //Specifies the target of the modifier
+        uint8_t target = (uint8_t) bits(machInst, 21, 20);
+
+        uint8_t special = (uint8_t) bits(machInst, 12);
+
+        switch (modif)
+        {
+        case 0b00:
+        case 0b01: //Dimension
+            if (special == 0)
+                return new UveStreamApp("ss.app", machInst, stream, offset,
+                                    size, stride);
+            else
+                return new UveStreamCfgVec("ss.cfg.vec", machInst, stream,
+                                            0, 0, 0);
+
+        case 0b10: //Modifier
+            switch(target){
+                case 0b00: //Size
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierAppSizeInc(
+                                            "ss.app.mod.siz.inc", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierAppSizeDec(
+                                            "ss.app.mod.siz.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+                case 0b01: //Stride
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierAppStrideInc(
+                                            "ss.app.mod.str.inc", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierAppStrideDec(
+                                            "ss.app.mod.str.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+                case 0b10: //Offset
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierAppOffsetInc(
+                                            "ss.app.mod.ofs.inc", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierAppOffsetDec(
+                                            "ss.app.mod.ofs.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+
+                default:
+                    return new Unknown(machInst);
+            }
+        case 0b11: //Indirection (Not implemented)
+            return new Unknown(machInst);
+        default:
+            return new Unknown(machInst);
+        }
+
+    }  // decodeStreamAppend
+    StaticInstPtr
+    decodeStreamEnd(ExtMachInst machInst)
+    {
+        uint8_t stream = (uint8_t) bits(machInst, 11, 7);
+        uint8_t offset = (uint8_t) bits(machInst, 19, 15);
+        uint8_t size = (uint8_t) bits(machInst, 24, 20);
+        uint8_t stride = (uint8_t) bits(machInst, 31, 27);
+        uint8_t variation = stride;
+        // uint8_t origin_stream = stride;
+
+        //Selects if it is a dimension, modifier or indirect
+        uint8_t modif = (uint8_t) bits(machInst, 14, 13);
+        //Selects on indirect: scatter-gather or modifier
+        // uint8_t mtype = (uint8_t) bits(machInst, 12);
+
+        //Specifies the behaviour of the modifier
+        uint8_t behaviour = (uint8_t) bits(machInst, 24, 22);
+        //Specifies the target of the modifier
+        uint8_t target = (uint8_t) bits(machInst, 21, 20);
+
+        switch (modif)
+        {
+        case 0b00:
+        case 0b01: //Dimension
+            return new UveStreamEnd("ss.end", machInst, stream, offset, size,
+                                    stride);
+        case 0b10: //Modifier
+            switch(target){
+                case 0b00: //Size
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierEndSizeInc(
+                                            "ss.end.mod.siz.inc", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierEndSizeDec(
+                                            "ss.end.mod.siz.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+                case 0b01: //Stride
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierEndStrideInc(
+                                            "ss.end.mod.str.inc", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierEndStrideDec(
+                                            "ss.end.mod.str.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+                case 0b10: //Offset
+                    if(behaviour == 0b000) //Increment
+                        return new UveStreamModifierEndOffsetInc(
+                                            "ss.end.mod.ofs.inc", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else if (behaviour == 0b001) //Decrement
+                        return new UveStreamModifierEndOffsetDec(
+                                            "ss.end.mod.ofs.dec", machInst,
+                                             stream, size, target, behaviour,
+                                             variation);
+                    else return new Unknown(machInst);
+                default:
+                    return new Unknown(machInst);
+            }
+        case 0b11: //Indirection (Not implemented)
+            return new Unknown(machInst);
+        default:
+            return new Unknown(machInst);
+        }
+
+    }  // decodeStreamEnd
+
+} // namespace Uve
+
+namespace Uve {
+    StaticInstPtr
+    decodeSBranch(ExtMachInst machInst)
+    {
+        uint8_t stream = (uint8_t) bits(machInst, 19, 15);
+        uint64_t immediate = ((uint64_t) bits(machInst, 28) << 12)      |
+                             ((uint64_t) bits(machInst, 7) << 11)       |
+                             ((uint64_t) bits(machInst, 27, 22) << 5)   |
+                             ((uint64_t) bits(machInst, 11, 8) << 1);
+
+        uint8_t dim_selector = ((uint8_t) bits(machInst, 20) << 2) |
+                               ((uint8_t) bits(machInst, 14, 13));
+        uint8_t not_bit = ((uint8_t) bits(machInst, 21));
+
+        if(not_bit == 0b1)
+        {
+            if (dim_selector == 0b111)
+                return new UveSBranchNC("so.b.nc", machInst, stream,
+                                    sext<13>(immediate));
+            else
+            return new UveSBranchNC("so.b.ndc", machInst, stream,
+                                sext<13>(immediate), dim_selector);
+        }
+        else
+        {
+            if (dim_selector == 0b111)
+                return new UveSBranchC("so.b.c", machInst, stream,
+                                    sext<13>(immediate));
+            else
+            return new UveSBranchC("so.b.dc", machInst, stream,
+                                sext<13>(immediate), dim_selector);
+        }
+
+    }  // decodeSBranch
+} // namespace Uve
+
 }};

@@ -1,0 +1,211 @@
+output header {{
+    template <template<typename Width> class Base>
+    StaticInstPtr
+    decodeStreamTemplated(  const char* mn,
+                                uint8_t width,
+                                ExtMachInst machInst,
+                                uint8_t rd,
+                                uint8_t rs1,
+                                uint8_t rs2,
+                                uint8_t rs3)
+    {
+        switch (width) {
+            case 0x0:
+                return new Base<uint8_t>(mn, machInst, rd, rs1, rs2, rs3);
+                break;
+            case 0x1:
+                return new Base<uint16_t>(mn, machInst, rd, rs1, rs2, rs3);
+                break;
+            case 0x2:
+                return new Base<uint32_t>(mn, machInst, rd, rs1, rs2, rs3);
+                break;
+            default:
+                return new Base<uint64_t>(mn, machInst, rd, rs1, rs2, rs3);
+                break;
+        }
+    }
+}};
+
+
+let {{
+    header_output = ''
+    exec_output = ''
+    decoders = { 'Generic': {} }
+
+    TemplateArgs = (
+        ('uint8_t',),
+        ('uint16_t',),
+        ('uint32_t',),
+        ('uint64_t',),
+    )
+
+    def emitUveStreamInstsT(cmdCode, variant):
+        global header_output, exec_output, decoders
+        tplHeader = 'template <class RegElemType>'
+        tplArgs = '<RegElemType>'
+
+        # JMNOTE: Here the memAccessSize comes from the value of rs2 ->
+        #If its zero: memAccessSize = eCount * sizeOf(RegElemType);
+
+
+        StreamIop = InstObjParams('ss',
+            'UveStream' + variant,
+            'UveBaseStream',
+            {'tpl_header': tplHeader,
+             'tpl_args': tplArgs,
+             'cmd_code': cmdCode,
+             'op_class': 'UveStreamOp'},
+            [ 'IsStreamConfig','IsStreamStart'])
+            # 'IsNonSpeculative',
+
+
+        header_output += UveStreamDeclareT.subst(StreamIop)
+
+        exec_output += (
+            UveStreamExecuteT.subst(StreamIop)
+        )
+
+        for args in TemplateArgs:
+            substDict = {'tpl_args': '<%s>' % ', '.join(args),
+                         'class_name': 'UveStream' + variant}
+            exec_output += UveStreamExecDeclareT.subst(substDict)
+
+
+    def emitUveStreamInsts(cmdCode, variant):
+        global header_output, exec_output, decoders
+        # JMNOTE: Here the memAccessSize comes from the value of rs2 ->
+        #If its zero: memAccessSize = eCount * sizeOf(RegElemType);
+
+
+        StreamIop = InstObjParams('ss',
+            'UveStream' + variant,
+            'UveBaseStream',
+            {
+             'cmd_code': cmdCode,
+             'op_class': 'UveStreamOp'},
+            ['IsStreamConfig'])
+            # 'IsNonSpeculative',
+
+        header_output += UveStreamDeclare.subst(StreamIop)
+
+        exec_output += (
+            UveStreamExecute.subst(StreamIop)
+        )
+
+
+
+    emitUveStreamInstsT(''' SECommand(xc->tcBase(), PSid, width,
+                         StreamMode::load, Rs1_ud, Rs2_ud, Rs3_ud)
+                    ''', 'Load')
+    emitUveStreamInstsT(''' SECommand(xc->tcBase(), PSid, width,
+                         StreamMode::load, Rs1_ud, Rs2_ud, Rs3_ud,
+                         StreamType::start)
+                    ''', 'StaLoad')
+    emitUveStreamInstsT(''' SECommand(xc->tcBase(), PSid, width,
+                         StreamMode::store, Rs1_ud, Rs2_ud, Rs3_ud)
+                    ''', 'Store')
+    emitUveStreamInstsT(''' SECommand(xc->tcBase(), PSid, width,
+                         StreamMode::store, Rs1_ud, Rs2_ud, Rs3_ud,
+                         StreamType::start)
+                    ''', 'StaStore')
+    emitUveStreamInsts(''' SECommand(xc->tcBase(), PSid,
+                            Rs1_ud, Rs2_ud, Rs3_ud, StreamType::append)
+                    ''', 'App')
+    emitUveStreamInsts(''' SECommand(xc->tcBase(), PSid,
+                            Rs1_ud, Rs2_ud, Rs3_ud, StreamType::end)
+                    ''', 'End')
+    emitUveStreamInsts(''' SECommand(xc->tcBase(), PSid)
+                    ''', 'CfgVec')
+
+
+
+    def emitUveStreamModifierInsts(cmdCode, variant, mode, target, behaviour):
+        global header_output, exec_output, decoders
+        # JMNOTE: Here the memAccessSize comes from the value of rs2 ->
+        #If its zero: memAccessSize = eCount * sizeOf(RegElemType);
+
+
+        StreamIop = InstObjParams('ss',
+            'UveStream' + mode + variant + target + behaviour,
+            'UveBaseModifierStream',
+            {
+             'cmd_code': cmdCode,
+             'op_class': 'UveStreamOp'},
+            ['IsStreamConfig'])
+            # 'IsNonSpeculative',
+
+        header_output += UveStreamModifierDeclare.subst(StreamIop)
+
+        exec_output += (
+            UveStreamExecute.subst(StreamIop)
+        )
+
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::size,
+                    DimensionBehaviour::increment, Rs3_ud,
+                    StreamType::append, StreamSetting::modifier)
+            ''','App', 'Modifier', 'Size', 'Inc')
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::size,
+                    DimensionBehaviour::decrement , Rs3_ud,
+                    StreamType::append, StreamSetting::modifier)
+            ''','App', 'Modifier', 'Size', 'Dec')
+
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::offset,
+                    DimensionBehaviour::increment, Rs3_ud,
+                    StreamType::append, StreamSetting::modifier)
+            ''','App', 'Modifier', 'Offset', 'Inc')
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::offset,
+                    DimensionBehaviour::decrement , Rs3_ud,
+                    StreamType::append, StreamSetting::modifier)
+            ''','App', 'Modifier', 'Offset', 'Dec')
+
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::stride,
+                    DimensionBehaviour::increment, Rs3_ud,
+                    StreamType::append, StreamSetting::modifier)
+            ''','App', 'Modifier', 'Stride', 'Inc')
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::stride,
+                    DimensionBehaviour::decrement , Rs3_ud,
+                    StreamType::append, StreamSetting::modifier)
+            ''','App', 'Modifier', 'Stride', 'Dec')
+
+
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::size,
+                    DimensionBehaviour::increment, Rs3_ud,
+                    StreamType::end, StreamSetting::modifier)
+            ''','End', 'Modifier', 'Size', 'Inc')
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::size,
+                    DimensionBehaviour::decrement , Rs3_ud,
+                    StreamType::end, StreamSetting::modifier)
+            ''','End', 'Modifier', 'Size', 'Dec')
+
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::offset,
+                    DimensionBehaviour::increment, Rs3_ud,
+                    StreamType::end, StreamSetting::modifier)
+            ''','End', 'Modifier', 'Offset', 'Inc')
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::offset,
+                    DimensionBehaviour::decrement , Rs3_ud,
+                    StreamType::end, StreamSetting::modifier)
+            ''','End', 'Modifier', 'Offset', 'Dec')
+
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::stride,
+                    DimensionBehaviour::increment, Rs3_ud,
+                    StreamType::end, StreamSetting::modifier)
+            ''','End', 'Modifier', 'Stride', 'Inc')
+    emitUveStreamModifierInsts(''' SECommand(xc->tcBase(), PSid,
+                    Rs1_ud, DimensionTarget::stride,
+                    DimensionBehaviour::decrement , Rs3_ud,
+                    StreamType::end, StreamSetting::modifier)
+            ''','End', 'Modifier', 'Stride', 'Dec')
+
+
+}};

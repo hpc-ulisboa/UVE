@@ -88,6 +88,7 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
         serializeInst[tid] = nullptr;
         serializeOnNextInst[tid] = false;
     }
+
 }
 
 template <class Impl>
@@ -149,8 +150,18 @@ DefaultRename<Impl>::regStats()
         .name(name() + ".SQFullEvents")
         .desc("Number of times rename has blocked due to SQ full")
         .prereq(renameSQFullEvents);
-    renameFullRegistersEvents
-        .name(name() + ".FullRegisterEvents")
+    // JMNOTE: Added SSF(stream store fifo) and SLF(stream load fifo) as
+    // reasons
+    renameUVESSFFullEvents.name(name() + ".UVESSFFullEvents")
+        .desc("Number of times rename has blocked due to UVE SSFifo full")
+        .prereq(renameUVESSFFullEvents);
+    renameUVESLFFullEvents.name(name() + ".UVESLFFullEvents")
+        .desc("Number of times rename has blocked due to UVE SLFifo full")
+        .prereq(renameUVESLFFullEvents);
+    renameUVE_STMS_FullEvents.name(name() + ".UVE_STMS_FullEvents")
+        .desc("Number of times rename has blocked due to lack of streams")
+        .prereq(renameUVE_STMS_FullEvents);
+    renameFullRegistersEvents.name(name() + ".FullRegisterEvents")
         .desc("Number of times there has been no free registers")
         .prereq(renameFullRegistersEvents);
     renameRenamedOperands
@@ -448,7 +459,7 @@ DefaultRename<Impl>::tick()
         DPRINTF(Rename, "Processing [tid:%i]\n", tid);
 
         status_change = checkSignalsAndUpdate(tid) || status_change;
-
+        //JMNOTE: Rename itself is called here
         rename(status_change, tid);
     }
 
@@ -664,6 +675,87 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 break;
             }
         }
+        // JMNOTE: We cannot rename an instruction if there is no space
+        // available in the respective load/store fifo.
+        // JMNOTE: Check the destination vector registers and find the ones
+        // that are streaming. Those will be accounted to check for space in
+        // the FIFO.
+        bool fifo_available = true;
+        if (inst->isStreamInst()) {
+            for (int i = 0; i < inst->numDestRegs(); i++) {
+                const RegId &dest_reg = inst->destRegIdx(i);
+                if (dest_reg.isVecReg()) {
+                    if (cpu->getSEICpuPtr()->isStoreStream(dest_reg.index())) {
+                        fifo_available =
+                            cpu->getSEICpuPtr()->checkStoreOccupancy(dest_reg);
+                        if (!fifo_available) {
+                            break;
+                        }
+                    }
+                }
+            }
+            // Check if it was able to schedule. Needed in order to break
+            // the outer loop.
+            if (!fifo_available) {
+                source = SSF;
+                incrFullStat(source);
+                DPRINTF(JMDEVEL,
+                        "Rename: Store FIFO full, delaying "
+                        "instruction seqnum(%d) due to arch fifo\n",
+                        inst->seqNum);
+                break;
+            }
+
+            fifo_available = true;
+            for (int i = 0; i < inst->numSrcRegs(); i++) {
+                const RegId &src_reg = inst->srcRegIdx(i);
+                if (src_reg.isVecReg()) {
+                    if (cpu->getSEICpuPtr()->isLoadStream(src_reg.index())) {
+                        fifo_available =
+                            cpu->getSEICpuPtr()->checkLoadOccupancy(src_reg);
+                        if (!fifo_available) {
+                            break;
+                        }
+                    }
+                }
+            }
+            // Check if it was able to schedule. Needed in order to break
+            // the outer loop.
+            if (!fifo_available) {
+                source = SLF;
+                incrFullStat(source);
+                DPRINTF(JMDEVEL,
+                        "Rename: Load FIFO full, delaying "
+                        "instruction seqnum(%d) due to arch "
+                        "fifo\n",
+                        inst->seqNum);
+                break;
+            }
+        }
+
+        //JMFIXME: Check if there are free streams, in the case of a starting stream config.
+        //Detect if the instruction is starting a new stream (flag: IsStreamStart)
+        if(inst->isStreamStart()){
+            //Ask if there are free streams for configuration
+            uint64_t sid = inst->getStreamRegister();
+            bool status = false;
+            if(cpu->getSEICpuPtr()->isRenameActive()){
+                status = cpu->getSEICpuPtr()->isStreamAvailable();
+            } else {
+                status = cpu->getSEICpuPtr()->isStreamAvailable(sid);
+            }
+            
+            if(!status) {
+                source = STMS;
+                incrFullStat(source);
+                DPRINTF(JMDEVEL,
+                            "Rename: No available streams, delaying "
+                            "instruction seqnum(%d) due to lack of streams\n",
+                            inst->seqNum);
+                break;
+            }
+        }
+
 
         insts_to_rename.pop_front();
 
@@ -695,12 +787,28 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         // Check here to make sure there are enough destination registers
         // to rename to.  Otherwise block.
-        if (!renameMap[tid]->canRename(inst->numIntDestRegs(),
-                                       inst->numFPDestRegs(),
-                                       inst->numVecDestRegs(),
-                                       inst->numVecElemDestRegs(),
-                                       inst->numVecPredDestRegs(),
-                                       inst->numCCDestRegs())) {
+        // JMNOTE: The streamed source registers must also be accounted for in
+        // the vec reg file
+        RegIndex streamedRegIdx = 0;
+        uint8_t numStreamedRegs = 0;
+        if (inst->isStreamInst()) {
+            for (int i = 0; i < inst->numSrcRegs(); i++) {
+                const RegId &src_reg = inst->srcRegIdx(i);
+                if (src_reg.isVecReg()) {
+                    if (cpu->getSEICpuPtr()->isStreamLoad(src_reg.index())) {
+                        if (streamedRegIdx != src_reg.index())
+                            numStreamedRegs++;
+                        streamedRegIdx = src_reg.index();
+                    }
+                }
+            }
+        }
+        uint32_t necessaryPhysVecRegs =
+            inst->numVecDestRegs() + numStreamedRegs;
+        if (!renameMap[tid]->canRename(
+                inst->numIntDestRegs(), inst->numFPDestRegs(),
+                necessaryPhysVecRegs, inst->numVecElemDestRegs(),
+                inst->numVecPredDestRegs(), inst->numCCDestRegs())) {
             DPRINTF(Rename,
                     "Blocking due to "
                     " lack of free physical registers to rename to.\n");
@@ -751,6 +859,9 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
             serializeAfter(insts_to_rename, tid);
         }
+
+        //JMTODO: HERE the registers are only renamed or looked up.
+        //The readiness of each register can be handled latter if necessary
 
         renameSrcRegs(inst, inst->threadNumber);
 
@@ -967,6 +1078,9 @@ DefaultRename<Impl>::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
     typename std::list<RenameHistory>::iterator hb_it =
         historyBuffer[tid].begin();
 
+    //JMTODO: Renaming Squashing, the instructions that were mispredicted
+    //Must be removed, and therefore the registers must be rewinded
+
     // After a syscall squashes everything, the history buffer may be empty
     // but the ROB may still be squashing instructions.
     // Go through the most recent instructions, undoing the mappings
@@ -975,31 +1089,49 @@ DefaultRename<Impl>::doSquash(const InstSeqNum &squashed_seq_num, ThreadID tid)
            hb_it->instSeqNum > squashed_seq_num) {
         assert(hb_it != historyBuffer[tid].end());
 
-        DPRINTF(Rename, "[tid:%i] Removing history entry with sequence "
-                "number %i (archReg: %d, newPhysReg: %d, prevPhysReg: %d).\n",
-                tid, hb_it->instSeqNum, hb_it->archReg.index(),
-                hb_it->newPhysReg->index(), hb_it->prevPhysReg->index());
+        if(!hb_it->type){
+            DPRINTF(Rename, "[tid:%i] Removing history entry with sequence "
+                    "number %i (archReg: %d, newPhysReg: %d, prevPhysReg: %d).\n",
+                    tid, hb_it->instSeqNum, hb_it->archReg.index(),
+                    hb_it->newPhysReg->index(), hb_it->prevPhysReg->index());
 
-        // Undo the rename mapping only if it was really a change.
-        // Special regs that are not really renamed (like misc regs
-        // and the zero reg) can be recognized because the new mapping
-        // is the same as the old one.  While it would be merely a
-        // waste of time to update the rename table, we definitely
-        // don't want to put these on the free list.
-        if (hb_it->newPhysReg != hb_it->prevPhysReg) {
-            // Tell the rename map to set the architected register to the
-            // previous physical register that it was renamed to.
-            renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg);
+            // Undo the rename mapping only if it was really a change.
+            // Special regs that are not really renamed (like misc regs
+            // and the zero reg) can be recognized because the new mapping
+            // is the same as the old one.  While it would be merely a
+            // waste of time to update the rename table, we definitely
+            // don't want to put these on the free list.
+            if (hb_it->newPhysReg != hb_it->prevPhysReg) {
+                // Tell the rename map to set the architected register to the
+                // previous physical register that it was renamed to.
+                renameMap[tid]->setEntry(hb_it->archReg, hb_it->prevPhysReg);
 
-            // Put the renamed physical register back on the free list.
-            freeList->addReg(hb_it->newPhysReg);
+                // Put the renamed physical register back on the free list.
+                freeList->addReg(hb_it->newPhysReg);
+
+                // Need to squash in streaming engine
+                if (hb_it->archReg.isVecReg()) {
+                    cpu->getSEICpuPtr()->squashDestToBuffer(hb_it->archReg,
+                                                            hb_it->newPhysReg,
+                                                            hb_it->instSeqNum);
+                }
+            }
+
+            // Notify potential listeners that the register mapping needs to be
+            // removed because the instruction it was mapped to got squashed. Note
+            // that this is done before hb_it is incremented.
+            ppSquashInRename->notify(std::make_pair(hb_it->instSeqNum,
+                                                    hb_it->newPhysReg));
         }
-
-        // Notify potential listeners that the register mapping needs to be
-        // removed because the instruction it was mapped to got squashed. Note
-        // that this is done before hb_it is incremented.
-        ppSquashInRename->notify(std::make_pair(hb_it->instSeqNum,
-                                                hb_it->newPhysReg));
+        else {
+            DPRINTF(JMDEVEL,
+                    "doSquash: Freeing up older stream rename of"
+                    " stream %d (new %d) (last %d), [sn:%llu].\n",
+                    hb_it->archStream, hb_it->newStream, hb_it->prevStream,
+                    hb_it->instSeqNum);
+            cpu->getSEICpuPtr()->squashStreamConfig(
+                    hb_it->archStream, hb_it->instSeqNum);
+        }
 
         historyBuffer[tid].erase(hb_it++);
 
@@ -1042,17 +1174,26 @@ DefaultRename<Impl>::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
            hb_it != historyBuffer[tid].end() &&
            hb_it->instSeqNum <= inst_seq_num) {
 
-        DPRINTF(Rename, "[tid:%i] Freeing up older rename of reg %i (%s), "
+        if( !hb_it->type ){
+            DPRINTF(Rename,
+                "[tid:%i] Freeing up older rename of reg %i (%s), "
                 "[sn:%llu].\n",
                 tid, hb_it->prevPhysReg->index(),
-                hb_it->prevPhysReg->className(),
-                hb_it->instSeqNum);
+                hb_it->prevPhysReg->className(), hb_it->instSeqNum);
+            // Don't free special phys regs like misc and zero regs, which
+            // can be recognized because the new mapping is the same as
+            // the old one.
+            if (hb_it->newPhysReg != hb_it->prevPhysReg) {
+                freeList->addReg(hb_it->prevPhysReg);
+            }
 
-        // Don't free special phys regs like misc and zero regs, which
-        // can be recognized because the new mapping is the same as
-        // the old one.
-        if (hb_it->newPhysReg != hb_it->prevPhysReg) {
-            freeList->addReg(hb_it->prevPhysReg);
+        }
+        else {
+            DPRINTF(JMDEVEL,
+                    "removeFromHistory:(Commit freeing) Freeing up older"
+                    " stream rename of stream %d (last %d), [sn:%llu].\n",
+                    hb_it->archStream, hb_it->prevStream,
+                    hb_it->instSeqNum);
         }
 
         ++renameCommittedMaps;
@@ -1061,13 +1202,17 @@ DefaultRename<Impl>::removeFromHistory(InstSeqNum inst_seq_num, ThreadID tid)
     }
 }
 
+#include "debug/JMDEVEL.hh"
+
 template <class Impl>
 inline void
-DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
-{
+DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid) {
     ThreadContext *tc = inst->tcBase();
     RenameMap *map = renameMap[tid];
     unsigned num_src_regs = inst->numSrcRegs();
+
+    // Make sure that we don't get the register data twice.. on the same inst
+    RegIndex streamedRegIdx = 0;
 
     // Get the architectual register numbers from the source and
     // operands, and redirect them to the right physical register.
@@ -1075,6 +1220,44 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
         const RegId& src_reg = inst->srcRegIdx(src_idx);
         PhysRegIdPtr renamed_reg;
 
+        // JMNOTE: Check if vector register is active stream
+        if (inst->isStreamInst() && src_reg.isVecReg() &&
+            cpu->getSEICpuPtr()->isStreamLoad(src_reg.index()) &&
+            streamedRegIdx != src_reg.index()) {
+            typename RenameMap::RenameInfo rename_result;
+            RegId flat_src_regid = tc->flattenRegId(src_reg);
+            // Check if this is really needed
+            flat_src_regid.setNumPinnedWrites(0);
+
+            rename_result = map->rename(flat_src_regid);
+
+
+            // Mark it in the scoreboard as not ready
+            scoreboard->unsetReg(rename_result.first);
+
+            // Make reservation in the fifo. Set the physical register as
+            // destination of the data
+            inst->setPhysStreamGlobal(src_idx,
+                cpu->getSEICpuPtr()->addToBufferLoad(src_reg,
+                                                    rename_result.first,
+                                                    inst->getSeqNum())
+            );
+            // Save streamed register
+            streamedRegIdx = src_reg.index();
+
+            // Record the rename information so that a history can be kept.
+            RenameHistory hb_entry(inst->seqNum, flat_src_regid,
+                                   rename_result.first, rename_result.second);
+
+            historyBuffer[tid].push_front(hb_entry);
+
+            // JMNOTE: Update the regScoreboard in instQueue
+            // JMTODO: Maybe change this in future to only happen in the
+            // dispatch phase
+            iew_ptr->instQueue.addStreamingPhysReg(rename_result.first);
+        }
+
+        // Standard lookup behaviour applies to any register in the same way
         renamed_reg = map->lookup(tc->flattenRegId(src_reg));
         switch (src_reg.classValue()) {
           case IntRegClass:
@@ -1098,6 +1281,14 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
             panic("Invalid register class: %d.", src_reg.classValue());
         }
 
+        // if (src_reg.isVecReg() || src_reg.isVecPredReg())
+        // DPRINTF(
+        //     JMDEVEL,
+        //     "[tid:%i] "
+        //     "[S_debug] Looking up %s arch reg %i, got phys reg %i (%s)\n",
+        //     tid, src_reg.className(), src_reg.index(),
+        //     renamed_reg->index(), renamed_reg->flatIndex());
+
         DPRINTF(Rename,
                 "[tid:%i] "
                 "Looking up %s arch reg %i, got phys reg %i (%s)\n",
@@ -1105,9 +1296,13 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
                 src_reg.index(), renamed_reg->index(),
                 renamed_reg->className());
 
+
         inst->renameSrcReg(src_idx, renamed_reg);
 
         // See if the register is ready or not.
+        //JMTODO: Here is the only time the registers are checked to be ready
+        // In rename stages
+        // JMNOTE: Registers are checked again in inst_queue_impl
         if (scoreboard->getReg(renamed_reg)) {
             DPRINTF(Rename,
                     "[tid:%i] "
@@ -1130,15 +1325,50 @@ DefaultRename<Impl>::renameSrcRegs(const DynInstPtr &inst, ThreadID tid)
 
 template <class Impl>
 inline void
-DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
-{
+DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid) {
     ThreadContext *tc = inst->tcBase();
     RenameMap *map = renameMap[tid];
     unsigned num_dest_regs = inst->numDestRegs();
 
+    // JMTODO: Rename destination register (Physical)
+    // Here is where the rename map is called to do the actual renaming
+    if (inst->isStreamConfig()) {
+        // DPRINTF(JMDEVEL,
+        //         "[tid:%i] "
+        //         "[D] Found Config Inst: "
+        //         "Setting stream %i\n",
+        //         tid, inst->getStreamRegister());
+
+        // In this case (StreamConfig) we don't do renaming.. just set the
+        // index of Our StreamTable
+        if (inst->isStreamStart()) {
+            auto rename_result = cpu->getSEICpuPtr()->initializeStreamConfig(
+                inst->getStreamRegister(), inst->getSeqNum(),
+                inst->isStreamLoad());
+            assert(std::get<0>(rename_result) || "Could not rename!! Should have.");
+            inst->setPhysStream(std::get<1>(rename_result));
+
+            //Add to history buffer
+            RenameHistory hb_entry_streamconfig(inst->getSeqNum(),
+                                    inst->getStreamRegister(),
+                                    std::get<1>(rename_result),
+                                    std::get<2>(rename_result));
+
+            historyBuffer[tid].push_front(hb_entry_streamconfig);
+
+        } else {
+            // A stream end or stream append
+            // Get the phys stream id
+            auto rename_result = cpu->getSEICpuPtr()->getStreamConfigSequence(
+                inst->getStreamRegister(), inst->getSeqNum());
+            assert(rename_result.first || "Did not find a stream sequence.");
+            inst->setPhysStream(rename_result.second);
+        }
+    }
+
     // Rename the destination registers.
     for (int dest_idx = 0; dest_idx < num_dest_regs; dest_idx++) {
-        const RegId& dest_reg = inst->destRegIdx(dest_idx);
+        const RegId &dest_reg = inst->destRegIdx(dest_idx);
         typename RenameMap::RenameInfo rename_result;
 
         RegId flat_dest_regid = tc->flattenRegId(dest_reg);
@@ -1150,6 +1380,7 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
 
         scoreboard->unsetReg(rename_result.first);
 
+
         DPRINTF(Rename,
                 "[tid:%i] "
                 "Renaming arch reg %i (%s) to physical reg %i (%i).\n",
@@ -1159,14 +1390,14 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
 
         // Record the rename information so that a history can be kept.
         RenameHistory hb_entry(inst->seqNum, flat_dest_regid,
-                               rename_result.first,
-                               rename_result.second);
+                               rename_result.first, rename_result.second);
 
         historyBuffer[tid].push_front(hb_entry);
 
-        DPRINTF(Rename, "[tid:%i] [sn:%llu] "
+        DPRINTF(Rename,
+                "[tid:%i] [sn:%llu] "
                 "Adding instruction to history buffer (size=%i).\n",
-                tid,(*historyBuffer[tid].begin()).instSeqNum,
+                tid, (*historyBuffer[tid].begin()).instSeqNum,
                 historyBuffer[tid].size());
 
         // Tell the instruction to rename the appropriate destination
@@ -1174,11 +1405,26 @@ DefaultRename<Impl>::renameDestRegs(const DynInstPtr &inst, ThreadID tid)
         // (rename_result.first), and record the previous physical
         // register that the same logical register was renamed to
         // (rename_result.second).
-        inst->renameDestReg(dest_idx,
-                            rename_result.first,
+        inst->renameDestReg(dest_idx, rename_result.first,
                             rename_result.second);
 
         ++renameRenamedOperands;
+
+        // JMNOTE: Check if vector register is active stream
+        if (inst->isStreamInst() && dest_reg.isVecReg() &&
+            cpu->getSEICpuPtr()->isStreamStore(dest_reg.index())) {
+            // Set register as stream destination, will be used later to
+            // simplify logic
+            inst->setDestRegStreaming(dest_idx);
+            DPRINTF(JMDEVEL,
+                    "Rename: Detected destination vector with stream store "
+                    "seqnum(%d) vec(%d).\n",
+                    inst->seqNum, dest_reg.index());
+            // Make reservation in the fifo. Set the physical register as
+            // destination of the data
+            cpu->getSEICpuPtr()->addToBufferStore(
+                dest_reg, rename_result.first, inst->getSeqNum());
+        }
     }
 }
 
@@ -1459,6 +1705,17 @@ DefaultRename<Impl>::incrFullStat(const FullSource &source)
       case SQ:
         ++renameSQFullEvents;
         break;
+        // JMNOTE: Added SSF(stream store fifo) and SLF(stream load fifo) as
+        // reasons
+      case SSF:
+          ++renameUVESSFFullEvents;
+          break;
+      case SLF:
+          ++renameUVESLFFullEvents;
+          break;
+      case STMS:
+          ++renameUVE_STMS_FullEvents;
+          break;
       default:
         panic("Rename full stall stat should be incremented for a reason!");
         break;
@@ -1476,6 +1733,7 @@ DefaultRename<Impl>::dumpHistory()
         buf_it = historyBuffer[tid].begin();
 
         while (buf_it != historyBuffer[tid].end()) {
+            if(!(*buf_it).type)
             cprintf("Seq num: %i\nArch reg[%s]: %i New phys reg:"
                     " %i[%s] Old phys reg: %i[%s]\n",
                     (*buf_it).instSeqNum,

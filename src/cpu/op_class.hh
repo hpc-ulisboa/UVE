@@ -106,4 +106,8 @@ static const OpClass IprAccessOp = Enums::IprAccess;
 static const OpClass InstPrefetchOp = Enums::InstPrefetch;
 static const OpClass Num_OpClasses = Enums::Num_OpClass;
 
+//JMNOTE: Created UVE Ops
+static const OpClass UveStreamOp = Enums::UveStream;
+static const OpClass UveBranchOp = Enums::UveBranch;
+
 #endif // __CPU__OP_CLASS_HH__

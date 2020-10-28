@@ -59,6 +59,8 @@
 #include "debug/Activity.hh"
 #include "debug/Drain.hh"
 #include "debug/IEW.hh"
+// JMFIXME: Remove after
+#include "debug/JMDEVEL.hh"
 #include "debug/O3PipeView.hh"
 #include "params/DerivO3CPU.hh"
 
@@ -1336,9 +1338,36 @@ DefaultIEW<Impl>::executeInsts()
             // If we execute the instruction (even if it's a nop) the fault
             // will be replaced and we will lose it.
             if (inst->getFault() == NoFault) {
+                // JMTODO: Here is where the instruction really executes
+                // JMTODO: LOAD Operands must be ready before execution
                 inst->execute();
                 if (!inst->readPredicate())
                     inst->forwardOldRegs();
+                // JMNOTE: Store to store fifo if register is streaming
+                if (inst->isStreamInst()) {
+                    unsigned num_dest_regs = inst->numDestRegs();
+                    for (int dest_idx = 0; dest_idx < num_dest_regs;
+                         dest_idx++) {
+                        const RegId& dest_reg = inst->destRegIdx(dest_idx);
+                        if (dest_reg.isVecReg() &&
+                            !cpu->getSEICpuPtr()->isStreamLoad(
+                                dest_reg.index())) {
+                            if (inst->isDestRegStreaming(dest_idx)) {
+                                PhysRegIdPtr dest_phys_reg =
+                                    inst->renamedDestRegIdx(dest_idx);
+                                DPRINTF(JMDEVEL,
+                                        "AfterExecution?isDestRegStreaming: "
+                                        "seqnum(%d), vec(%d), phys(%p)\n",
+                                        inst->seqNum, dest_reg.index(),
+                                        dest_phys_reg);
+                                cpu->getSEICpuPtr()->fillOnBufferStore(
+                                    dest_reg, dest_phys_reg,
+                                    cpu->readVecReg(dest_phys_reg),
+                                    inst->seqNum);
+                            }
+                        }
+                    }
+                }
             }
 
             inst->setExecuted();
@@ -1378,6 +1407,8 @@ DefaultIEW<Impl>::executeInsts()
                 DPRINTF(IEW, "[tid:%i] [sn:%llu] Execute: "
                         "Redirecting fetch to PC: %s\n",
                         tid,inst->seqNum,inst->pcState());
+
+                
                 // If incorrect, then signal the ROB that it must be squashed.
                 squashDueToBranch(inst, tid);
 
@@ -1476,6 +1507,8 @@ DefaultIEW<Impl>::writebackInsts()
         // E.g. Strictly ordered loads have not actually executed when they
         // are first sent to commit.  Instead commit must tell the LSQ
         // when it's ready to execute the strictly ordered load.
+        //JMTODO: Here is where the writeback is done, by marking the registers
+        // in the scoreboard
         if (!inst->isSquashed() && inst->isExecuted() && inst->getFault() == NoFault) {
             int dependents = instQueue.wakeDependents(inst);
 

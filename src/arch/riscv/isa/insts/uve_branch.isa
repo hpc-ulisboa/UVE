@@ -1,0 +1,51 @@
+output header {{
+
+}};
+
+let {{
+    header_output = ''
+    exec_output = ''
+    decoders = { 'Generic': {} }
+
+    def emitUveSBranchInsts(variant, code):
+        global header_output, exec_output, decoders
+
+        SBranchIop = InstObjParams('so.b.'+variant.lower(),
+            'UveSBranch' + variant,
+            'UveBaseStreamBranch',
+            {
+                'uve_code': code,
+             'op_class': 'UveBranchOp'},
+            ['IsDirectControl', 'IsCondControl', 'IsStreamBranch'])
+
+
+        header_output += UveSBranchDeclare.subst(SBranchIop)
+
+        exec_output += (
+            UveSBranchExecute.subst(SBranchIop)
+        )
+
+    emitUveSBranchInsts("NC", 
+                '''
+                if(!Vs1_ub.is_last(hop_level)){
+                    NPC = PC + (int64_t)imm;
+                    DPRINTF(JMDEVEL, "Branch:T  ");
+                }
+                else {
+                    NPC = NPC;
+                    DPRINTF(JMDEVEL, "Branch:F  ");
+                }
+                ''')
+    emitUveSBranchInsts("C",
+                '''
+                if(Vs1_ub.is_last(hop_level)){
+                    NPC = PC + (int64_t)imm;
+                    DPRINTF(JMDEVEL, "Branch:T  ");
+                }
+                else {
+                    NPC = NPC;
+                    DPRINTF(JMDEVEL, "Branch:F  ");
+                }
+                ''')
+
+}};

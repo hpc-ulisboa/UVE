@@ -4,22 +4,38 @@
 
 #include <stdint.h>
 
+#include <cstdarg>
+
 #include "arch/riscv/insts/static_inst.hh"
 #include "debug/UVEUtils.hh"
 
 namespace RiscvISA
 {
+    #define UVEMIN(a,b) (a < b )? a : b
+    #define UVEMAX(a,b) (a > b )? a : b
+
+
     #define MEM_PRINTF(mem,dir,vec,count)  DPRINTF(UVEMem, "______________" \
-                "__________________\\n"); \
+                "__________________\n"); \
                 std::string ss; \
                 for (int i = 0; i < count; i++) { \
                     ss += "(" + std::to_string(i) + ") M[" + \
-                    std::to_string(mem[i]) + "]" dir "V[" + \
+                    to_hex(mem[i]) + "]" dir "V[" + \
                     std::to_string(vec[i]) + "] -"; \
                     if (i % 30 == 29) ss += "\\n"; \
                 } \
-                DPRINTF(UVEMem, (ss+="\\n").c_str() ); \
-                DPRINTF(UVEMem, "________________________________\\n");
+                DPRINTF(UVEMem, (ss+="\n").c_str() ); \
+                DPRINTF(UVEMem, "________________________________\n");
+
+
+    template <typename T>
+    std::string to_hex(T a){
+        std::string result;
+        std::stringstream ss;
+        ss << std::hex << (long int) a;
+        ss >> result;
+        return result;
+    }
 
     template <typename Ret>
     Ret convertFP(float& val);
@@ -44,9 +60,13 @@ namespace RiscvISA
     template <typename Ret>
     Ret convertInt(int64_t& val);
 
-    void check_equal_src_widths(size_t a, size_t b);
+    bool check_equal_src_widths(size_t width1, size_t width2);
+
+    uint16_t get_dest_valid_index(uint16_t a, uint16_t b);
+    uint16_t get_dest_valid_index(uint16_t a, uint16_t b, uint16_t c);
 
     size_t get_vector_width(ExecContext *xc, uint8_t reg );
+    size_t get_predicate_vector_width(ExecContext *xc, uint8_t reg );
 
     template <typename Ret>
     typename std::enable_if<std::is_integral<Ret>::value, Ret>::type
@@ -89,6 +109,13 @@ namespace RiscvISA
 
     template <typename Ret>
     Ret uveMin(Ret val1, Ret val2);
+
+    template <typename Ret>
+    bool uveEGT(Ret val1, Ret val2);
+    template <typename Ret>
+    bool uveEQ(Ret val1, Ret val2);
+    template <typename Ret>
+    bool uveLT(Ret val1, Ret val2);
 
     template <typename Ret>
     Ret castBitsToRetType(uint64_t arg);

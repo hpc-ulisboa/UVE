@@ -42,6 +42,28 @@ def template UveTwoVecPredicatedDeclare {{
     };
 }};
 
+//JMNOTE: Uve Arithmetic 2Vecs to 1SDest Predicated Header Declaration Template
+
+def template UveTwoVec2ScaPredicatedDeclare {{
+    class %(class_name)s : public %(base_class)s
+    {
+      protected:
+        typedef uint8_t TPElem;
+
+      public:
+        %(class_name)s(const char* mnem, ExtMachInst machInst,
+            uint8_t _RD, uint8_t _VSrc1,
+            uint8_t _PSrc3)
+            : %(base_class)s(mnem, machInst, %(op_class)s,
+                _RD, _VSrc1, _PSrc3)
+        {
+            %(constructor)s;
+        }
+
+        Fault execute(ExecContext *, Trace::InstRecord *) const;
+    };
+}};
+
 
 //JMNOTE: Uve Arithmetic VecScaPredicated Header Declaration Template
 
@@ -73,7 +95,7 @@ def template UveArithExecDeclare {{
         Trace::InstRecord *) const;
 }};
 
-//JMNOTE: 3Vec Pred Instruction Templates
+//JMNOTE: 3Vec Pred Instruction Templates ([] = OP([], []))
 
 def template UveThreeVecPredicatedExecute {{
     Fault %(class_name)s::execute(ExecContext *xc,
@@ -82,25 +104,18 @@ def template UveThreeVecPredicatedExecute {{
         Fault fault = NoFault;
         unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / sizeof(uint8_t);
-        uint8_t src1_vw = get_vector_width(xc, VSrc1);
-        uint8_t src2_vw = get_vector_width(xc, VSrc2);
-        unsigned iCount = eCount /  (1<<src1_vw);
-
-        check_equal_src_widths(src1_vw, src2_vw);
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
-
-        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
-        eCount, iCount);
 
         %(op_decl)s;
         %(op_rd)s;
 
         if (fault == NoFault) {
             %(ex_code)s;
-            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
-                src1_vw);
             %(op_wb)s;
+
+            DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)"
+            "\n", eCount, iCount);
         }
 
         return fault;
@@ -108,32 +123,59 @@ def template UveThreeVecPredicatedExecute {{
 }};
 
 
-//JMNOTE: 2Vec Pred Instruction Templates
+//JMNOTE: 2Vec Pred Instruction Templates  ([] =  OP([], []?) + []?)
 
 def template UveTwoVecPredicatedExecute {{
+    Fault %(class_name)s::execute(ExecContext *xc,
+        Trace::InstRecord *traceData) const
+    {
+
+        Fault fault = NoFault;
+        unsigned eCount = RiscvStaticInst::getCurUveVecLen(
+            xc->tcBase()) / sizeof(uint8_t);
+
+        std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
+            //Nearest here.. with conscience of the other possibilities
+
+        %(op_decl)s;
+        %(op_rd)s;
+
+        if (fault == NoFault) {
+            %(ex_code)s;
+            %(op_wb)s;
+
+            DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)"
+            "\n", eCount, iCount);
+        }
+
+        return fault;
+    }
+}};
+
+
+
+//JMNOTE: 1/2Vec 1SDest Pred Instruction Templates (Sca = OP([], []?) + Sca?)
+
+def template UveTwoVec2ScaPredicatedExecute {{
     Fault %(class_name)s::execute(ExecContext *xc,
         Trace::InstRecord *traceData) const
     {
         Fault fault = NoFault;
         unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / sizeof(uint8_t);
-        uint8_t src1_vw = get_vector_width(xc, VSrc1);
-        unsigned iCount = eCount /  (1<<src1_vw);
 
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
-
-        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
-        eCount, iCount);
 
         %(op_decl)s;
         %(op_rd)s;
 
         if (fault == NoFault) {
             %(ex_code)s;
-            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
-                src1_vw);
             %(op_wb)s;
+
+            DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)"
+            "\n", eCount, iCount);
         }
 
         return fault;
@@ -141,7 +183,7 @@ def template UveTwoVecPredicatedExecute {{
 }};
 
 
-//JMNOTE: VecSca Pred Instruction Templates
+//JMNOTE: VecSca Pred Instruction Templates ([] = [] << Sca)
 
 def template UveVecScaPredicatedExecute {{
     Fault %(class_name)s::execute(ExecContext *xc,
@@ -150,23 +192,19 @@ def template UveVecScaPredicatedExecute {{
         Fault fault = NoFault;
         unsigned eCount = RiscvStaticInst::getCurUveVecLen(
             xc->tcBase()) / sizeof(uint8_t);
-        uint8_t src1_vw = get_vector_width(xc, VSrc1);
-        unsigned iCount = eCount /  (1<<src1_vw);
 
         std::fesetround(FE_TONEAREST); //JMNOTE: Note we are rounding to
             //Nearest here.. with conscience of the other possibilities
 
-        DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)\n",
-        eCount, iCount);
-
         %(op_decl)s;
         %(op_rd)s;
 
+
         if (fault == NoFault) {
             %(ex_code)s;
-            RiscvStaticInst::setUveVecType(xc->tcBase(), VDest,
-                src1_vw);
             %(op_wb)s;
+            DPRINTF(UVEArith, "%(class_name)s->execute: eCount(%d) iCount(%d)"
+            "\n", eCount, iCount);
         }
 
         return fault;

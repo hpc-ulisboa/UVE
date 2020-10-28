@@ -53,6 +53,7 @@
 #include "config/the_isa.hh"
 #include "cpu/o3/comm.hh"
 #include "debug/IEW.hh"
+#include "debug/JMDEVEL.hh"
 #include "enums/VecRegRenameMode.hh"
 
 class UnifiedFreeList;
@@ -210,6 +211,8 @@ class PhysRegFile
     {
         assert(phys_reg->isVectorPhysReg());
 
+        // DPRINTF(JMDEVEL, "regfile.213 readVecReg idx(%d) data: %s\n",int(phys_reg->index()),
+                // vectorRegFile[phys_reg->index()].print());
         DPRINTF(IEW, "RegFile: Access to vector register %i, has "
                 "data %s\n", int(phys_reg->index()),
                 vectorRegFile[phys_reg->index()].print());
@@ -334,7 +337,13 @@ class PhysRegFile
         DPRINTF(IEW, "RegFile: Setting vector register %i to %s\n",
                 int(phys_reg->index()), val.print());
 
+        #if THE_ISA == RISCV_ISA
+        //JMNOTE: Setting vecPredRegFile for one pred reg
+        if (!phys_reg->isZeroReg())
+            vectorRegFile[phys_reg->index()] = val;
+        #else
         vectorRegFile[phys_reg->index()] = val;
+        #endif
     }
 
     /** Sets a vector register to the given value. */
@@ -358,7 +367,13 @@ class PhysRegFile
         DPRINTF(IEW, "RegFile: Setting predicate register %i to %s\n",
                 int(phys_reg->index()), val.print());
 
+        #if THE_ISA == RISCV_ISA
+        //JMNOTE: Setting vecPredRegFile for one pred reg
+        if (!phys_reg->isOnePredReg())
+            vecPredRegFile[phys_reg->index()] = val;
+        #else
         vecPredRegFile[phys_reg->index()] = val;
+        #endif
     }
 
     /** Sets a condition-code register to the given value. */

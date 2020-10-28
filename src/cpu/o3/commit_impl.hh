@@ -68,6 +68,7 @@
 #include "params/DerivO3CPU.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
+#include "debug/JMDEVEL.hh"
 
 using namespace std;
 
@@ -1030,6 +1031,14 @@ DefaultCommit<Impl>::commitInsts()
 
             // Record that the number of ROB entries has changed.
             changedROBNumEntries[tid] = true;
+
+            // JMNOTE: Squash instruction in stream engine (only for stream
+            // config)
+            // JMFIXME: Make all the processes uniform...
+            if (head_inst->isStreamConfig()) {
+                cpu->getSEICpuPtr()->squashStreamConfig(
+                    head_inst->getStreamRegister(), head_inst->getSeqNum());
+            }
         } else {
             pc[tid] = head_inst->pcState();
 
@@ -1320,6 +1329,26 @@ DefaultCommit<Impl>::commitHead(const DynInstPtr &head_inst, unsigned inst_num)
 
     // Finally clear the head ROB entry.
     rob->retireHead(tid);
+
+    // JMNOTE: Send commit signal to streaming engine (Load)
+    for (int src_reg_idx = 0; src_reg_idx < head_inst->numSrcRegs();
+         src_reg_idx++) {
+        PhysRegIdPtr src_reg = head_inst->renamedSrcRegIdx(src_reg_idx);
+        if (head_inst->isStreamInst() && src_reg->isVectorPhysReg())
+            cpu->getSEICpuPtr()->commitToBufferLoad(
+                head_inst->srcRegIdx(src_reg_idx), src_reg,
+                head_inst->getSeqNum(), head_inst->getPhysStream(src_reg_idx));
+    }
+    // JMNOTE: Send commit signal to streaming engine (Store)
+    for (int dest_reg_idx = 0; dest_reg_idx < head_inst->numDestRegs();
+         dest_reg_idx++) {
+        PhysRegIdPtr dest_reg = head_inst->renamedDestRegIdx(dest_reg_idx);
+        if (head_inst->isStreamInst() && dest_reg->isVectorPhysReg() &&
+            head_inst->isDestRegStreaming(dest_reg_idx))
+            cpu->getSEICpuPtr()->commitToBufferStore(
+                head_inst->destRegIdx(dest_reg_idx), dest_reg,
+                head_inst->getSeqNum());
+    }
 
 #if TRACING_ON
     if (DTRACE(O3PipeView)) {

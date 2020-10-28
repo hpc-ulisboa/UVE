@@ -112,6 +112,7 @@ template<class Impl>
 void
 LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
 {
+    //JMTODO: Called by lsq_impl.hh recvTimingResp
     LSQSenderState *state = dynamic_cast<LSQSenderState *>(pkt->senderState);
     DynInstPtr inst = state->inst;
 
@@ -128,6 +129,8 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
             // after receving the response from the memory
             assert(inst->isLoad() || inst->isStoreConditional() ||
                    inst->isAtomic());
+
+            //JMTODO: LOAD Writeback
             writeback(inst, state->request()->mainPacket());
             if (inst->isStore() || inst->isAtomic()) {
                 auto ss = dynamic_cast<SQSenderState*>(state);
@@ -525,7 +528,7 @@ LSQUnit<Impl>::checkViolations(typename LoadQueue::iterator& loadIt,
 }
 
 
-
+#include "debug/JMDEVEL.hh"
 
 template <class Impl>
 Fault
@@ -542,6 +545,9 @@ LSQUnit<Impl>::executeLoad(const DynInstPtr &inst)
 
     load_fault = inst->initiateAcc();
 
+    // DPRINTF(JMDEVEL, "InitiateAcc %s, [sn:%lli]\t readMem %d, adicionar fault!!!\n",inst->pcState(), inst->seqNum, inst->readMemAccPredicate());
+
+    //JMNOTE: Called only when readMemAccPredicate is 0... and noFault
     if (load_fault == NoFault && !inst->readMemAccPredicate()) {
         assert(inst->readPredicate());
         inst->setExecuted();
@@ -947,6 +953,7 @@ LSQUnit<Impl>::writeback(const DynInstPtr &inst, PacketPtr pkt)
         return;
     }
 
+    //JMNOTE: Here the completeAcc is called in most cases
     if (!inst->isExecuted()) {
         inst->setExecuted();
 

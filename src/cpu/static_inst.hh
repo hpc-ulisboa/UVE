@@ -202,6 +202,25 @@ class StaticInst : public RefCounted, public StaticInstFlags
     bool isMicroBranch() const { return flags[IsMicroBranch]; }
     //@}
 
+    //JMNOTE: StreamConfig Flag
+    bool isStreamConfig() const { return flags[IsStreamConfig]; }
+    bool isStreamStart() const { return flags[IsStreamStart]; }
+    bool isStreamInst() const { return flags[IsStreamInst]; }
+    bool isStreamBranch() const { return flags[IsStreamBranch]; }
+    virtual uint8_t getStreamRegister() const
+    {
+        panic("getStreamRegister not defined!");
+    }
+    virtual uint8_t isStreamLoad() const {
+        panic("isStreamLoad not defined!");
+    }
+    virtual uint8_t isEndAppendStream() const {
+        panic("isEndAppendStream not defined!");
+    }
+    virtual void setPhysStream(uint8_t sid) {
+        panic("setPhysStream not defined!");
+    }
+
     void setFirstMicroop() { flags[IsFirstMicroop] = true; }
     void setLastMicroop() { flags[IsLastMicroop] = true; }
     void setDelayedCommit() { flags[IsDelayedCommit] = true; }
@@ -359,6 +378,9 @@ class StaticInst : public RefCounted, public StaticInstFlags
      * buffer if there wasn't enough space.
      */
     virtual size_t asBytes(void *buf, size_t max_size) { return 0; }
+
+    // JMNOTE: UVE Branch
+    virtual uint8_t getUVEStream() const { panic("Not implemented"); }
 };
 
 #endif // __CPU_STATIC_INST_HH__

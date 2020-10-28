@@ -211,6 +211,14 @@ Checker<Impl>::verify(const DynInstPtr &completed_inst)
         thread->setFloatReg(ZeroReg, 0);
 #endif
 
+#if THE_ISA == RISCV_ISA
+    //JMNOTE: UVE Vector Register to zero
+    (thread->getWritableVecRegFlat(ZeroVecReg)).zero();
+
+    //JMNOTE: UVE Vector Predicate Register to one
+    (thread->getWritableVecPredRegFlat(OneVecPredReg)).set();
+#endif // RISCV_ISA
+
         // Check if any recent PC changes match up with anything we
         // expect to happen.  This is mostly to check if traps or
         // PC-based events have occurred in both the checker and CPU.

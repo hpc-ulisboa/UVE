@@ -59,6 +59,9 @@ if 'O3CPU' in env['CPU_MODELS']:
     Source('store_set.cc')
     Source('thread_context.cc')
 
+    #JMNOTE: Added Source for compilation
+    Source('se_interface.cc')
+
     DebugFlag('CommitRate')
     DebugFlag('IEW')
     DebugFlag('IQ')
@@ -71,6 +74,9 @@ if 'O3CPU' in env['CPU_MODELS']:
     DebugFlag('Scoreboard')
     DebugFlag('StoreSet')
     DebugFlag('Writeback')
+
+    DebugFlag('UVESEI')
+    DebugFlag('UVERename')
 
     CompoundFlag('O3CPUAll', [ 'Fetch', 'Decode', 'Rename', 'IEW', 'Commit',
         'IQ', 'ROB', 'FreeList', 'LSQ', 'LSQUnit', 'StoreSet', 'MemDepUnit',

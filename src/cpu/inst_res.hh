@@ -43,7 +43,8 @@
 #include <type_traits>
 
 #include "arch/generic/types.hh"
-#include "arch/generic/vec_reg.hh"
+// #include "arch/generic/vec_reg.hh"
+#include "uve_vecreg/uve_vecreg.hh"
 
 class InstResult {
     using VecRegContainer = TheISA::VecRegContainer;

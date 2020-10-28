@@ -1060,6 +1060,9 @@ InstructionQueue<Impl>::wakeDependents(const DynInstPtr &completed_inst)
             // so that it knows which of its source registers is
             // ready.  However that would mean that the dependency
             // graph entries would need to hold the src_reg_idx.
+            //JMTODO: Here is where the registers are marked as ready
+            // Note that markSrcRegReady does inst side marking
+            // And addIfReady puts the inst in the readyQueue, if it's ready
             dep_inst->markSrcRegReady();
 
             addIfReady(dep_inst);
@@ -1077,6 +1080,70 @@ InstructionQueue<Impl>::wakeDependents(const DynInstPtr &completed_inst)
         // Mark the scoreboard as having that register ready.
         regScoreboard[dest_reg->flatIndex()] = true;
     }
+    return dependents;
+}
+
+//JMNOTE: Wake dependents on the register that is ready
+#include "debug/UVEIQ.hh"
+template <class Impl>
+int
+InstructionQueue<Impl>::wakeDependents(PhysRegIdPtr dest_reg)
+{
+    int dependents = 0;
+
+    // Special case of uniq or control registers.  They are not
+    // handled by the IQ and thus have no dependency graph entry.
+    if (dest_reg->isFixedMapping()) {
+        DPRINTF(UVEIQ, "Reg %d [%s] is part of a fix mapping, skipping\n",
+                dest_reg->index(), dest_reg->className());
+        return 0;
+    }
+
+    // Avoid waking up dependents if the register is pinned
+    dest_reg->decrNumPinnedWritesToComplete();
+
+    if (dest_reg->getNumPinnedWritesToComplete() != 0) {
+        DPRINTF(UVEIQ, "Reg %d [%s] is pinned, skipping\n",
+                dest_reg->index(), dest_reg->className());
+        return 0;
+    }
+
+    DPRINTF(UVEIQ, "Waking any dependents on register %i (%s).\n",
+            dest_reg->index(),
+            dest_reg->className());
+
+    // Go through the dependency chain, marking the registers as
+    // ready within the waiting instructions.
+    DynInstPtr dep_inst = dependGraph.pop(dest_reg->flatIndex());
+
+    while (dep_inst) {
+        DPRINTF(UVEIQ, "Waking up a dependent instruction, [sn:%llu] "
+                "PC %s.\n", dep_inst->seqNum, dep_inst->pcState());
+
+        // Might want to give more information to the instruction
+        // so that it knows which of its source registers is
+        // ready.  However that would mean that the dependency
+        // graph entries would need to hold the src_reg_idx.
+        //JMTODO: Here is where the registers are marked as ready
+        // Note that markSrcRegReady does inst side marking
+        // And addIfReady puts the inst in the readyQueue, if it's ready
+        dep_inst->markSrcRegReady();
+
+        addIfReady(dep_inst);
+
+        dep_inst = dependGraph.pop(dest_reg->flatIndex());
+
+        ++dependents;
+    }
+
+    // Reset the head node now that all of its dependents have
+    // been woken up.
+    assert(dependGraph.empty(dest_reg->flatIndex()));
+    dependGraph.clearInst(dest_reg->flatIndex());
+
+    // Mark the scoreboard as having that register ready.
+    regScoreboard[dest_reg->flatIndex()] = true;
+
     return dependents;
 }
 
@@ -1296,6 +1363,20 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
                                            squashed_inst);
                     }
 
+                    // JMNOTE: IF removing from dependGraph we need to
+                    // signal the streaming engine.
+                    // Make the engine remove the physReg slot
+                    // If it is not there:
+                    // It was already sent to the cpu, and in that case we
+                    // need to rewind execution
+                    RegId arch = squashed_inst->srcRegIdx(src_reg_idx);
+                    if (squashed_inst->isStreamInst() &&
+                        src_reg->isVectorPhysReg() &&
+                        cpu->getSEICpuPtr()->isStreamLoad(arch.index())) {
+                        cpu->getSEICpuPtr()->squashToBufferLoad(
+                            squashed_inst->srcRegIdx(src_reg_idx), src_reg,
+                            squashed_inst->getSeqNum());
+                    }
                     ++iqSquashedOperandsExamined;
                 }
 
@@ -1353,11 +1434,19 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
         {
             PhysRegIdPtr dest_reg =
                 squashed_inst->renamedDestRegIdx(dest_reg_idx);
+            // JMNOTE: Squash destination registers
+            RegId arch = squashed_inst->destRegIdx(dest_reg_idx);
+            if (squashed_inst->isStreamInst() && dest_reg->isVectorPhysReg() &&
+                cpu->getSEICpuPtr()->isStreamStore(arch.index())) {
+                cpu->getSEICpuPtr()->squashToBufferStore(
+                    arch, dest_reg, squashed_inst->getSeqNum());
+            }
             if (dest_reg->isFixedMapping()){
                 continue;
             }
             assert(dependGraph.empty(dest_reg->flatIndex()));
             dependGraph.clearInst(dest_reg->flatIndex());
+
         }
         instList[tid].erase(squash_it--);
         ++iqSquashedInstsExamined;
@@ -1370,6 +1459,7 @@ InstructionQueue<Impl>::addToDependents(const DynInstPtr &new_inst)
 {
     // Loop through the instruction's source registers, adding
     // them to the dependency list if they are not ready.
+    //JMTODO: Register are being added to dependency list if not ready
     int8_t total_src_regs = new_inst->numSrcRegs();
     bool return_val = false;
 
@@ -1394,6 +1484,13 @@ InstructionQueue<Impl>::addToDependents(const DynInstPtr &new_inst)
                         src_reg->className());
 
                 dependGraph.insert(src_reg->flatIndex(), new_inst);
+
+                // Signal SEI that this register is in dependents
+                if (src_reg->isVectorPhysReg()) {
+                    auto arch_src_reg = new_inst->srcRegIdx(src_reg_idx);
+                    cpu->getSEICpuPtr()->markOnBufferLoad(
+                        arch_src_reg, src_reg, new_inst->getSeqNum());
+                }
 
                 // Change the return value to indicate that something
                 // was added to the dependency graph.

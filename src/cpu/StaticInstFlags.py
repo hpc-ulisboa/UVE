@@ -47,6 +47,7 @@ from m5.params import *
 # CPU model we should be able to get rid of these flags and implement this
 # behavior via the execute() methods.
 
+
 class StaticInstFlags(Enum):
     wrapper_name = 'StaticInstFlags'
     wrapper_is_struct = True
@@ -73,7 +74,7 @@ class StaticInstFlags(Enum):
 
         'IsControl',        # Control transfer instruction.
         'IsDirectControl',  # PC relative control transfer.
-        'IsIndirectControl',# Register indirect control transfer.
+        'IsIndirectControl',  # Register indirect control transfer.
         'IsCondControl',    # Conditional control transfer.
         'IsUncondControl',  # Unconditional control transfer.
         'IsCall',           # Subroutine call.
@@ -92,7 +93,7 @@ class StaticInstFlags(Enum):
         'IsReadBarrier',    # Is a read barrier
         'IsERET',           # <- Causes the IFU to stall (MIPS ISA)
 
-        'IsNonSpeculative', # Should not be executed speculatively
+        'IsNonSpeculative',  # Should not be executed speculatively
         'IsQuiesce',        # Is a quiesce instruction
 
         'IsIprAccess',      # Accesses IPRs
@@ -111,5 +112,10 @@ class StaticInstFlags(Enum):
         'IsMicroBranch',    # This microop branches within the microcode for
                             # a macroop
         'IsDspOp',
-        'IsSquashAfter'     # Squash all uncommitted state after executed
-        ]
+        'IsSquashAfter',     # Squash all uncommitted state after executed
+        # JMNOTE: StreamConfig Flag
+        'IsStreamConfig',
+        'IsStreamStart',
+        'IsStreamInst',
+        'IsStreamBranch'
+    ]

@@ -340,6 +340,21 @@ class ExecContext {
     virtual AddressMonitor *getAddrMonitor() = 0;
 
     /** @} */
+
+    //JMNOTE: SEI get ptr
+    virtual void *getSEIPtr()
+    {
+        panic("getSEIPtr not implemented");
+    }
+    virtual bool sendSEIcmd(void * cmd)
+    {
+        panic("sendSEIcmd not implemented");
+    }
+
+    virtual InstSeqNum getSeqNum() { panic("Not Implemented"); }
+    virtual uint64_t getPhysStreamGlobal(int id) { panic("Not Implemented"); }
+    virtual void setPhysStreamGlobal(int id, uint64_t stream) {
+        panic("Not Implemented"); }
 };
 
 #endif // __CPU_EXEC_CONTEXT_HH__

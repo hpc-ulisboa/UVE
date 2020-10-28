@@ -1,0 +1,52 @@
+
+let {{
+    decoders = { 'Generic': {} }
+
+    resetstats_code = '''
+    PseudoInst::resetstats(xc->tcBase(), 0, 0);
+    '''
+
+    resetstatsIop = InstObjParams("resetstats", "Resetstats", "SystemOp",
+                           { "code": resetstats_code },
+                             ["IsNonSpeculative"])
+    header_output += M5Declare.subst(resetstatsIop)
+    decoder_output += M5Constructor.subst(resetstatsIop)
+    exec_output += M5Execute.subst(resetstatsIop)
+
+    dumpstats_code = '''
+    PseudoInst::dumpstats(xc->tcBase(), 0, 0);
+    '''
+
+    dumpstatsIop = InstObjParams("dumpstats", "Dumpstats", "SystemOp",
+                           { "code": dumpstats_code },
+                             ["IsNonSpeculative"])
+    header_output += M5Declare.subst(dumpstatsIop)
+    decoder_output += M5Constructor.subst(dumpstatsIop)
+    exec_output += M5Execute.subst(dumpstatsIop)
+
+
+    dumpresetstats_code = '''
+    PseudoInst::dumpresetstats(xc->tcBase(), 0, 0);
+    '''
+
+
+    dumpresetstatsIop = InstObjParams("dumpresetstats", "Dumpresetstats",
+                                      "SystemOp",
+                           { "code": dumpresetstats_code },
+                             ["IsNonSpeculative"])
+    header_output += M5Declare.subst(dumpresetstatsIop)
+    decoder_output += M5Constructor.subst(dumpresetstatsIop)
+    exec_output += M5Execute.subst(dumpresetstatsIop)
+
+
+    m5checkpoint_code = '''
+    PseudoInst::m5checkpoint(xc->tcBase(), 0, 0);
+    '''
+
+    m5checkpointIop = InstObjParams("m5checkpoint", "M5checkpoint", "SystemOp",
+                           { "code": m5checkpoint_code},
+                             ["IsNonSpeculative", "IsUnverifiable"])
+    header_output += M5Declare.subst(m5checkpointIop)
+    decoder_output += M5Constructor.subst(m5checkpointIop)
+    exec_output += M5Execute.subst(m5checkpointIop)
+}};

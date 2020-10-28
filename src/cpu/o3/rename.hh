@@ -307,6 +307,16 @@ class DefaultRename
             : instSeqNum(_instSeqNum), archReg(_archReg),
               newPhysReg(_newPhysReg), prevPhysReg(_prevPhysReg)
         {
+          type = false;
+        }
+
+        RenameHistory(InstSeqNum _instSeqNum, uint64_t _archStream,
+                      uint64_t _newStream,
+                      uint64_t _prevStream)
+            : instSeqNum(_instSeqNum), archStream(_archStream),
+              newStream(_newStream), prevStream(_prevStream)
+        {
+          type = true;
         }
 
         /** The sequence number of the instruction that renamed. */
@@ -318,6 +328,10 @@ class DefaultRename
         /** The old physical register that the arch. register was renamed to.
          */
         PhysRegIdPtr prevPhysReg;
+
+        uint64_t archStream, newStream, prevStream;
+
+        bool type;
     };
 
     /** A per-thread list of all destination register renames, used to either
@@ -423,6 +437,7 @@ class DefaultRename
     /** The serialize instruction that rename has stalled on. */
     DynInstPtr serializeInst[Impl::MaxThreads];
 
+   private:
     /** Records if rename needs to serialize on the next instruction for any
      * thread.
      */
@@ -470,13 +485,9 @@ class DefaultRename
     /** Enum to record the source of a structure full stall.  Can come from
      * either ROB, IQ, LSQ, and it is priortized in that order.
      */
-    enum FullSource {
-        ROB,
-        IQ,
-        LQ,
-        SQ,
-        NONE
-    };
+    // JMNOTE: Added SSF(stream store fifo) and SLF(stream load fifo) as
+    // reasons
+    enum FullSource { ROB, IQ, LQ, SQ, SSF, SLF, STMS, NONE };
 
     /** Function used to increment the stat that corresponds to the source of
      * the stall.
@@ -507,6 +518,11 @@ class DefaultRename
     Stats::Scalar renameLQFullEvents;
     /** Stat for total number of times that the SQ starts a stall in rename. */
     Stats::Scalar renameSQFullEvents;
+    // JMNOTE: Added SSF(stream store fifo) and SLF(stream load fifo) as
+    // reasons
+    Stats::Scalar renameUVESSFFullEvents;
+    Stats::Scalar renameUVESLFFullEvents;
+    Stats::Scalar renameUVE_STMS_FullEvents;
     /** Stat for total number of times that rename runs out of free registers
      * to use to rename. */
     Stats::Scalar renameFullRegistersEvents;

@@ -48,6 +48,9 @@
 #include "cpu/o3/rob.hh"
 #include "cpu/o3/store_set.hh"
 
+//JMNOTE: Added SEInterface to CPUPolicy: Include
+#include "cpu/o3/se_interface.hh"
+
 /**
  * Struct that defines the key classes to be used by the CPU.  All
  * classes use the typedefs defined here to determine what are the
@@ -74,6 +77,9 @@ struct SimpleCPUPolicy
     typedef ::LSQ<Impl> LSQ;
     /** Typedef for the thread-specific LSQ units. */
     typedef ::LSQUnit<Impl> LSQUnit;
+
+    //JMNOTE: Added SEInterface to CPUPolicy: Include
+    typedef ::SEInterface<Impl> SEInterface;
 
     /** Typedef for fetch. */
     typedef DefaultFetch<Impl> Fetch;

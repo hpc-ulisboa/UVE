@@ -230,6 +230,9 @@ class InstructionQueue
     /** Wakes all dependents of a completed instruction. */
     int wakeDependents(const DynInstPtr &completed_inst);
 
+    /** JMNOTE: Wakes all dependents of a register. */
+    int wakeDependents(PhysRegIdPtr dest_reg);
+
     /** Adds a ready memory instruction to the ready list. */
     void addReadyMemInst(const DynInstPtr &ready_inst);
 
@@ -272,7 +275,12 @@ class InstructionQueue
     /** Debug function to print all instructions. */
     void printInsts();
 
-  private:
+    // JMNOTE: Reset regScoreboard for streamed registers
+    void addStreamingPhysReg(PhysRegIdPtr phys) {
+        regScoreboard[phys->flatIndex()] = false;
+    }
+
+   private:
     /** Does the actual squashing. */
     void doSquash(ThreadID tid);
 

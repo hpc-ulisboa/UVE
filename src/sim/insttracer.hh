@@ -45,11 +45,12 @@
 #define __INSTRECORD_HH__
 
 #include "arch/generic/vec_pred_reg.hh"
-#include "arch/generic/vec_reg.hh"
+// #include "arch/generic/vec_reg.hh"
 #include "base/types.hh"
 #include "cpu/inst_seq.hh"
 #include "cpu/static_inst.hh"
 #include "sim/sim_object.hh"
+#include "uve_vecreg/uve_vecreg.hh"
 
 class ThreadContext;
 

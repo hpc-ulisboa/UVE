@@ -223,8 +223,10 @@ let {{
         for (int i = 0; i < eCount; i++) {
             Vd_x[i] = memDataView[i];
         }
+        Vd_x <= width_converter<RegElemType>::width;
+        Vd_x <<= memAccessSize;
         '''
-
+        #JMTODO: Change this
         storeMemAccCode = '''
         for (int i = 0; i < eCount; i++) {
             memDataView[i] = Vs1_x[i];
@@ -244,7 +246,7 @@ let {{
              'memacc_code': loadMemAccCode,
              'ea_code' : eaCode,
              'set_update_base_address' : set_update_base_address},
-            ['IsMemRef', 'IsLoad'])
+            ['IsMemRef', 'IsLoad', 'IsStreamInst'])
         storeDupIop = InstObjParams('so.v.st',
             'UveMemStore' if not has_set_bit else 'UveMemStoreSet',
             'UveBaseMemStore',
@@ -253,7 +255,7 @@ let {{
              'memacc_code': storeMemAccCode,
              'ea_code' : eaCode,
              'set_update_base_address' : set_update_base_address},
-            ['IsMemRef', 'IsStore'])
+            ['IsMemRef', 'IsStore', 'IsStreamInst'])
 
 
         header_output += UveVectorLoadDeclare.subst(loadDupIop)
@@ -289,6 +291,7 @@ let {{
 
         dupCode = '''
         for (int i = 0; i < eCount; i++) {
+            //JMFIXME: This needs to be casted to respective c type
             if(Ps2_x[i])
                 Vd_x[i] = Rs1_ud;
         }
@@ -305,7 +308,7 @@ let {{
              'tpl_args': tplArgs,
              'ex_code' : dupCode,
              'op_class': 'SimdAluOp'},
-            [])
+            ['IsStreamInst'])
 
         MvsvIop = InstObjParams('so.v.mvsv',
             'UveVectorMoveSV',
@@ -314,7 +317,7 @@ let {{
              'tpl_args': tplArgs,
              'ex_code' : mvsvCode,
              'op_class': 'SimdAluOp'},
-            [])
+            ['IsStreamInst'])
 
         header_output += UveVectorDupDeclare.subst(DupIop)
         header_output += UveVectorDupDeclare.subst(MvsvIop)
@@ -340,13 +343,18 @@ let {{
 
         moveCode = '''
         for (int i = 0; i < eCount; i++) {
+            //JMFIXME: This needs to be casted to respective c type
             if(Ps2_x[i])
                 Vd_x[i] = Vs1_x[i];
         }
+        Vd_x <= Vs1_x.get_width();
+        Vd_x <<= Vs1_x.get_valid();
+        Vd_x &= Vs1_x.get_last();
         '''
 
         moveTCode = '''
         for (int i = 0; i < eCount/2; i++) {
+            //JMFIXME: This needs to be casted to respective c type
             if(Ps2_x[i]){
                 Vd_x[i] = Vs1_x[eCount-1-i];
                 Vd_x[eCount-1-i] = Vs1_x[i];
@@ -355,6 +363,8 @@ let {{
         if(eCount%2==1){
             Vd_x[eCount/2+1] = Vs1_x[eCount/2+1];
         }
+        Vd_x <= Vs1_x.get_width();
+        Vd_x <<= Vs1_x.get_valid();
         '''
 
         MoveIop = InstObjParams('so.v.mv',
@@ -364,7 +374,7 @@ let {{
              'tpl_args': tplArgs,
              'ex_code' : moveCode,
              'op_class': 'SimdAluOp'},
-            [])
+            ['IsStreamInst'])
 
         MoveTIop = InstObjParams('so.v.mvt',
             'UveVectorMoveT',
@@ -373,7 +383,7 @@ let {{
              'tpl_args': tplArgs,
              'ex_code' : moveTCode,
              'op_class': 'SimdAluOp'},
-            [])
+            ['IsStreamInst'])
 
         header_output += UveVectorMoveDeclare.subst(MoveIop)
         header_output += UveVectorMoveDeclare.subst(MoveTIop)
@@ -421,7 +431,7 @@ let {{
              'tpl_args': tplArgs,
              'ex_code' : moveVSCode,
              'op_class': 'SimdAluOp'},
-            [])
+            ['IsStreamInst'])
 
         header_output += UveVectorMoveVSDeclare.subst(MoveIop)
 
@@ -587,7 +597,7 @@ let {{
                 'tpl_args': tplArgs,
                 'ex_code' : eval(conv.lower() + "Conversion"),
                 'op_class': 'SimdAluOp'},
-                [])
+                ['IsStreamInst'])
 
 
             header_output += UveVectorConvDeclare.subst(Iop)

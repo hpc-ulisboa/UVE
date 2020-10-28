@@ -54,6 +54,8 @@
 #include "cpu/inst_seq.hh"
 #include "cpu/reg_class.hh"
 
+#include "debug/JMDEVEL.hh"
+
 class Packet;
 
 template <class Impl>
@@ -95,6 +97,7 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     Fault initiateAcc();
 
     /** Completes the access.  Only valid for memory operations. */
+    //JMNOTE: Only valid for memory loads
     Fault completeAcc(PacketPtr pkt);
 
   private:
@@ -282,6 +285,7 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     const VecRegContainer&
     readVecRegOperand(const StaticInst *si, int idx) const override
     {
+        DPRINTF(JMDEVEL, "readVecRegOperand: _srcRegIdx[%d]=*%p\n",idx,this->_srcRegIdx[idx]);
         return this->cpu->readVecReg(this->_srcRegIdx[idx]);
     }
 
@@ -426,6 +430,28 @@ class BaseO3DynInst : public BaseDynInst<Impl>
         this->cpu->setCCReg(this->_destRegIdx[idx], val);
         BaseDynInst<Impl>::setCCRegOperand(si, idx, val);
     }
+
+    //JMNOTE: SEI get ptr
+    void *getSEIPtr()
+    {
+        return (void *) this->cpu->getSEICpuPtr();
+    }
+
+    bool sendSEIcmd(void * cmd_ptr)
+    {
+        auto cmd = *((SECommand*) cmd_ptr);
+        return this->cpu->getSEICpuPtr()->sendCommand(cmd, getSeqNum());
+    }
+
+    InstSeqNum getSeqNum() { return this->seqNum; }
+
+    #define LIMIT(m, M, o) (o < m) ? m : ( (o > M) ? M : o)
+
+    uint64_t getPhysStream(int id) { 
+        return LIMIT(0, 31, this->physStreamGlobal[id]); }
+    void setPhysStreamGlobal(int id, uint64_t stream) {
+        this->physStreamGlobal[id] = stream; }
+
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

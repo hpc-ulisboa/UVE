@@ -1,0 +1,16 @@
+
+def format M5ops() {{
+    decode_block = '''
+    {
+        using namespace RiscvISA;
+        const uint32_t m5func = bits(machInst, 31, 25); //FUNCT7s
+        switch(m5func) {
+            case M5OP_RESET_STATS: return new Resetstats(machInst);
+            case M5OP_DUMP_STATS: return new Dumpstats(machInst);
+            case M5OP_DUMP_RESET_STATS: return new Dumpresetstats(machInst);
+            case M5OP_CHECKPOINT: return new M5checkpoint(machInst);
+            default: return new Unknown(machInst);
+        }
+   }
+   '''
+}};
