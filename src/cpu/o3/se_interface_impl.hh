@@ -153,7 +153,7 @@ SEInterface<Impl>::_signalEngineReady(CallbackInfo info) {
 
         // If the container marks the end of a transaction: mark the
         // registerBufferLoad as ended
-        if(cnt->is_last()){
+        if(cnt->is_last(DimensionHop::last)){
             registerBufferLoadStatus[psid] = true; 
             std::stringstream stro;
             for( int i = 0; i < registerBufferLoadStatus.size(); i++){

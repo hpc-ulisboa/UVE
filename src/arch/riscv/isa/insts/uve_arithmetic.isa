@@ -111,8 +111,8 @@ let {{
         auto src2_vc = (TheISA::VecRegContainer)Vs2_x;
         auto src1_vw = src1_vc.get_width();
         auto src2_vw = src2_vc.get_width();
-        auto src1_lt = src1_vc.is_last();
-        auto src2_lt = src2_vc.is_last();
+        auto src1_lt = src1_vc.get_last();
+        auto src2_lt = src2_vc.get_last();
         auto src1_vi = src1_vc.get_valid() / (1 << src1_vw);
         auto src2_vi = src2_vc.get_valid() / (1 << src1_vw);
         auto dest_vi = get_dest_valid_index(src1_vi, src2_vi);
@@ -186,11 +186,11 @@ let {{
 
             Vd_x <= src1_vw;
             Vd_x <<= iCount * (1 << src1_vw);
-            Vd_x &= src1_lt || src2_lt;
+            Vd_x &= src1_lt | src2_lt;
         } else {
             Vd_x <= src1_vw;
             Vd_x <<= 0;
-            Vd_x &= src1_lt || src2_lt;
+            Vd_x &= src1_lt | src2_lt;
         }
         '''
 

@@ -16,6 +16,8 @@
 #include "base/logging.hh"
 #include "debug/UVECONTAINER.hh"
 
+#include "uve_simobjs/reduced_utils.hh"
+
 // JMNOTE: This number must aggree to types.hh MaxUveVeccLenInBits
 constexpr unsigned MaxVecRegLenInBytes = 256;
 typedef int64_t vecSubStreamID;
@@ -77,8 +79,8 @@ class VecRegT {
         return container.set_valid(valid_index);
     }
 
-    void operator&=(const bool is_last) const {
-        return container.set_last(is_last);
+    void operator&=(const uint64_t last) const {
+        return container.set_last(last);
     }
 
     friend std::ostream& operator<<(std::ostream& os, const MyClass& vr) {
@@ -110,7 +112,9 @@ class VecRegT {
     void set_valid(uint16_t _valid) { container.set_valid(); }
     uint8_t get_width() const { return container.get_width(); }
     uint8_t get_valid() const { return container.get_valid(); }
-    bool is_last() const { return container.is_last(); }
+    bool is_last(DimensionHop hop) const { return container.is_last(hop); }
+    bool is_last(uint64_t hop) const { return container.is_last(hop); }
+    bool get_last() const { return container.get_last(); }
 };
 
 template <typename VecElem, bool Const>
@@ -132,7 +136,7 @@ class VecRegContainer {
     using MyClass = VecRegContainer<SIZE>;
     uint8_t width;
     uint16_t valid_index;
-    bool last_request;
+    uint64_t dhobject;
     // DEBUG only flags/vars
     bool streaming;
     vecSubStreamID ssid;
@@ -142,7 +146,7 @@ class VecRegContainer {
     VecRegContainer()
         : width(0),
           valid_index(0),
-          last_request(false),
+          dhobject(0),
           streaming(false),
           ssid(-1),
           sid(-1) {}
@@ -155,8 +159,25 @@ class VecRegContainer {
     void set_valid(uint16_t _valid) { valid_index = _valid; }
     uint8_t get_width() const { return width; }
     uint8_t get_valid() const { return valid_index; }
-    void set_last(bool last) { last_request = last; }
-    bool is_last() const { return last_request; }
+    void set_last(uint64_t hobj) { 
+        dhobject = hobj;
+    }
+    void set_last(DimensionHop hop, bool val = true) { 
+        if(val)
+            dhobject |= 1 << hop;
+        else
+            dhobject &= 0 << hop;
+    }
+    void reset_last(DimensionHop hop) { 
+        set_last(hop, false);
+    }
+    bool is_last(DimensionHop hop) const {
+            return (dhobject & (1 << hop)) > 0 ? true : false;
+        }
+    bool is_last(uint64_t hop) const {
+            return (dhobject & (1 << hop)) > 0 ? true : false;
+        }
+    uint64_t get_last() const { return dhobject; }
     void set_streaming(bool _streaming) { streaming = _streaming; }
     bool is_streaming() const { return streaming; }
     void set_sid(int _sid) { sid = _sid; }
@@ -171,7 +192,7 @@ class VecRegContainer {
         memcpy(container.data(), that.container.data(), SIZE);
         width = that.width;
         valid_index = that.valid_index;
-        last_request = that.last_request;
+        dhobject = that.dhobject;
         streaming = that.streaming;
         sid = that.sid;
         ssid = that.ssid;

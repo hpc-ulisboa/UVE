@@ -65,7 +65,7 @@ class FifoEntry : public CoreContainer {
 
     void merge_data(uint8_t *data, uint16_t offset, uint16_t size);
     uint16_t getSize() const { return size; }
-    bool reserve(uint16_t *_size, bool last);
+    bool reserve(uint16_t *_size, bool * end_status, bool dim_end);
     void set_ready_to_commit() { commit_ready = true; }
     bool is_ready_to_commit() const { return commit_ready; }
     Tick time() { return start_time; }
@@ -118,6 +118,7 @@ class StreamFifo {
 
     FifoContainer *fifo_container;
     uint8_t max_size;
+    uint8_t total_size;
     uint32_t max_request_size;
     uint16_t config_size;
     SEIterationStatus status;
@@ -132,6 +133,7 @@ class StreamFifo {
     StreamFifo(uint16_t _cfg_sz, uint8_t depth, uint32_t _max_request_size,
                int id, bool is_load=false)
         : max_size(depth),
+          total_size(depth + 4),
           max_request_size(_max_request_size),
           config_size(_cfg_sz),
           status(SEIterationStatus::Clean),
@@ -142,7 +144,8 @@ class StreamFifo {
         speculationPointer = SpeculativeIter(fifo_container);
     }
 
-    void insert(uint16_t size, SubStreamID ssid, uint8_t width, bool last);
+    void insert(uint16_t size, SubStreamID ssid, uint8_t width,  bool dim_end,
+                bool * end_status);
     SmartReturn merge_data(SubStreamID ssid, uint8_t *data);
     SmartReturn merge_data_store(SubStreamID ssid, uint8_t *data,
                                  uint16_t valid);
@@ -184,6 +187,21 @@ class StreamFifo {
 
    private:
     uint16_t real_size();
+
+    std::string print_dimension_hop(uint64_t container){
+            std::stringstream ostr;
+            ostr << "[";
+            for(int i=0; i<DimensionHop::dh_size; i++){
+                if(((container & (1 << i)) > 0) && i == (uint64_t) DimensionHop::last){
+                    ostr << "L";
+                    break; 
+                }
+                if((container & (1 << i)) > 0) ostr << (int) i << ":";
+            }
+            ostr << "]";
+            return ostr.str();
+}
+
     const char *print_fifo() {
         std::stringstream sout;
         sout << "fifo(" << my_id << ") iter*(" << speculationPointer.getID()
@@ -192,7 +210,7 @@ class StreamFifo {
         while (iter != fifo_container->cend()) {
             if (iter != fifo_container->cbegin()) sout << ", ";
             sout << iter->get_ssid() << " ";
-            if (iter->is_last()) sout << "L";
+            sout << print_dimension_hop(iter->get_last());
             if (iter->get_ssid() == speculationPointer->get_ssid())
                 sout << "*";
             if (iter->is_ready_to_commit()) sout << "C";
@@ -225,7 +243,7 @@ class UVELoadFifo : public SimObject {
     void init();
     SmartReturn insert(StreamID sid, SubStreamID ssid, CoreContainer data);
     void reserve(StreamID sid, SubStreamID ssid, uint8_t size, uint8_t width,
-                 bool last);
+                 bool dim_end, bool * end_status);
     SmartReturn full(StreamID sid);
     SmartReturn ready(StreamID sid);
     SmartReturn squash(StreamID sid);

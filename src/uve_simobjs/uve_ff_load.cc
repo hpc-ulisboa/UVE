@@ -54,17 +54,18 @@ UVELoadFifo::synchronizeLists(StreamID sid) {
 
 void
 UVELoadFifo::reserve(StreamID sid, SubStreamID ssid, uint8_t size,
-                     uint8_t width, bool last = false) {
+                     uint8_t width, bool dim_end,
+                     bool * end_status) {
     // Reserve space in fifo. This reserve comes from the engine
     SmartReturn result = fifos[sid]->full();
     if (result.isError() || result.isTrue()) {
         std::stringstream s;
-        s << "Trying to reserve on fifo " << (int)sid
+        s << "Error trying to reserve on fifo " << (int)sid
           << " with no space available. " << (result.isError() ? " Error" : "")
           << "\n";
         panic(s.str());
     }
-    fifos[sid]->insert(size, ssid, width, last);
+    fifos[sid]->insert(size, ssid, width, dim_end, end_status);
 }
 
 SmartReturn
@@ -145,8 +146,8 @@ UVELoadFifo::regStats() {
 
 void
 StreamFifo::insert(uint16_t size, SubStreamID ssid, uint8_t width,
-                   bool last = false) {
-    //Dont just push back, need to interpolate;
+                   bool dim_end, bool * end_status) {
+    //Dont just push back, need to separate data into containers;
     status = SEIterationStatus::Configured;
     uint16_t id = 0;
     //Offset sets the beggining of the data pointer; 0 in new entries;
@@ -159,10 +160,11 @@ StreamFifo::insert(uint16_t size, SubStreamID ssid, uint8_t width,
         speculationPointer++;
         DPRINTF(UVEFifo,
                 "Inserted on back of fifo[%d] ssid[%d]: Was empty. Id is %d. "
-                "Speculation Pointer targeting ssid[%d].\n",
-                my_id, ssid, 0, speculationPointer->get_ssid());
+                "Speculation Pointer targeting ssid[%d]. DimEnd:%c\n",
+                my_id, ssid, 0, speculationPointer->get_ssid(),
+                dim_end ? 'T' : 'F');
         //Reserve space in entry
-        assert(fifo_container->front().reserve(&size, last));
+        assert(fifo_container->front().reserve(&size, end_status, dim_end));
         DPRINTF(UVEFifo, "%s\n", print_fifo());
         //First entry was created, set id to 0;
         this->map.push_back(create_MS(id,size,offset));
@@ -177,21 +179,22 @@ StreamFifo::insert(uint16_t size, SubStreamID ssid, uint8_t width,
         //New entry was created, increment id;
         id = this->map.back().id + 1;
         //Here we absolutelly need to be able to reserve
-        assert(fifo_container->front().reserve(&size, last));
+        assert(fifo_container->front().reserve(&size, end_status, dim_end));
 
         this->map.push_back(create_MS(id, size, offset));
         DPRINTF(UVEFifo,
                 "Inserted on back of fifo[%d] ssid[%d]. Id is %d. "
-                "Size[%d].Speculation Pointer targeting ssid[%d].\n",
+                "Size[%d].Speculation Pointer targeting ssid[%d]. DimEnd:%c\n",
                 my_id, ssid, id, fifo_container->size(),
-                speculationPointer->get_ssid());
+                speculationPointer->get_ssid(), dim_end ? 'T' : 'F');
         DPRINTF(UVEFifo, "%s\n", print_fifo());
         return;
     }
     // Reserve the space -> When returns false the size is updated to the
     // remaining size
     uint16_t changeable_size = size;
-    bool result = fifo_container->front().reserve(&changeable_size, last);
+    bool result = fifo_container->front().reserve(&changeable_size, end_status,
+                                                 dim_end);
     if (!result) {
         // Means that reserve is bigger than available space:
         // Create new entry
@@ -205,16 +208,18 @@ StreamFifo::insert(uint16_t size, SubStreamID ssid, uint8_t width,
             id = this->map.back().id;
             offset = this->map.back().offset + this->map.back().size;
         }
-        assert(fifo_container->front().reserve(&changeable_size, last));
+        assert(fifo_container->front().reserve(&changeable_size, end_status,
+                                                dim_end));
 
         this->map.push_back(create_MS(id, id + 1, size - changeable_size,
                                       changeable_size, offset, 0));
         DPRINTF(
             UVEFifo,
             "Inserted on back of fifo[%d] ssid[%d]. Id is %d. Splited "
-            "Insertion. Size[%d]. Speculation Pointer targeting ssid[%d].\n",
+            "Insertion. Size[%d]. Speculation Pointer targeting ssid[%d]."
+            "DimEnd:%c\n",
             my_id, ssid, id, fifo_container->size(),
-            speculationPointer->get_ssid());
+            speculationPointer->get_ssid(), dim_end ? 'T' : 'F');
         DPRINTF(UVEFifo, "%s\n", print_fifo());
         return;
     }
@@ -228,6 +233,13 @@ StreamFifo::insert(uint16_t size, SubStreamID ssid, uint8_t width,
             offset = this->map.back().offset + this->map.back().size;
         }
         this->map.push_back(create_MS(id, size, offset));
+        DPRINTF(
+            UVEFifo,
+            "Inserted on same entry of fifo[%d] ssid[%d]. Id is %d. Splited "
+            "Insertion. Size[%d]. Speculation Pointer targeting ssid[%d]."
+            "DimEnd:%c\n",
+            my_id, ssid, id, fifo_container->size(),
+            speculationPointer->get_ssid(), dim_end ? 'T' : 'F');
         return;
     }
 }
@@ -297,10 +309,10 @@ StreamFifo::get() {
             "Get of fifo[%d]. Size[%d]. elements(%d) Speculation Pointer targeting "
             "ssid[%d]. %s\n",
             my_id, fifo_container->size(), specEntry.getSize(), speculationPointer->get_ssid(),
-            specEntry.is_last() ? "Last Get." : "");
+            specEntry.is_last(DimensionHop::last) ? "Last Get." : "");
     DPRINTF(UVEFifo, "%s\n", print_fifo());
 
-    if (specEntry.is_last()) {
+    if (specEntry.is_last(DimensionHop::last)) {
         // Set state as complete
         status = SEIterationStatus::Ended;
     }
@@ -333,7 +345,7 @@ StreamFifo::commit() {
             "targeting ssid[%d]. %s\n",
             my_id, elem.get_ssid(), fifo_container->size(),
             speculationPointer->get_ssid(),
-            elem.is_last() ? "Last Commit." : "");
+            elem.is_last(DimensionHop::last) ? "Last Commit." : "");
     DPRINTF(UVEFifo, "%s\n", print_fifo());
     // Decrease by 1 all the id pointers in the map
     for (auto t = map.begin(); t != map.end(); ++t) {
@@ -341,7 +353,7 @@ StreamFifo::commit() {
         if (t->split) t->id2 = t->id2 <= 0 ? 0 : t->id2 - 1;
     }
 
-    if (elem.is_last()) {
+    if (elem.is_last(DimensionHop::last)) {
         // Stream Ended
         // Return End Code
         return SmartReturn::end();
@@ -375,7 +387,7 @@ StreamFifo::shouldSquash() {
 SmartReturn
 StreamFifo::full() {
     //Real size is the number of fully complete entries
-    return SmartReturn::compare(this->real_size() == this->max_size);
+    return SmartReturn::compare(this->real_size() == this->total_size);
 }
 
 SmartReturn
@@ -447,7 +459,7 @@ StreamFifo::storeDiscard(SubStreamID ssid) {
         if (t->split) t->id2 = t->id2 <= 0 ? 0 : t->id2 - 1;
     }
 
-    if (elem.is_last()) {
+    if (elem.is_last(DimensionHop::last)) {
         // Stream Ended
         // Return End Code
         return SmartReturn::end();
@@ -466,7 +478,7 @@ StreamFifo::storeGet() {
 
     DPRINTF(UVEFifo, "Store Get of fifo[%d]. Size[%d]. SSID[%d] %s\n", my_id,
             fifo_container->size(), entry.get_ssid(),
-            entry.is_last() ? "Last Get." : "");
+            entry.is_last(DimensionHop::last) ? "Last Get." : "");
     DPRINTF(UVEFifo, "%s\n", print_fifo());
     return entry;
 }
@@ -487,7 +499,7 @@ FifoEntry::merge_data(uint8_t *data, uint16_t offset, uint16_t _size) {
 }
 
 bool
-FifoEntry::reserve(uint16_t *_size, bool last = false) {
+FifoEntry::reserve(uint16_t *_size, bool * end_status, bool dim_end) {
     // In this case we are complete it must be a bug
     assert(rstate != States::Complete);
     // Reservation do not fit entirelly
@@ -502,16 +514,23 @@ FifoEntry::reserve(uint16_t *_size, bool last = false) {
         return false;
     }
     // Completion on point, the reservation belongs here
+    
     else if (size + *_size == config_size) {
         rstate = States::Complete;
         size += *_size;
         set_valid(size);
-        set_last(last);
+        for(int i = DimensionHop::first; i != DimensionHop::dh_size; i++){
+            DimensionHop hop = static_cast<DimensionHop>(i);
+            set_last(hop, end_status[i]);
+        }
         return true;
     }
     else{
-        if (last){
-            set_last(true);
+        if (dim_end){
+            for(int i = DimensionHop::first; i != DimensionHop::dh_size; i++){
+                DimensionHop hop = static_cast<DimensionHop>(i);
+                set_last(hop, end_status[i]);
+            }
             rstate = States::Complete;
             size += *_size;
             set_valid(size);

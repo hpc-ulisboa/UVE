@@ -32,6 +32,7 @@ class SEList
         std::string to_string();
 
         void insert_dim(Container * content);
+        void config_dim();
         void insert_mod(Container * content);
 
     private:
@@ -45,6 +46,7 @@ class SEList
         }
 
         void insert(Container * content, tnode * nd, bool dim);
+        void config(tnode * nd);
         std::string to_string(tnode * nd, std::string str);
 
         tnode *head;
@@ -126,6 +128,15 @@ void SEList<Container>::insert(Container * content, tnode * nd,
     }
 }
 
+
+template <class Container>
+void SEList<Container>::config(tnode * nd){
+    if (nd->next == nullptr){
+        nd->content->cfg_vec();
+    }
+    else config(nd->next);
+}
+
 template <class Container>
 void SEList<Container>::insert_dim(Container * content){
     if (head != nullptr){
@@ -137,6 +148,16 @@ void SEList<Container>::insert_dim(Container * content){
         head->next = nullptr;
         head->sibling = nullptr;
         head->prev = nullptr;
+    }
+}
+
+template <class Container>
+void SEList<Container>::config_dim(){
+    if (head == nullptr){
+        panic("Cannot config a dimension that doesn't exist");
+    }
+    else {
+        config(head);
     }
 }
 

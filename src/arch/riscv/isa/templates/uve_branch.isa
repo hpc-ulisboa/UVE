@@ -3,9 +3,10 @@ def template UveSBranchDeclare {{
     {
       public:
         %(class_name)s(const char* mnem, ExtMachInst machInst,
-            uint8_t _VSrc1, uint64_t _imm)
+            uint8_t _VSrc1, uint64_t _imm,
+            uint8_t _hop = (uint8_t) DimensionHop::last )
             : %(base_class)s(mnem, machInst, %(op_class)s,
-                _VSrc1, _imm)
+                _VSrc1, _imm, _hop)
         {
             %(constructor)s;
         }

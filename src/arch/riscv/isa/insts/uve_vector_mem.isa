@@ -349,7 +349,7 @@ let {{
         }
         Vd_x <= Vs1_x.get_width();
         Vd_x <<= Vs1_x.get_valid();
-        Vd_x &= Vs1_x.is_last();
+        Vd_x &= Vs1_x.get_last();
         '''
 
         moveTCode = '''

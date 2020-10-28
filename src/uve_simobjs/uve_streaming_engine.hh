@@ -121,6 +121,10 @@ class SEprocessing : SimObject
             sout << "]";
             return sout.str().c_str();
         };
+
+
+
+
     };
 
    protected:
@@ -136,9 +140,11 @@ class SEprocessing : SimObject
     RiscvISA::TLB *tlb;
     const Addr offsetMask;
     unsigned cacheLineSize;
+    unsigned streamsThroughput;
     MemoryWriteHandler write_boss;
     std::vector<std::set<uint64_t>> outstanding_errors;
     std::vector<std::set<uint64_t>> outstanding_requests;
+    std::vector<std::map<uint64_t,bool *>> request_status;
 
    public:
     /** constructor
@@ -181,8 +187,15 @@ class SEprocessing : SimObject
     void emitRequest(SERequestInfo info);
     Addr pageAlign(Addr a)  { return (a & ~offsetMask); }
     Addr splitAddressOnPage(Addr a, int sz) { return pageAlign(a + sz); }
-    void tick_load();
-    void tick_store();
+    void tick_streams();
+    std::string print_end_array(bool * content){
+        std::stringstream ostr;
+        ostr << "ended:";
+        for (int i=0; i < DimensionHop::dh_size; i++){
+            if(content[i]) ostr << (int) i << ":";
+        }
+        return ostr.str();
+    }
 
    public:
     bool samePage(Addr a, Addr b) { return (pageAlign(a) == pageAlign(b)); }

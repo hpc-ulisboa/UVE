@@ -19,6 +19,8 @@ class UVEStreamingEngine(ClockedObject):
 
     max_request_size = Param.Int(512, "The max size per memory request,"
     + "per iteration")
+    
+    streams_throughput = Param.Int(2, "The max parallel streams processors")
 
     width = Param.Int(1024, "Width in bits of the queue (Vector Width)")
 

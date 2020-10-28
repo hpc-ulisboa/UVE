@@ -58,6 +58,11 @@ SmartReturn
 UVEStoreFifo::reserve(StreamID sid, SubStreamID *ssid) {
     // Reserve space in fifo. This reserve comes from the cpu in the rename
     SmartReturn result = fifos[sid]->full();
+    bool * end_status_false = (bool *) malloc(sizeof(bool) *
+                                    DimensionHop::dh_size);
+    for(int i = 0; i < DimensionHop::dh_size; i++){
+        end_status_false[i] = false;
+    }
     if (result.isError() || result.isTrue()) {
         std::stringstream s;
         s << "Trying to reserve on fifo " << (int)sid
@@ -65,8 +70,11 @@ UVEStoreFifo::reserve(StreamID sid, SubStreamID *ssid) {
         panic(s.str());
     }
     reservation_ssid[sid]++;
-    fifos[sid]->insert(confParams->width / 8, reservation_ssid[sid], 0, false);
+    fifos[sid]->insert(confParams->width / 8, reservation_ssid[sid], 0, false,
+                       end_status_false);
     *ssid = reservation_ssid[sid];
+
+    free(end_status_false);
     return SmartReturn::ok();
 }
 

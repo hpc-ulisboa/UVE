@@ -13,6 +13,7 @@
 #include "sim/sim_object.hh"
 #include "smart_return.hh"
 #include "tree_utils.hh"
+#include "reduced_utils.hh"
 
 #define MaximumStreams 32
 #define STOP_SIZE 512
@@ -67,16 +68,6 @@ typedef enum  {
     stream = 'i'
 }LinkageSetting;
 
-typedef enum  {
-    first = 0,
-    second,
-    third,
-    forth,
-    fifth,
-    sixth,
-    seventh,
-    last
-}DimensionHop;
 
 class SEDimension
 {
@@ -155,7 +146,8 @@ typedef enum  {
     append = 'a',
     start = 's',
     end = 'e',
-    simple = 'i'
+    simple = 'i',
+    config = 'c'
 }StreamType;
 typedef int8_t StreamID;
 typedef uint32_t SubStreamID;
@@ -191,7 +183,8 @@ class SEStream
         SEStream(StreamID stream, StreamType type):
              type(type)
         {
-            assert(type == StreamType::append || type == StreamType::end);
+            assert(type == StreamType::append || type == StreamType::end ||
+                    type == StreamType::config);
             assert(stream < MaximumStreams);
             id = stream;
             setting = StreamSetting::dimension;
@@ -331,6 +324,12 @@ class SECommand {
          dimension = new SEDimension(_sz, _bh, _tg, _dv);
          tc = _tc;
      }
+     // Command for cfgvec
+     SECommand(ThreadContext* _tc, StreamID _s) {
+         stream = new SEStream(_s, StreamType::config);
+         dimension = new SEDimension(0, 0, 0);
+         tc = _tc;
+     }
      // Create command for end and append
      // SECommand(StreamID _s, StreamModif _sm, StreamConfig _cfg,
      //     DimensionSize _sz, DimensionOffset _o, DimensionStride _st,
@@ -360,6 +359,7 @@ class SECommand {
      bool isStart() { return stream->getType() == StreamType::start; }
      bool isEnd() { return stream->getType() == StreamType::end; }
      bool isAppend() { return stream->getType() == StreamType::append; }
+     bool isConfig() { return stream->getType() == StreamType::config; }
      bool isStartEnd() { return stream->getType() == StreamType::simple; }
 
      bool isDimension() {
@@ -421,6 +421,7 @@ class DimensionObject{
         DimensionHop last_data_hop;
 
         DimensionObject * target_dim;
+        bool vector_coupled;
 
     public:
      DimensionObject(SEDimension* dimension, uint8_t _width, bool head = false,
@@ -455,11 +456,20 @@ class DimensionObject{
             saved_offset = isHead ? offset : offset * stride * width;
 
             target_dim = nullptr;
+            vector_coupled = false;
         }
         ~DimensionObject(){}
 
         void set_target_dim(DimensionObject * tgt_dim){
             target_dim = tgt_dim;
+        }
+
+        void cfg_vec(){
+            vector_coupled = true;
+        }
+
+        bool is_vector(){
+            return vector_coupled || isEnd;
         }
 
         bool advance_mod(){
@@ -478,7 +488,9 @@ class DimensionObject{
                 dimensionEnded = true;
             }
             else {
-                affect(target_dim);
+                if(counter != 0){
+                   affect(target_dim);
+                }
                 dimensionEnded = false;
             }
             return dimensionEnded;
@@ -567,10 +579,12 @@ class DimensionObject{
         std::string
         to_string(){
             if ( setting == StreamSetting::dimension)
-            return csprintf("S(%d):O(%d):St(%d)", size, offset, stride);
+            return csprintf("S(%d):O(%d):St(%d)%s", size, offset, stride,
+                             (vector_coupled ? "::vec" : ""));
             else
-            return csprintf("S(%d):B(%c):T(%c):V(%d)", size,(char)behaviour,
-                             (char)target, variation);
+            return csprintf("S(%d):B(%c):T(%c):V(%d)%s", size,(char)behaviour,
+                             (char)target, variation,
+                             (vector_coupled ? "::vec" : ""));
         }
 
         bool hasBottomEnded() {
@@ -792,7 +806,14 @@ struct SERequestInfo{
           sid(0),
           tc(nullptr),
           mode(StreamMode::load),
-          stop_reason(StopReason::BufferFull){};
+          stop_reason(StopReason::BufferFull) {
+              for (int i = 0; i < DimensionHop::dh_size; i++)
+              {
+                  dimensions_ended[i] = false;
+              }
+              
+          };
+          
     DimensionOffset initial_offset;
     DimensionOffset final_offset;
     uint8_t width;
@@ -804,6 +825,7 @@ struct SERequestInfo{
     ThreadContext * tc;
     StreamMode mode;
     StopReason stop_reason;
+    bool dimensions_ended[DimensionHop::dh_size];
 };
 
 class SEIter: public SEList<DimensionObject> {
@@ -846,6 +868,10 @@ class SEIter: public SEList<DimensionObject> {
      DimensionOffset offset_calculation(tnode* cursor, DimensionOffset offset);
 
      DimensionOffset offset_calculation();
+
+     void get_ended_dimensions(bool * result);
+
+     void get_ended_dimensions(bool * result, tnode* cursor);
 
      void stats(SERequestInfo result, StopReason sres);
 

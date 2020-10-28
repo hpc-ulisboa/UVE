@@ -116,7 +116,7 @@ SEcontroller::validate_cmds(StreamID sid) {
         } else if (iter->cmd.isEnd()) {
             if (has_end) return SmartReturn::nok();
             has_end = true;
-        } else if (!iter->cmd.isAppend()) {
+        } else if (!iter->cmd.isAppend() && !iter->cmd.isConfig()) {
             return SmartReturn::nok();
         }
 

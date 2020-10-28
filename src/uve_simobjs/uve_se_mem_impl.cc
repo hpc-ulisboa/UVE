@@ -9,134 +9,114 @@ SEprocessing::SEprocessing(UVEStreamingEngineParams *params,
       tlb(params->tlb),
       offsetMask(mask(floorLog2(RiscvISA::PageBytes))),
       cacheLineSize(params->system->cacheLineSize()),
+      streamsThroughput(params->streams_throughput),
       write_boss(),
       outstanding_errors(32),
-      outstanding_requests(32) {
+      outstanding_requests(32),
+      request_status(32) {
     parent = _parent;
     write_boss.set_owner(this);
     for (int i = 0; i < 32; i++) {
         iterQueue[i] = new SEIter();
     }
-    load_pID = 0;
-    store_pID = 0;
-    load_pID--;
-    store_pID--;
     ssidArray.fill(-1);
 };
 
 void
-SEprocessing::tick_load() {
+SEprocessing::tick_streams() {
+    struct stream
+    {
+        uint8_t id;
+        uint64_t size;
+        bool load;
+    };
     uint16_t max_advance_size = 0;
-    load_pID++;
-    if (load_pID > 31) load_pID = 0;
-    uint8_t load_auxID = load_pID + 1;
-    if (load_auxID > 31) load_auxID = 0;
+    struct stream available_streams[32]; 
 
-    while (1) {
-        if (load_auxID == load_pID) {
-            // Found no candidate
-            return;
-        }
-        if (!iterQueue[load_auxID]->is_load()) {
-            // Not a load -> next stream
-            load_auxID++;
-            if (load_auxID > 31) load_auxID = 0;
-        } else {
-            max_advance_size = parent->ld_fifo.getAvailableSpace(load_auxID);
-            if (max_advance_size > 0 && !iterQueue[load_auxID]->empty()) {
-                // We find a candidate if it is supposed to advance: has space
-                // and is configured
-                break;
-            }
-            load_auxID++;
-            if (load_auxID > 31) load_auxID = 0;
-        }
+    //Create List with availabile streams and available sizes
+    int it=0;
+    for (int i=0; i<32; i++){
+        if(iterQueue[i]->empty()) continue;
+        if(iterQueue[i]->is_load()) 
+            max_advance_size = parent->ld_fifo.getAvailableSpace(i);
+        else
+            max_advance_size = parent->st_fifo.getAvailableSpace(i);
+        if( max_advance_size == 0) continue;
+        available_streams[it].id = i;
+        available_streams[it].size = max_advance_size;
+        available_streams[it++].load = iterQueue[i]->is_load();
+    }
+    int total_streams = it;
+
+    //sort by size, insertion sort
+    int j, key;
+    struct stream value;
+    struct stream * arr = available_streams;
+    for (int i=0; i<total_streams; i++){
+        key = arr[i].id;  
+        value = arr[i];  
+        j = i - 1; 
+        while (j >= 0 && arr[j].id > key) 
+        {  
+            arr[j + 1] = arr[j];  
+            j = j - 1;  
+        }  
+        arr[j + 1] = value;  
     }
 
-    DPRINTF(JMDEVEL, PR_INFO("Settled on load_auxID:%d advance_size(%d B)\n"),
-            load_auxID, max_advance_size / 8);
-    parent->streamProcessingCycles[load_auxID]++;
-    load_pID = load_auxID;
+    int streams_to_process = total_streams < streamsThroughput ? total_streams : streamsThroughput;
 
-    DPRINTF(UVESE, PR_ANN("pre-iterator sid:(%d) : %s\n"), load_pID,
-     iterQueue[load_pID]->print_state());
-    SERequestInfo request_info =
-        iterQueue[load_pID]->advance(max_advance_size);
-    DPRINTF(UVESE, PR_ANN("iterator sid:(%d) ssid:(%d): %s\n"), load_pID,
-            request_info.sequence_number, iterQueue[load_pID]->print_state());
-    DPRINTF(UVESE, PR_INFO(
+    if (streams_to_process == 0) return;
+
+    std::stringstream debug_string;
+    debug_string << "Processing " << streams_to_process << " streams:";
+    for ( int i=0; i<streams_to_process; i++){
+        parent->streamProcessingCycles[available_streams[i].id]++;
+        debug_string << " "<< i << ":" << available_streams[i].size << "B," << (available_streams[i].load ? "L": "S") << ";";
+    }
+    DPRINTF(UVESE, PR_INFO("%s\n"), debug_string.str().c_str());
+
+    for ( int i=0; i<streams_to_process; i++){
+        int pid = available_streams[i].id;
+        int size = available_streams[i].size;
+
+        DPRINTF(UVESE, PR_ANN("pre-iterator sid:(%d) : %s\n"), pid,
+        iterQueue[pid]->print_state());
+        SERequestInfo request_info = iterQueue[pid]->advance(size);
+        DPRINTF(UVESE, PR_ANN("iterator sid:(%d) ssid:(%d): %s : %s\n"), pid,
+                request_info.sequence_number, iterQueue[pid]->print_state(),
+                print_end_array(request_info.dimensions_ended));
+        if(request_info.iterations == 0){
+            DPRINTF(UVESE, PR_ERR("Zero Iters:iterator sid:(%d) ssid:(%d): %s : %s\n"), pid,
+                request_info.sequence_number, iterQueue[pid]->print_state(),
+                print_end_array(request_info.dimensions_ended));
+            return;
+        }
+        DPRINTF(UVESE, PR_INFO(
             "Memory Request[%s][%d] sz[%d B].elems[%d]: [%d->%d] w(%d) "
             "StopReason:%s\n")
             , request_info.mode == StreamMode::load ? "load" : "store",
             request_info.sequence_number,
             (request_info.final_offset - request_info.initial_offset),
-            request_info.iterations+1,
+            request_info.iterations,
             request_info.initial_offset, request_info.final_offset,
             request_info.width,
             (request_info.stop_reason == StopReason::DimensionSwap
-                 ? "Dimension Swap"
-                 : (request_info.stop_reason == StopReason::BufferFull
+                ? "Dimension Swap"
+                : (request_info.stop_reason == StopReason::BufferFull
                         ? "Buffer Full"
                         : "End or Strided")));
-    if (request_info.status == SEIterationStatus::Ended)
-        DPRINTF(UVESE, PR_WARN("Iteration on stream %d ended!\n"), load_pID);
-    // Create and send request to memory
-    emitRequest(request_info);
-};
-
-void
-SEprocessing::tick_store() {
-    // JMFIXME: 512 should be the width of an element.. Can also be the size of
-    // a store fifo.. Never more
-    uint16_t max_advance_size = 512;
-    store_pID++;
-    if (store_pID > 31) store_pID = 0;
-    uint8_t store_auxID = store_pID + 1;
-    if (store_auxID > 31) store_auxID = 0;
-
-    while (1) {
-        if (store_auxID == store_pID) {
-            // Found no candidate
-            return;
-        }
-        if (iterQueue[store_auxID]->is_load()) {
-            // Not a store -> next stream
-            store_auxID++;
-            if (store_auxID > 31) store_auxID = 0;
-        } else {
-            // max_advance_size =
-            // parent->st_fifo.getAvailableSpace(store_auxID); if
-            // (max_advance_size > 0 && !iterQueue[store_auxID]->empty()) {
-            if (!iterQueue[store_auxID]->empty()) {
-                // We find a candidate if it is supposed to advance: has space
-                // and is configured
-                break;
-            }
-            store_auxID++;
-            if (store_auxID > 31) store_auxID = 0;
-        }
+        if (request_info.status == SEIterationStatus::Ended)
+            DPRINTF(UVESE, PR_WARN("Iteration on stream %d ended!\n"), pid);
+        // Create and send request to memory
+        emitRequest(request_info);
     }
-
-    DPRINTF(JMDEVEL, PR_ANN("Settled on store_auxID:%d\n"), store_auxID);
-    parent->streamProcessingCycles[store_auxID]++;
-    store_pID = store_auxID;
-    SERequestInfo request_info =
-        iterQueue[store_pID]->advance(max_advance_size);
-    DPRINTF(UVESE, PR_INFO("Memory Request[%s][%d]: [%d->%d] w(%d)\n"),
-            request_info.mode == StreamMode::load ? "load" : "store",
-            request_info.sequence_number, request_info.initial_offset,
-            request_info.final_offset, request_info.width);
-    if (request_info.status == SEIterationStatus::Ended)
-        DPRINTF(UVESE, PR_WARN("Iteration on stream %d ended!\n"), store_pID);
-    //Create and send request to memory
-    emitRequest(request_info);
 };
 
 void
 SEprocessing::tick() {
     // DPRINTF(JMDEVEL, "SEprocessing::Tick()\n");
-    tick_load();
-    tick_store();
+    tick_streams();
     write_boss.tick();
     return;
 }
@@ -170,16 +150,25 @@ SEprocessing::emitRequest(SERequestInfo info){
 void
 SEprocessing::executeRequest(SERequestInfo info){
 
+    int i = 0;
     DPRINTF(UVESE,PR_ANN("Execute Memory Request[%d]: [%d->%d] w(%d)\n"),
     info.sequence_number, info.initial_offset,
     info.final_offset, info.width );
     uint64_t size = info.final_offset- info.initial_offset;
+    
+    bool * end_status = (bool *)malloc(sizeof(bool)*DimensionHop::dh_size);
+    for(i=0; i<DimensionHop::dh_size; i++){
+        end_status[i] = info.dimensions_ended[i];
+    }
+    request_status[info.sid][info.sequence_number] = end_status;
+    
     if (info.mode == StreamMode::load) {
         accessMemory(info.initial_offset, size, info.sid, info.sequence_number,
                      BaseTLB::Mode::Read, nullptr, info.tc);
     } else {
         write_boss.queueMemoryWrite(info);
     }
+
 }
 
 void
@@ -285,7 +274,19 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
     RequestPtr req = NULL;
     auto sid = ireq->streamId();
     auto width = iterQueue[sid]->getCompressedWidth();
-    bool ended = iterQueue[sid]->ended().isOk();
+    SubStreamID old_ssid = ireq->substreamId();
+    bool * end_status;
+    bool *end_status_false = (bool *)malloc(sizeof(bool)*DimensionHop::dh_size); 
+    end_status = request_status[sid][old_ssid];
+    DPRINTF(JMDEVEL, PR_WARN("End Status for sid (%d): %s\n")
+            , sid, print_end_array(end_status));
+    bool is_dim_end = false;
+    for(int i =0; i<DimensionHop::dh_size; i++){
+        is_dim_end = is_dim_end || end_status[i];
+        end_status_false[i] = false;
+    }
+    bool ended = end_status[DimensionHop::last];
+
 
     for (ChunkGenerator gen(ireq->getPaddr(), ireq->getSize(), cacheLineSize);
          !gen.done(); gen.next()) {
@@ -295,7 +296,6 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
 
         Request::FlagsType flags = 0;  // = Request::PREFETCH;
         req = std::make_shared<Request>(gen.addr(), gen.size(), flags, 0);
-        SubStreamID old_ssid = ireq->substreamId();
         SubStreamID ssid = ++ssidArray[sid];
         req->setStreamId(sid);
         req->setSubStreamId(ssid);
@@ -304,8 +304,12 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
         bool last_packet = (ended && gen.last() && !split_not_last);
         if (last_packet) DPRINTF(JMDEVEL, PR_WARN("Last packet for sid (%d)\n")
                                 , sid);
+        bool dimension_end = (is_dim_end && gen.last() && !split_not_last);
+        // DPRINTF(JMDEVEL, PR_INFO("Dimension End: %c, GenLast:%c,
         if (read)
-            parent->ld_fifo.reserve(sid, ssid, gen.size(), width, last_packet);
+            parent->ld_fifo.reserve(sid, ssid, gen.size(), width,
+                                    dimension_end,
+                            dimension_end ? end_status : end_status_false);
 
         req->taskId(ContextSwitchTaskId::DMA);
         PacketPtr pkt =
@@ -338,6 +342,8 @@ SEprocessing::sendDataRequest(RequestPtr ireq, uint8_t *data, bool read,
                     parent->endStreamStore(sid);
             }
         }
+
+        // free(end_status_false);
     }
 }
 
@@ -539,6 +545,10 @@ SEprocessing::MemoryWriteHandler::consume_data_unit(uint64_t sz) {
         // requested size is bigger than current available data
         uint64_t transaction_size = data_block->get_valid() - data_block_index;
         // need to delay transaction to next cycle
+        owner->DEBUG_PRINT( PR_INFO(
+            "Transaction size: %d, valid(%d) || req:sz(%d)\n"),
+            transaction_size,
+            data_block->get_valid(), sz);
         partial_data = (uint8_t *)malloc(transaction_size * sizeof(uint8_t));
         memcpy(partial_data, data_block->raw_ptr<uint8_t>() + data_block_index,
                transaction_size);
@@ -562,6 +572,10 @@ SEprocessing::MemoryWriteHandler::write_mem(SERequestInfo *info) {
     uint64_t sz = info->final_offset - info->initial_offset;
 
     uint8_t *mem_block = (uint8_t *)malloc(sz * sizeof(uint8_t));
+
+    owner->DEBUG_PRINT(PR_INFO("Trying request, sid(%d) ssid(%d) "
+                           "sz(%d)\n"),
+                           info->sid, info->sequence_number, sz);
 
     SmartReturn res = consume_data_unit(sz);
     if (res.isOk()) {

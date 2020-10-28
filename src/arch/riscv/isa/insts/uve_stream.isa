@@ -114,6 +114,8 @@ let {{
     emitUveStreamInsts(''' SECommand(xc->tcBase(), PSid,
                             Rs1_ud, Rs2_ud, Rs3_ud, StreamType::end)
                     ''', 'End')
+    emitUveStreamInsts(''' SECommand(xc->tcBase(), PSid)
+                    ''', 'CfgVec')
 
 
 

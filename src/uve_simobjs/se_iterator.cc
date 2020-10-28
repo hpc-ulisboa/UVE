@@ -27,12 +27,20 @@ SEIter::SEIter(SEStack* cmds, Tick _start_tick)
     DimensionObject* dimobj;
     while (!cmds->empty()) {
         cmd = cmds->front().cmd;
+        if( cmd.isConfig() ){
+            config_dim();
+            cmds->pop_front();
+            DPRINTF(JMDEVEL, PR_INFO("CfgVec command: %s\n"), cmd.to_string());
+            continue;
+        }
+
         if (cmds->size() == 1) {
             dimobj =
                 new DimensionObject(cmd.get_dimension(), width, false, true);
         } else {
             dimobj = new DimensionObject(cmd.get_dimension(), width);
         }
+
 
         DPRINTF(JMDEVEL, PR_INFO("Inserting command: %s\n"), cmd.to_string());
 
@@ -109,6 +117,36 @@ SEIter::offset_calculation() {
     return offset;
 }
 
+void 
+SEIter::get_ended_dimensions(bool * result, tnode* cursor){
+    if(cursor->content->has_ended()){
+        (*result) = true;
+    }
+    if (cursor->next != nullptr){
+        get_ended_dimensions(result++, cursor->next);
+    }
+    return;
+}
+void 
+SEIter::get_ended_dimensions(bool * result){
+    tnode* cursor = get_head();
+    tnode* last_cursor = get_head();
+    int iter = 0;
+    while(cursor != nullptr)
+    {
+        if(cursor->content->has_ended()){
+            result[iter] = cursor->content->is_vector();
+        }
+        iter++;
+        last_cursor = cursor;
+        cursor = cursor->next;
+    }
+    if(last_cursor->content->has_ended()){
+        result[DimensionHop::last] = true;
+    }
+    return;
+}
+
 void SEIter::stats(SERequestInfo result, StopReason sres){
     // Create results with this
 };
@@ -138,6 +176,7 @@ SEIter::advance(uint16_t max_size) {
             if (current_dim->next == nullptr) {
                 status = SEIterationStatus::Ended;
                 sres = StopReason::End;
+                elem_counter++;
                 break;
             }
             current_dim = current_dim->next;
@@ -166,15 +205,20 @@ SEIter::advance(uint16_t max_size) {
             if (aux_dim == nullptr) {
                 status = SEIterationStatus::Ended;
                 sres = StopReason::End;
+                elem_counter++;
                 break;
             }
             if (elem_counter == 0) {
                 // Here we find a dimension swap that has not
                 // calculated anything. E.g. Dim2->Dim3
                 if (current_dim == get_head()) break;
-                if (current_dim->prev == get_head()) break;
+                if (current_dim->prev == get_head()){
+                    elem_counter++;
+                    break;
+                } 
                 current_dim->content->advance();
                 current_dim->content->set_offset();
+                elem_counter++;
                 current_dim = current_dim->prev;
                 while (current_dim->content->has_ended() &&
                        current_dim != get_head()) {
@@ -183,6 +227,7 @@ SEIter::advance(uint16_t max_size) {
                 }
                 continue;
             }
+            elem_counter++;
             break;
         } else {
             if (current_dim != get_head()) {
@@ -192,6 +237,7 @@ SEIter::advance(uint16_t max_size) {
                 continue;
             } else if (head_stride != 1) {
                 sres = StopReason::NonCoallescing;
+                elem_counter++;
                 break;
             } else
                 elem_counter++;
@@ -199,9 +245,9 @@ SEIter::advance(uint16_t max_size) {
     }
     request.mode = mode;
     request.initial_offset = initial_offset_calculation();
-    request.final_offset = request.initial_offset + width * elem_counter +
-                           width;
+    request.final_offset = request.initial_offset + ( width * elem_counter );
     offset_calculation();
+    get_ended_dimensions(request.dimensions_ended);
     request.iterations = elem_counter;
     request.status = status;
     request.width = width;
@@ -257,19 +303,23 @@ SEIter::getCompressedWidth() {
 // if it succeds (return is true)
 bool
 SEIter::translatePaddr(Addr* paddr) {
+    int64_t aux = 0;
     // First request must always be translated by TLB
     if (sequence_number == 0) {
         last_request = cur_request;
         return false;
     }
 
-    // Check if the page is mantained between last and current request
+    // Check if the page is the same between last and current request
     if (pageFunction(cur_request.initial_offset, cur_request.final_offset) &&
         pageFunction(last_request.initial_offset,
                      cur_request.initial_offset) &&
         pageFunction(last_request.initial_offset, last_request.final_offset)) {
-        *paddr = last_request.initial_paddr +
-                 (cur_request.initial_offset - last_request.initial_offset);
+        aux = (int64_t)last_request.initial_paddr +
+                 ((int64_t)cur_request.initial_offset -
+                  (int64_t)last_request.initial_offset);
+        if(aux < 0) return false;
+        *paddr = (Addr) aux;
         return true;
 
         // If the page is not mantained see if the current one is and
@@ -277,8 +327,11 @@ SEIter::translatePaddr(Addr* paddr) {
     } else if (pageFunction(cur_request.initial_offset,
                             cur_request.final_offset) &&
                page_jump) {
-        *paddr = last_request.initial_paddr +
-                 (cur_request.initial_offset - page_jump_vaddr);
+        aux = ((int64_t) last_request.initial_paddr +
+                 ((int64_t)cur_request.initial_offset -
+                  (int64_t) page_jump_vaddr));
+        if (aux < 0) return false;
+        *paddr = (Addr) aux;
         return true;
     } else {
         // In this case it is not possible to infer the paddr

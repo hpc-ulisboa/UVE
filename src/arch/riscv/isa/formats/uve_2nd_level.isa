@@ -537,12 +537,19 @@ namespace Uve
         //Specifies the target of the modifier
         uint8_t target = (uint8_t) bits(machInst, 21, 20);
 
+        uint8_t special = (uint8_t) bits(machInst, 12);
+
         switch (modif)
         {
         case 0b00:
         case 0b01: //Dimension
-            return new UveStreamApp("ss.app", machInst, stream, offset, size,
-                                    stride);
+            if (special == 0)
+                return new UveStreamApp("ss.app", machInst, stream, offset,
+                                    size, stride);
+            else
+                return new UveStreamCfgVec("ss.cfg.vec", machInst, stream,
+                                            0, 0, 0);
+
         case 0b10: //Modifier
             switch(target){
                 case 0b00: //Size
@@ -656,7 +663,6 @@ namespace Uve
                                              stream, size, target, behaviour,
                                              variation);
                     else return new Unknown(machInst);
-
                 default:
                     return new Unknown(machInst);
             }
@@ -684,10 +690,24 @@ namespace Uve {
                                ((uint8_t) bits(machInst, 14, 13));
         uint8_t not_bit = ((uint8_t) bits(machInst, 21));
 
-        if(not_bit == 0b1 && dim_selector == 0b111)
-            return new UveSBranchNC("so.b.nc", machInst, stream,
-                                sext<13>(immediate));
-        else return new Unknown(machInst);
+        if(not_bit == 0b1)
+        {
+            if (dim_selector == 0b111)
+                return new UveSBranchNC("so.b.nc", machInst, stream,
+                                    sext<13>(immediate));
+            else
+            return new UveSBranchNC("so.b.ndc", machInst, stream,
+                                sext<13>(immediate), dim_selector);
+        }
+        else
+        {
+            if (dim_selector == 0b111)
+                return new UveSBranchC("so.b.c", machInst, stream,
+                                    sext<13>(immediate));
+            else
+            return new UveSBranchC("so.b.dc", machInst, stream,
+                                sext<13>(immediate), dim_selector);
+        }
 
     }  // decodeSBranch
 } // namespace Uve
