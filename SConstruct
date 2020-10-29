@@ -390,6 +390,12 @@ if main['GCC'] or main['CLANG']:
     main.Append(CCFLAGS=['-Werror',
                          '-Wno-error=deprecated-declarations',
                          '-Wno-error=deprecated',
+                         '-Wno-error=cpp',
+                         '-Wno-error=address-of-packed-member',
+                         '-Wno-error=array-bounds',
+                         '-Wno-error=redundant-move',
+                         '-Wno-error=deprecated-copy',
+                         '-Wno-error=overflow'
                         ])
 else:
     print(termcap.Yellow + termcap.Bold + 'Error' + termcap.Normal, end=' ')
