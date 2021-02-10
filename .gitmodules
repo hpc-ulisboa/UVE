@@ -1,0 +1,6 @@
+[submodule "ext_modules/riscv-gnu-toolchain"]
+	path = ext_modules/riscv-gnu-toolchain
+	url = https://github.com/riscv/riscv-gnu-toolchain.git
+[submodule "ext_modules/riscv-opcodes"]
+	path = ext_modules/riscv-opcodes
+	url = https://github.com/riscv/riscv-opcodes.git

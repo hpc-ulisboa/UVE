@@ -1,0 +1,62 @@
+###############################################################################
+# Rules file
+# - - - - - - - - -
+# João Domingos
+#
+# YAML notation, json is also valid
+# Each ID is met with the template values
+# The key (<ID_k>) and value <ID_v> for each element is subst in the template
+
+# width replacement rule
+width:
+    - b : 0
+    - h : 1
+    - w : 2
+    - d : 3
+
+s:
+    - "" : 0
+    - s : 1
+
+cw:
+    - "" : 0
+    - cw : 1
+
+u:
+    - "" : 0
+    - stream: 1
+
+fps:
+    - us : 0
+    - fp : 1
+    - sg : 2
+
+fpo:
+    - fp : 1
+    - sg : 0
+
+acc:
+    - "" : 0
+    - acc: 1
+
+stype:
+    - app: 0
+    - end: 1
+    - str: 2
+    - smp: 3
+
+tget:
+    - siz: 0
+    - str: 1
+    - ofs: 2
+
+bmod:
+    - inc: 0
+    - dec: 1
+    
+bind:
+    - add: 0
+    - sub: 1
+    - inc: 2
+    - dec: 3
+    - set: 4

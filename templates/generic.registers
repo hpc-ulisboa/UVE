@@ -1,0 +1,41 @@
+# This file has all the new registers of the templates files
+
+vd:
+    "arg": 'Xd'
+    "range": [11, 7 ]
+vs1:
+    "arg": 'Xs'
+    "range": [19, 15]
+vs2:
+    "arg": 'Xt'
+    "range": [24, 20]
+rs1:
+    "arg": 's'
+    "range": [19, 15]
+rs2:
+    "arg": 't'
+    "range": [24,20]
+rs3:
+    "arg": 'v'
+    "range": [31,27]
+rd:
+    "arg": 'd'
+    "range": [11, 7]
+pd:
+    "arg": 'Yd'
+    "range": [10, 7 ]
+ps1:
+    "arg": 'Ys'
+    "range": [18, 15 ]
+ps2:
+    "arg": 'Yn'
+    "range": [22, 20 ]
+ps3:
+    "arg": 'Ym'
+    "range": [27, 25 ]
+imm12aHi:
+    "arg": 'k'
+    "range": [28, 22 ]
+imm12aLo:
+    "arg": ''
+    "range": [11, 7 ]

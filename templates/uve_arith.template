@@ -1,0 +1,32 @@
+so.a.add.<fps_k>       vd vs1 vs2 ps3       31..28=0 14=0 13..12=<fps_v> 6..2=0xA 1..0=3
+so.a.sub.<fps_k>       vd vs1 vs2 ps3       31..28=0 14=1 13..12=<fps_v> 6..2=0xA 1..0=3
+so.a.mul.<fps_k>       vd vs1 vs2 ps3       31..28=1 14=0 13..12=<fps_v> 6..2=0xA 1..0=3
+so.a.div.<fps_k>       vd vs1 vs2 ps3       31..28=1 14=1 13..12=<fps_v> 6..2=0xA 1..0=3
+
+so.a.adde.<acc_k>.<fps_k>  vd vs1 ps3         31..28=2 24..21=0 20=<acc_v> 14=0 13..12=<fps_v> 6..2=0xA 1..0=3
+so.a.adds.<acc_k>.<fps_k>  rd vs1 ps3         31..28=2 24..21=0 20=<acc_v> 14=1 13..12=<fps_v> 6..2=0xA 1..0=3
+
+so.a.abs.<fpo_k>       vd vs1 ps3           31..28=3 24..20=0 14..13=0 12=<fpo_v> 6..2=0xA 1..0=3
+
+so.a.mac.<fps_k>       vd vs1 vs2 ps3       31..28=3 14=1 13..12=<fps_v> 6..2=0xA 1..0=3
+
+so.a.nand      vd vs1 vs2 ps3       31..28=12 14..12=0 6..2=0xA 1..0=3
+so.a.and       vd vs1 vs2 ps3       31..28=12 14..12=1 6..2=0xA 1..0=3
+so.a.nor       vd vs1 vs2 ps3       31..28=12 14..12=2 6..2=0xA 1..0=3
+so.a.or        vd vs1 vs2 ps3       31..28=12 14..12=3 6..2=0xA 1..0=3
+so.a.not       vd vs1     ps3       31..28=12 14..12=4 6..2=0xA 1..0=3  24..20=0
+so.a.xor       vd vs1 vs2 ps3       31..28=12 14..12=5 6..2=0xA 1..0=3
+
+so.a.sll       vd vs1 vs2 ps3       31..28=13 14..12=0 6..2=0xA 1..0=3
+so.a.slls      vd vs1 rs2 ps3       31..28=13 14..12=1 6..2=0xA 1..0=3
+so.a.srl       vd vs1 vs2 ps3       31..28=13 14..12=2 6..2=0xA 1..0=3
+so.a.srls      vd vs1 rs2 ps3       31..28=13 14..12=3 6..2=0xA 1..0=3
+so.a.sra       vd vs1 vs2 ps3       31..28=13 14..12=4 6..2=0xA 1..0=3
+so.a.sras      vd vs1 rs2 ps3       31..28=13 14..12=5 6..2=0xA 1..0=3
+
+so.a.min.<fps_k>       vd vs1 vs2 ps3       31..28=4 14=0 13..12=<fps_v> 6..2=0xA 1..0=3
+so.a.max.<fps_k>       vd vs1 vs2 ps3       31..28=4 14=1 13..12=<fps_v> 6..2=0xA 1..0=3
+so.a.mine.<fps_k>      vd vs1     ps3       31..28=5 14=0 13..12=<fps_v> 6..2=0xA 1..0=3   24..20=0
+so.a.maxe.<fps_k>      vd vs1     ps3       31..28=5 14=1 13..12=<fps_v> 6..2=0xA 1..0=3   24..20=0
+so.a.inc.<fps_k>       vd vs1     ps3       31..28=6 14=0 13..12=<fps_v> 6..2=0xA 1..0=3   24..20=0
+so.a.dec.<fps_k>       vd vs1     ps3       31..28=6 14=1 13..12=<fps_v> 6..2=0xA 1..0=3   24..20=0

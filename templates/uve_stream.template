@@ -1,0 +1,47 @@
+
+#Simple stream
+ss.ld.<width_k>  vd rs1 rs2 rs3  26..25=3 14=1 13..12=<width_v> 6..2=0x2 1..0=3
+ss.st.<width_k>  vd rs1 rs2 rs3  26..25=3 14=0 13..12=<width_v> 6..2=0x2 1..0=3
+
+#Start
+ss.sta.ld.<width_k> vd rs1 rs2 rs3  26..25=2 14=1 13..12=<width_v> 6..2=0x2 1..0=3
+ss.sta.st.<width_k> vd rs1 rs2 rs3  26..25=2 14=0 13..12=<width_v> 6..2=0x2 1..0=3
+
+#Append
+ss.app vd rs1 rs2 rs3  26..25=0 14=0 13..12=0 6..2=0x2 1..0=3
+
+ss.app.mod.<tget_k>.<bmod_k> vd rs1 rs3 26..25=0 24..22=<bmod_v> 21..20=<tget_v> 14=1 13=0 12=0 6..2=0x2 1..0=3
+ss.app.modl.<tget_k>.<bmod_k> vd rs3    26..25=0 24..22=<bmod_v> 21..20=<tget_v> 19..15=0  14=1 13=0 12=1 6..2=0x2 1..0=3
+ss.app.indl.<tget_k>.<bind_k> vd vs1    31..28=0 27=1 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+
+ss.app.ind.<tget_k>.<bind_k>.1  vd vs1  31..28=0 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.app.ind.<tget_k>.<bind_k>.2  vd vs1  31..28=1 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.app.ind.<tget_k>.<bind_k>.3  vd vs1  31..28=2 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.app.ind.<tget_k>.<bind_k>.4  vd vs1  31..28=3 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.app.ind.<tget_k>.<bind_k>.5  vd vs1  31..28=4 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.app.ind.<tget_k>.<bind_k>.6  vd vs1  31..28=5 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.app.ind.<tget_k>.<bind_k>.7  vd vs1  31..28=6 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.app.ind.<tget_k>.<bind_k>.L  vd vs1  31..28=7 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+
+#End
+ss.end vd rs1 rs2 rs3  26..25=1 14=0 13..12=0 6..2=0x2 1..0=3
+
+ss.end.mod.<tget_k>.<bmod_k> vd rs1 rs3 26..25=1 24..22=<bmod_v> 21..20=<tget_v> 14=1 13=0 12=0 6..2=0x2 1..0=3
+ss.end.modl.<tget_k>.<bmod_k> vd rs3    26..25=1 24..22=<bmod_v> 21..20=<tget_v> 19..15=0  14=1 13=0 12=1 6..2=0x2 1..0=3
+ss.end.indl.<tget_k>.<bind_k> vd vs1    31..28=0 27=1 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+
+ss.end.ind.<tget_k>.<bind_k>.1  vd vs1  31..28=0 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.end.ind.<tget_k>.<bind_k>.2  vd vs1  31..28=1 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.end.ind.<tget_k>.<bind_k>.3  vd vs1  31..28=2 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.end.ind.<tget_k>.<bind_k>.4  vd vs1  31..28=3 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.end.ind.<tget_k>.<bind_k>.5  vd vs1  31..28=4 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.end.ind.<tget_k>.<bind_k>.6  vd vs1  31..28=5 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.end.ind.<tget_k>.<bind_k>.7  vd vs1  31..28=6 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.end.ind.<tget_k>.<bind_k>.L  vd vs1  31..28=7 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+
+#Config
+ss.cfg.vec vd   31..18=0 17=0 16..15=0 14..13=0 12=1 6..2=0x2 1..0=3
+ss.cfg.ind vd   31..18=0 17=1 16..15=0 14..13=0 12=1 6..2=0x2 1..0=3
+ss.cfg.mem1 vd  31..18=0 17=0 16..15=1 14..13=0 12=1 6..2=0x2 1..0=3
+ss.cfg.mem2 vd  31..18=0 17=0 16..15=2 14..13=0 12=1 6..2=0x2 1..0=3
+ss.cfg.mem3 vd  31..18=0 17=0 16..15=3 14..13=0 12=1 6..2=0x2 1..0=3
