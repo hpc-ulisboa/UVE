@@ -7,13 +7,13 @@ if [[ -n $1 ]]; then
 fi
 
 echo "-------------Deleting Backup Files"
-./make.py -d
+./utils/make.py -d
 
 echo "-------------Copying Source Files"
 python3 ./files/copy-files.py
 
 echo "-------------Building Files"
-./make.py -b
+./utils/make.py -b
 
 echo "-------------Building GAS"
 echo -n "Proceed? [y/n]: "
