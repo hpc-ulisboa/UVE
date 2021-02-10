@@ -2,7 +2,7 @@
 
 #Imports
 import argparse
-from utils import make_utils as utils
+from low_level import make_utils as utils
 
 def config_argparse(args = None):
     parser = argparse.ArgumentParser(description='Process opcodes files and insert them in the compiler.')

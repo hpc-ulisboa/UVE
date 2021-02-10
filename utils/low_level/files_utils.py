@@ -1,6 +1,6 @@
 from pathlib import Path
-from utils.rules_utils import parse_rules
-from utils.registers_utils import parse_registers
+from low_level.rules_utils import parse_rules
+from low_level.registers_utils import parse_registers
 
 def get_files(file_types):
     if file_types == "templates":

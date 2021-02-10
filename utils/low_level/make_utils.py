@@ -2,10 +2,10 @@ import os
 import subprocess
 import shutil
 from pathlib import Path
-from utils.rules_utils import parse_rules, subst_rules
-from utils.parse_populate import produce as parse_populate
-from utils.registers_utils import parse_registers, expand_registers
-from utils.files_utils import get_registers, get_rules, get_templates, get_toolchain_dir, get_parse_opcodes_script
+from low_level.rules_utils import parse_rules, subst_rules
+from low_level.parse_populate import produce as parse_populate
+from low_level.registers_utils import parse_registers, expand_registers
+from low_level.files_utils import get_registers, get_rules, get_templates, get_toolchain_dir, get_parse_opcodes_script
 
 
 def expand_templates_to_local_and_create_local_riscv_opc_c():
@@ -71,12 +71,12 @@ def save_local_riscv_opc_h_file_to_toolchain():
 
 
 def save_c_file_insts_to_local_riscv_opc_c_file(insts_strings):
-    riscv_opc_c_local_file = list(Path(".").resolve().parent.glob("**/riscv-opcodes/build"))[0] / "riscv-opc.c"
+    riscv_opc_c_local_file = Path("./build") / "riscv-opc.c"
     riscv_opc_c_local_file.write_text(insts_strings)
     print("Created local riscv-opc.c file from expanded templates, at: {}".format(riscv_opc_c_local_file))
 
 def append_insts_to_risc_opc_c_file_in_toolchain():
-    insts_strings_file = list(Path(".").resolve().parent.glob("**/build/riscv-opc.c"))[0].read_text()
+    insts_strings_file = list(Path(".").resolve().glob("**/build/riscv-opc.c"))[0].read_text()
     riscv_opc_c_file = list(Path(".").resolve().parent.glob("**/riscv-binutils/opcodes/riscv-opc.c"))[0]
     riscv_opc_c_file_backup = riscv_opc_c_file.with_name("riscv-opc.c.backup")
     contents = riscv_opc_c_file.read_text()
@@ -92,7 +92,7 @@ def append_insts_to_risc_opc_c_file_in_toolchain():
     print("Appended contents of local riscv-opc.c file to toolchain path, at: {}".format(riscv_opc_c_file))    
 
 def restore_delete_files_from_backup(delete):
-    backup_files = list(Path(".").resolve().parent.glob("**/ext_modules/**/*.backup"))
+    backup_files = list(Path("..").resolve().parent.glob("**/ext_modules/**/*.backup"))
     print("Restored the following files from backup:")
     for backup_file in backup_files:
         restored_file = backup_file.with_suffix("")

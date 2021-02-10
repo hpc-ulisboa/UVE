@@ -20,7 +20,7 @@ echo -n "Proceed? [y/n]: "
 read ans
 if [[ "$ans" == "y" ]]; then
     cd $BUILD_DIR
-    make stamps/build-binutils-newlib -B --jobs=5
+    make stamps/build-binutils-newlib -B --jobs=$(nproc)
     # make stamps/build-binutils-linux --jobs=5
     make install -B
 fi

@@ -1,5 +1,5 @@
 from yaml import Loader, load
-from utils.templating_utils import removeComments, removeBlankLines, TemplateSubst
+from low_level.templating_utils import removeComments, removeBlankLines, TemplateSubst
 
 def parse_rules(rules_payload):
     rules_obj = load(rules_payload, Loader=Loader)
