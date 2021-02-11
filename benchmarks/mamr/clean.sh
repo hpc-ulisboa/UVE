@@ -1,0 +1,1 @@
+../../tools/core/clean.sh

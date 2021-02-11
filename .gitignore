@@ -1,0 +1,7 @@
+benchmarks/*/results/*
+benchmarks/*/builds/*
+benchmarks/*/logs/*
+benchmarks/*/outputs/*
+benchmarks/*/last.uuid
+benchmarks/*/jobs_log*
+benchmarks/*/jobs_file*

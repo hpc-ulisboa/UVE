@@ -1,0 +1,7 @@
+ARCH
+//Values are below (comment the unwanted)
+arm
+rv
+/* x86 */
+sve
+uve

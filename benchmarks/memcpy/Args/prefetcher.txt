@@ -1,0 +1,5 @@
+pftch
+NONE
+STRIDE
+BOP
+AMPM
