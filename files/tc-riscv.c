@@ -1817,7 +1817,7 @@ branch:
                 //JMNOTE: UVEBRANCH
                 case 'k':
                     debug("UVEBRANCH, %s\n", s);
-                    *imm_reloc = BFD_RELOC_RISCV_UVEB;
+                    *imm_reloc = BFD_RELOC_RISCV_UVE_STREAM_BRANCH;
                     my_getExpression(imm_expr, s);
                     debug("UVEBRANCH, Number %d\n", imm_expr->X_add_number);
                     debug("UVEBRANCH, Unsigned %d\n", imm_expr->X_unsigned);
@@ -2230,7 +2230,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       break;
 
       //JMNOTE: UVEBRANCH
-    case BFD_RELOC_RISCV_UVEB:
+    case BFD_RELOC_RISCV_UVE_STREAM_BRANCH:
       if (fixP->fx_addsy)
 	{
 	  /* Fill in a tentative value to improve objdump readability.  */

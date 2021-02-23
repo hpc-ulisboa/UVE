@@ -2,11 +2,12 @@ diff --git a/bfd/bfd-in2.h b/bfd/bfd-in2.h
 index f4b3720..6c8798c 100644
 --- a/bfd/bfd-in2.h
 +++ b/bfd/bfd-in2.h
-@@ -4789,6 +4789,7 @@ number for the SBIC, SBIS, SBI and CBI instructions  */
+@@ -4789,6 +4789,8 @@ number for the SBIC, SBIS, SBI and CBI instructions  */
    BFD_RELOC_RISCV_SET16,
    BFD_RELOC_RISCV_SET32,
    BFD_RELOC_RISCV_32_PCREL,
-+  BFD_RELOC_RISCV_UVEB,
++  BFD_RELOC_RISCV_NULL_PLACE,
++  BFD_RELOC_RISCV_UVE_STREAM_BRANCH,
  
  /* Renesas RL78 Relocations.  */
    BFD_RELOC_RL78_NEG8,
@@ -40,7 +41,7 @@ index 5f66f4f..a0ee72b 100644
  	case R_RISCV_CALL:
  	case R_RISCV_JAL:
  	case R_RISCV_BRANCH:
-+	case R_RISCV_UVEB:
++	case R_RISCV_UVE_STREAM_BRANCH:
  	case R_RISCV_RVC_BRANCH:
  	case R_RISCV_RVC_JUMP:
  	case R_RISCV_PCREL_HI20:
@@ -49,7 +50,7 @@ index 5f66f4f..a0ee72b 100644
        break;
  
 +	//JMNOTE: UVEBRANCH
-+	case R_RISCV_UVEB:
++	case R_RISCV_UVE_STREAM_BRANCH:
 +      if (!VALID_UVEATYPE_IMM (value))
 +	return bfd_reloc_overflow;
 +      value = ENCODE_UVEATYPE_IMM (value);
@@ -63,22 +64,63 @@ index 5f66f4f..a0ee72b 100644
  	case R_RISCV_HI20:
  	case R_RISCV_BRANCH:
 +	//JMNOTE: UVEBRANCH
-+	case R_RISCV_UVEB:
++	case R_RISCV_UVE_STREAM_BRANCH:
  	case R_RISCV_RVC_BRANCH:
  	case R_RISCV_RVC_LUI:
  	case R_RISCV_LO12_I:
+diff --git a/bfd/libbfd.h b/bfd/libbfd.h
+index 2f5f16e..9678ad3 100644
+--- a/bfd/libbfd.h
++++ b/bfd/libbfd.h
+@@ -2222,6 +2222,8 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
+   "BFD_RELOC_RISCV_SET16",
+   "BFD_RELOC_RISCV_SET32",
+   "BFD_RELOC_RISCV_32_PCREL",
++  "BFD_RELOC_RISCV_NULL_PLACE",
++  "BFD_RELOC_RISCV_UVE_STREAM_BRANCH",
+   "BFD_RELOC_RL78_NEG8",
+   "BFD_RELOC_RL78_NEG16",
+   "BFD_RELOC_RL78_NEG24",
+diff --git a/bfd/reloc.c b/bfd/reloc.c
+index a1353a2..b64c42d 100644
+--- a/bfd/reloc.c
++++ b/bfd/reloc.c
+@@ -5199,6 +5199,10 @@ ENUMX
+   BFD_RELOC_RISCV_SET32
+ ENUMX
+   BFD_RELOC_RISCV_32_PCREL
++ENUMX
++  BFD_RELOC_RISCV_NULL_PLACE
++ENUMX
++  BFD_RELOC_RISCV_UVE_STREAM_BRANCH
+ ENUMDOC
+   RISC-V relocations.
+ 
+diff --git a/include/elf/riscv.h b/include/elf/riscv.h
+index defbbf4..a0e0531 100644
+--- a/include/elf/riscv.h
++++ b/include/elf/riscv.h
+@@ -88,6 +88,8 @@ START_RELOC_NUMBERS (elf_riscv_reloc_type)
+   RELOC_NUMBER (R_RISCV_SET16, 55)
+   RELOC_NUMBER (R_RISCV_SET32, 56)
+   RELOC_NUMBER (R_RISCV_32_PCREL, 57)
++  RELOC_NUMBER (R_RISCV_NULL_PLACE, 58)
++  RELOC_NUMBER (R_RISCV_UVE_STREAM_BRANCH, 59)
+ END_RELOC_NUMBERS (R_RISCV_max)
+ 
+ /* Processor specific flags for the ELF header e_flags field.  */
 diff --git a/bfd/elfxx-riscv.c b/bfd/elfxx-riscv.c
-index c0f006f..863040a 100644
+index c0f006f5e5..aa9271444a 100644
 --- a/bfd/elfxx-riscv.c
 +++ b/bfd/elfxx-riscv.c
-@@ -855,6 +855,23 @@ static reloc_howto_type howto_table[] =
+@@ -855,6 +855,39 @@ static reloc_howto_type howto_table[] =
  	 0,				/* src_mask */
  	 MINUS_ONE,			/* dst_mask */
  	 FALSE),			/* pcrel_offset */
 +
 +	//JMNOTE:UVEBRANCH
 +	/* 12-bit PC-relative branch offset.  */
-+   HOWTO (R_RISCV_UVEB,		/* type */
++   HOWTO (R_RISCV_NULL_PLACE,		/* type */
 +	 0,				/* rightshift */
 +	 2,				/* size */
 +	 32,				/* bitsize */
@@ -86,7 +128,23 @@ index c0f006f..863040a 100644
 +	 0,				/* bitpos */
 +	 complain_overflow_signed,	/* complain_on_overflow */
 +	 bfd_elf_generic_reloc,		/* special_function */
-+	 "R_RISCV_UVEB",		/* name */
++	 "R_RISCV_NULL_PLACE",		/* name */
++	 FALSE,				/* partial_inplace */
++	 0,				/* src_mask */
++	 ENCODE_UVEATYPE_IMM (-1U),	/* dst_mask */
++	 TRUE),				/* pcrel_offset */
++	
++    //JMNOTE:UVEBRANCH
++	/* 12-bit PC-relative branch offset.  */
++   HOWTO (R_RISCV_UVE_STREAM_BRANCH,		/* type */
++	 0,				/* rightshift */
++	 2,				/* size */
++	 32,				/* bitsize */
++	 TRUE,				/* pc_relative */
++	 0,				/* bitpos */
++	 complain_overflow_signed,	/* complain_on_overflow */
++	 bfd_elf_generic_reloc,		/* special_function */
++	 "R_RISCV_UVE_STREAM_BRANCH",		/* name */
 +	 FALSE,				/* partial_inplace */
 +	 0,				/* src_mask */
 +	 ENCODE_UVEATYPE_IMM (-1U),	/* dst_mask */
@@ -95,49 +153,13 @@ index c0f006f..863040a 100644
  };
  
  /* A mapping from BFD reloc types to RISC-V ELF reloc types.  */
-@@ -917,6 +934,7 @@ static const struct elf_reloc_map riscv_reloc_map[] =
+@@ -917,6 +950,8 @@ static const struct elf_reloc_map riscv_reloc_map[] =
    { BFD_RELOC_RISCV_SET16, R_RISCV_SET16 },
    { BFD_RELOC_RISCV_SET32, R_RISCV_SET32 },
    { BFD_RELOC_RISCV_32_PCREL, R_RISCV_32_PCREL },
-+  { BFD_RELOC_RISCV_UVEB, R_RISCV_UVEB },
++  { BFD_RELOC_RISCV_NULL_PLACE, R_RISCV_NULL_PLACE },
++  { BFD_RELOC_RISCV_UVE_STREAM_BRANCH, R_RISCV_UVE_STREAM_BRANCH },
  };
  
  /* Given a BFD reloc type, return a howto structure.  */
-diff --git a/bfd/libbfd.h b/bfd/libbfd.h
-index 2f5f16e..9678ad3 100644
---- a/bfd/libbfd.h
-+++ b/bfd/libbfd.h
-@@ -2222,6 +2222,7 @@ static const char *const bfd_reloc_code_real_names[] = { "@@uninitialized@@",
-   "BFD_RELOC_RISCV_SET16",
-   "BFD_RELOC_RISCV_SET32",
-   "BFD_RELOC_RISCV_32_PCREL",
-+  "BFD_RELOC_RISCV_UVEB",
-   "BFD_RELOC_RL78_NEG8",
-   "BFD_RELOC_RL78_NEG16",
-   "BFD_RELOC_RL78_NEG24",
-diff --git a/bfd/reloc.c b/bfd/reloc.c
-index a1353a2..b64c42d 100644
---- a/bfd/reloc.c
-+++ b/bfd/reloc.c
-@@ -5199,6 +5199,8 @@ ENUMX
-   BFD_RELOC_RISCV_SET32
- ENUMX
-   BFD_RELOC_RISCV_32_PCREL
-+ENUMX
-+  BFD_RELOC_RISCV_UVEB
- ENUMDOC
-   RISC-V relocations.
- 
-diff --git a/include/elf/riscv.h b/include/elf/riscv.h
-index defbbf4..a0e0531 100644
---- a/include/elf/riscv.h
-+++ b/include/elf/riscv.h
-@@ -88,6 +88,7 @@ START_RELOC_NUMBERS (elf_riscv_reloc_type)
-   RELOC_NUMBER (R_RISCV_SET16, 55)
-   RELOC_NUMBER (R_RISCV_SET32, 56)
-   RELOC_NUMBER (R_RISCV_32_PCREL, 57)
-+  RELOC_NUMBER (R_RISCV_UVEB, 58)
- END_RELOC_NUMBERS (R_RISCV_max)
- 
- /* Processor specific flags for the ELF header e_flags field.  */
 
