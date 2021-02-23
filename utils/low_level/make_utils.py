@@ -26,7 +26,7 @@ def expand_templates_to_local_and_create_local_riscv_opc_c():
 def append_registers_to_parse_opcodes():
     registers = get_registers()["registers"]
 
-    parse_opcodes_file = Path(".").resolve().glob('**/parse-opcodes')
+    parse_opcodes_file = Path(".").resolve().glob('./ext_modules/riscv-opcodes/parse-opcodes')
     parse_opcodes_file = list(parse_opcodes_file)[0]
     parse_file_backup = parse_opcodes_file.with_suffix(".backup")
     file_contents = parse_opcodes_file.read_text()
@@ -42,7 +42,7 @@ def append_registers_to_parse_opcodes():
 
 def parse_expanded_insts_to_riscv_opc_h_local_file():
     cur_path = Path(".")
-    opcodes_files = list(cur_path.glob('**/build/templates/*.expanded'))
+    opcodes_files = list(cur_path.glob('./build/templates/*.expanded'))
     opcodes = ""
     for file in opcodes_files:
         opcodes += file.read_text()
@@ -57,7 +57,7 @@ def parse_expanded_insts_to_riscv_opc_h_local_file():
 
 def save_local_riscv_opc_h_file_to_toolchain():
     cur_path = Path(".")
-    origin_file = list(cur_path.glob('**/build/riscv-opc.h'))[0]
+    origin_file = list(cur_path.glob('./build/riscv-opc.h'))[0]
     
     working_dir = get_toolchain_dir() / "riscv-binutils" / "include" / "opcode"
     backup_file = working_dir / "riscv-opc.h.backup"
@@ -76,8 +76,8 @@ def save_c_file_insts_to_local_riscv_opc_c_file(insts_strings):
     print("Created local riscv-opc.c file from expanded templates, at: {}".format(riscv_opc_c_local_file))
 
 def append_insts_to_risc_opc_c_file_in_toolchain():
-    insts_strings_file = list(Path(".").resolve().glob("**/build/riscv-opc.c"))[0].read_text()
-    riscv_opc_c_file = list(Path(".").resolve().parent.glob("**/riscv-binutils/opcodes/riscv-opc.c"))[0]
+    insts_strings_file = list(Path(".").resolve().glob("./build/riscv-opc.c"))[0].read_text()
+    riscv_opc_c_file = list(Path(".").resolve().glob("./ext_modules/riscv-gnu-toolchain/riscv-binutils/opcodes/riscv-opc.c"))[0]
     riscv_opc_c_file_backup = riscv_opc_c_file.with_name("riscv-opc.c.backup")
     contents = riscv_opc_c_file.read_text()
 
@@ -92,7 +92,7 @@ def append_insts_to_risc_opc_c_file_in_toolchain():
     print("Appended contents of local riscv-opc.c file to toolchain path, at: {}".format(riscv_opc_c_file))    
 
 def restore_delete_files_from_backup(delete):
-    backup_files = list(Path("..").resolve().parent.glob("**/ext_modules/**/*.backup"))
+    backup_files = list(Path(".").resolve().glob("./ext_modules/**/*.backup"))
     print("Restored the following files from backup:")
     for backup_file in backup_files:
         restored_file = backup_file.with_suffix("")

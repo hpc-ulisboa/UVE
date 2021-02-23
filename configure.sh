@@ -1,6 +1,7 @@
 #!/bin/sh
-RISCV_TOOLCHAIN_SRC=ext_modules/riscv-gnu-toolchain
-INSTALL_DIR=$(dirname $(realpath $0))/../install/uve_tc
+shPATH=$(dirname $(realpath $0))
+RISCV_TOOLCHAIN_SRC=$shPATH/ext_modules/riscv-gnu-toolchain
+INSTALL_DIR=$shPATH/../install/uve_tc
 # EXTRA_ARGS="--with-arch=rv32imf --with-abi=ilp32f --enable-multilib"
 
 cd $RISCV_TOOLCHAIN_SRC
