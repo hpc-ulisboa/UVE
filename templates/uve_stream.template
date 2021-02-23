@@ -21,7 +21,7 @@ ss.app.ind.<tget_k>.<bind_k>.4  vd vs1  31..28=3 27=0 26..25=0 24..22=<bind_v> 2
 ss.app.ind.<tget_k>.<bind_k>.5  vd vs1  31..28=4 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
 ss.app.ind.<tget_k>.<bind_k>.6  vd vs1  31..28=5 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
 ss.app.ind.<tget_k>.<bind_k>.7  vd vs1  31..28=6 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
-ss.app.ind.<tget_k>.<bind_k>.L  vd vs1  31..28=7 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.app.ind.<tget_k>.<bind_k>.l  vd vs1  31..28=7 27=0 26..25=0 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
 
 #End
 ss.end vd rs1 rs2 rs3  26..25=1 14=0 13..12=0 6..2=0x2 1..0=3
@@ -37,7 +37,7 @@ ss.end.ind.<tget_k>.<bind_k>.4  vd vs1  31..28=3 27=0 26..25=1 24..22=<bind_v> 2
 ss.end.ind.<tget_k>.<bind_k>.5  vd vs1  31..28=4 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
 ss.end.ind.<tget_k>.<bind_k>.6  vd vs1  31..28=5 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
 ss.end.ind.<tget_k>.<bind_k>.7  vd vs1  31..28=6 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
-ss.end.ind.<tget_k>.<bind_k>.L  vd vs1  31..28=7 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.end.ind.<tget_k>.<bind_k>.l  vd vs1  31..28=7 27=0 26..25=1 24..22=<bind_v> 21..20=<tget_v> 14=1 13=1 12=0 6..2=0x2 1..0=3
 
 #Config
 ss.cfg.vec vd   31..18=0 17=0 16..15=0 14..13=0 12=1 6..2=0x2 1..0=3
