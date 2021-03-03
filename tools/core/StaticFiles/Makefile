@@ -38,6 +38,7 @@ ifeq "$(PLAT)" "riscv"
 CFLAGS_MAIN   = -O0
 ifeq "$(LIBC)" "elf"
 CC = riscv64-unknown-elf-gcc
+# CC = riscv64-unknown-elf-clang
 else
 CC = riscv64-unknown-linux-gnu-gcc
 endif
