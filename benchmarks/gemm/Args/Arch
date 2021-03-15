@@ -1,7 +1,7 @@
 ARCH
 //Values are below (comment the unwanted)
 //arm
-/* rv */
+rv
 /* x86 */
 /* sve */
 uve

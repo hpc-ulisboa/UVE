@@ -1,9 +1,15 @@
 
 #if defined(__riscv)
 
-#define M5resetstats() asm volatile("m5.resetstats\n\t")
-#define M5dumpstats() asm volatile("m5.dumpstats\n\t")
-#define M5resetdumpstats() asm volatile("m5.resetdumpstats\n\t")
+/* #define M5resetstats() asm volatile("m5.resetstats\n\t") */
+/* #define M5dumpstats() asm volatile("m5.dumpstats\n\t") */
+/* #define M5resetdumpstats() asm volatile("m5.resetdumpstats\n\t") */
+
+#define M5resetstats()                                                 \
+     __asm__ __volatile__("nop\n\t")
+                                                                      
+#define M5dumpstats() asm volatile("nop\n\t")
+#define M5resetdumpstats() asm volatile("nop\n\t")
 
 #elif defined(__arm__) || defined(__aarch64__)
 

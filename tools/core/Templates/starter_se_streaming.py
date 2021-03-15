@@ -123,7 +123,7 @@ class SimpleSeSystem(System):
 
         # Wire up the system port that gem5 uses to load the kernel
         # and to perform debug accesses.
-        self.system_port = self.membus.mem_side_ports
+        self.system_port = self.membus.cpu_side_ports
 
 
         # Add CPUs to the system. A cluster of CPUs typically have
@@ -143,23 +143,23 @@ class SimpleSeSystem(System):
         self.cpu.toL1SE = L1SExBar(clk_domain = self.clk_domain, )
 
         self.cpu.icache_port = self.cpu.icache.cpu_side
-        self.cpu.dcache_port = self.cpu.toL1SE.mem_side_ports
-        self.cpu.toL1SE.cpu_side_ports = self.cpu.dcache.cpu_side
+        self.cpu.dcache_port = self.cpu.toL1SE.cpu_side_ports
+        self.cpu.toL1SE.mem_side_ports = self.cpu.dcache.cpu_side
         # self.cpu.dcache.cpu_side = self.cpu.toL1DBus.cpu_side_ports
         #JMTODO: Check if page walking table is being set up properly
 
         self.toL2Bus = L2XBar(width=64, clk_domain = self.clk_domain, max_routing_table_size=4096)
         self.l2 = cpu_types[args.cpu][4]()
-        self.cpu.icache.mem_side = self.toL2Bus.mem_side_ports
-        self.cpu.dcache.mem_side = self.toL2Bus.mem_side_ports
+        self.cpu.icache.mem_side = self.toL2Bus.cpu_side_ports
+        self.cpu.dcache.mem_side = self.toL2Bus.cpu_side_ports
         # self.cpu.itb.walker.port = self.toL2Bus.mem_side_ports
         # self.cpu.dtb.walker.port = self.toL2Bus.mem_side_ports
         # if self.checker != NULL:
         #     self.cpu.checker.itb.walker.port = self.toL2Bus.mem_side_ports
         #     self.cpu.checker.dtb.walker.port = self.toL2Bus.mem_side_ports
-        self.toL2Bus.cpu_side_ports = self.l2.cpu_side
+        self.toL2Bus.mem_side_ports = self.l2.cpu_side
 
-        self.l2.mem_side = self.membus.mem_side_ports
+        self.l2.mem_side = self.membus.cpu_side_ports
 
         #JMNOTE: CPU model changes
         print("UVE Model:\n\twidht:" + str(UVE_VECTOR_LENGTH) + "\n\tfifo_depth:"+
@@ -171,14 +171,14 @@ class SimpleSeSystem(System):
                                                    max_request_size=UVE_MAX_REQUEST_SIZE,
                                                    do_rename=UVE_STREAM_RENAME,
                                                    streams_throughput=UVE_AGUTHROUGHPUT)
-        self.cpu.streamEngine[0].mem_side_store = self.cpu.toL1SE.mem_side_ports
-        self.cpu.streamEngine[0].mem_side_load_lv1 = self.cpu.toL1SE.mem_side_ports
-        self.cpu.streamEngine[0].mem_side_load_lv2 = self.toL2Bus.mem_side_ports
-        self.cpu.streamEngine[0].mem_side_load_lv3 = self.membus.mem_side_ports
+        self.cpu.streamEngine[0].mem_side_store = self.cpu.toL1SE.cpu_side_ports
+        self.cpu.streamEngine[0].mem_side_load_lv1 = self.cpu.toL1SE.cpu_side_ports
+        self.cpu.streamEngine[0].mem_side_load_lv2 = self.toL2Bus.cpu_side_ports
+        self.cpu.streamEngine[0].mem_side_load_lv3 = self.membus.cpu_side_ports
 
         # Tell gem5 about the memory mode used by the CPUs we are
         # simulating.
-        self.mem_mode = O3_ARM_v7a_3.memory_mode()
+        self.mem_mode = cpu_types[args.cpu][0].memory_mode()
 
 
     def numCpuClusters(self):

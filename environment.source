@@ -1,12 +1,13 @@
 #!/bin/bash
 
-ihm=/home/joaomariord/UVE
-iRVCC=$ihm/tools/rv_cc/bin
-iARMCC=$ihm/tools/arm_cc/bin
+ihm=/home/joaomariord/UVE-NewStructure
+iRVCC=$ihm/install/uve_tc/bin
+# iARMCC=$ihm/tools/arm_cc/bin
 
-export GEM5_RV_ROOT=$ihm/tools/Gem5
+export GEM5_RV_ROOT=$ihm/uve-gem5-simulation
 export GEM5_RV=$GEM5_RV_ROOT/build/RISCV/gem5.opt
-export GEM5_ARM_ROOT=$ihm/tools/Gem5-SVE/gem5
-export GEM5_ARM=$GEM5_ARM_ROOT/build/ARM/gem5.opt
-export PATH=$iRVCC:$iARMCC:$PATH
+# export GEM5_ARM_ROOT=$ihm/tools/Gem5-SVE/gem5
+# export GEM5_ARM=$GEM5_ARM_ROOT/build/ARM/gem5.opt
+export PATH=$iRVCC:$PATH
+# export PATH=$iARMCC:$PATH
 export RISCV=${iRVCC%/*}
