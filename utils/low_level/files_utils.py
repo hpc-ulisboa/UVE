@@ -53,7 +53,7 @@ def get_directory(glob_string):
     return list(Path(".").resolve().glob(glob_string))[0]
 
 def get_parse_opcodes_script():
-    return get_directory("**/parse-opcodes")
+    return get_directory("./ext_modules/riscv-opcodes/parse-opcodes")
 
 def get_toolchain_dir():
-    return get_directory("**/riscv-gnu-toolchain")
+    return get_directory("./ext_modules/riscv-gnu-toolchain")
