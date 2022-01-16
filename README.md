@@ -1,6 +1,7 @@
 # UVE Benchmarks
 
 This repo contains a set of UVE benchmarks for use in developing, testing, and evaluation.
+The UVE Reference card is also available in the pdf format.
 
 Each benchmark must be put in the benchmarks folder, to automate benchmark creation there is a tool in ./tools/create_benchmark.sh that populates all the necessary files and customizes files based on provided arguments.
 Global configurations can be changed by creating a global_configs.sh file in the root folder. Copy the global_configs_template.sh from ./tools.
