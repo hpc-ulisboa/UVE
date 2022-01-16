@@ -9,5 +9,6 @@ If you use this in your work, please cite as:
 To see the sources and documentation, refer to the following branches:
 - uve_source: gem5 source with our modifications
 - uve_examples_docs: documentation, examples and codes used for benchmarking  
+- uve_compiler: set of scripts and source code to patch and compile gcc with the UVE extension ISA
 
 **Note that the gem5 source version is prior to the one used at the ISCA paper, we will not publish the latest source code.**
