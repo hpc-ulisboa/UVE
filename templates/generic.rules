@@ -22,10 +22,6 @@ cw:
     - "" : 0
     - cw : 1
 
-u:
-    - "" : 0
-    - stream: 1
-
 fps:
     - us : 0
     - fp : 1
@@ -55,8 +51,31 @@ bmod:
     - dec: 1
     
 bind:
-    - add: 0
-    - sub: 1
-    - inc: 2
-    - dec: 3
+    - inc: 0
+    - dec: 1
+    - add: 2
+    - sub: 3
     - set: 4
+
+sg:
+    - "" : 0
+    - sg : 1
+
+pmz:
+    - "" : 0
+    - z  : 1
+
+pmm:
+    - "" : 0
+    - m  : 1
+
+inds:
+    - "" : 0
+    - inds  : 1
+
+mem:
+    - "" : 0
+    - mem1 : 1
+    - mem2 : 2
+    - mem3 : 3
+

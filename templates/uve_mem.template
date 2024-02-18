@@ -1,19 +1,22 @@
 # so.v.ld Load vector: expand on s_bit and width
 
-so.v.ld.<s_k>.<width_k>       vd rs1 rs2        31..26=40 25=<s_v>             14=0     13..12=<width_v> 6..2=0xA 1..0=3
+#so.v.ld.<s_k>.<width_k>       vd rs1 rs2        31..26=40 25=<s_v>             14=0     13..12=<width_v> 6..2=0xA 1..0=3
 
 # DEPRECATED: so.v.st.<s_k>.<width_k>     vd rs1 rs2 31..26=41 25=<s_v> 14=1 13..12=<width_v> 6..2=0xA 1..0=3
 
-so.v.st.<s_k>                 vd rs1 rs2        31..26=41 25=<s_v>             14=0     13..12=0         6..2=0xA 1..0=3
+#so.v.st.<s_k>                 vd rs1 rs2        31..26=41 25=<s_v>             14=0     13..12=0         6..2=0xA 1..0=3
 
 so.v.dp.<width_k>             vd rs1 ps2        31..26=43 25..23=0             14=0     13..12=<width_v> 6..2=0xA 1..0=3
 
-so.v.mv.<u_k>                 vd vs1 ps2        31..26=42 25..23=0             14=<u_v> 13..12=0         6..2=0xA 1..0=3
-so.v.mvt.<u_k>                vd vs1 ps2        31..26=42 25..23=1             14=<u_v> 13..12=0         6..2=0xA 1..0=3
+#so.v.mv.<u_k>                 vd vs1 ps2        31..26=42 25..23=0             14=<u_v> 13..12=0         6..2=0xA 1..0=3
+#so.v.mvt.<u_k>                vd vs1 ps2        31..26=42 25..23=1             14=<u_v> 13..12=0         6..2=0xA 1..0=3
+#so.v.mv                       vd vs1 ps2        31..26=42 25..23=0             14=0 13..12=0         6..2=0xA 1..0=3
+#so.v.mvt                      vd vs1 ps2        31..26=42 25..23=1             14=0 13..12=0         6..2=0xA 1..0=3
 so.v.mvvs                     rd vs1 22..20=0   31..26=42 25..23=2             14=0     13..12=0         6..2=0xA 1..0=3
 so.v.mvsv.<width_k>           vd rs1 22..20=0   31..26=42 25..23=3             14=0     13..12=<width_v> 6..2=0xA 1..0=3
 
-so.v.cv.<fps_k>.<u_k>.<width_k>    vd vs1 22..20=0   31..26=42 25=1 24..23=<fps_v>   14=<u_v> 13..12=<width_v> 6..2=0xA 1..0=3
+#so.v.cv.<fps_k>.<u_k>.<width_k>    vd vs1 22..20=0   31..26=42 25=1 24..23=<fps_v>   14=<u_v> 13..12=<width_v> 6..2=0xA 1..0=3
+so.v.cv.<fps_k>.<width_k>       vd vs1 22..20=0   31..26=42 25=1 24..23=<fps_v>   14=0 13..12=<width_v> 6..2=0xA 1..0=3
 
 so.c.setvl  rd rs1 24..20=0 14..12=0  31..25=88 6..2=0xA 1..0=3
 so.c.getvl  rd 24..15=0 14..12=7  31..25=88 6..2=0xA 1..0=3

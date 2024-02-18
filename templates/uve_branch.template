@@ -1,20 +1,41 @@
 # bit 21 => Not Variant
 # bits 20,14,13 => Level Configuration
-so.b.ndc.1  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=0 14=0 13=0   12=0 6..2=0xA 1..0=3
-so.b.ndc.2  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=0 14=0 13=1   12=0 6..2=0xA 1..0=3
-so.b.ndc.3  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=0 14=1 13=0   12=0 6..2=0xA 1..0=3
-so.b.ndc.4  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=0 14=1 13=1   12=0 6..2=0xA 1..0=3
-so.b.ndc.5  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=1 14=0 13=0   12=0 6..2=0xA 1..0=3
-so.b.ndc.6  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=1 14=0 13=1   12=0 6..2=0xA 1..0=3
-so.b.ndc.7  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=1 14=1 13=0   12=0 6..2=0xA 1..0=3
+#so.b.ndc.1  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=0 14=0 13=0   12=0 6..2=0xA 1..0=3
+#so.b.ndc.2  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=0 14=0 13=1   12=0 6..2=0xA 1..0=3
+#so.b.ndc.3  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=0 14=1 13=0   12=0 6..2=0xA 1..0=3
+#so.b.ndc.4  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=0 14=1 13=1   12=0 6..2=0xA 1..0=3
+#so.b.ndc.5  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=1 14=0 13=0   12=0 6..2=0xA 1..0=3
+#so.b.ndc.6  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=1 14=0 13=1   12=0 6..2=0xA 1..0=3
+#so.b.ndc.7  vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=1 14=1 13=0   12=0 6..2=0xA 1..0=3
+#
+#so.b.dc.1   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14=0 13=0   12=0 6..2=0xA 1..0=3
+#so.b.dc.2   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14=0 13=1   12=0 6..2=0xA 1..0=3
+#so.b.dc.3   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14=1 13=0   12=0 6..2=0xA 1..0=3
+#so.b.dc.4   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14=1 13=1   12=0 6..2=0xA 1..0=3
+#so.b.dc.5   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14=0 13=0   12=0 6..2=0xA 1..0=3
+#so.b.dc.6   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14=0 13=1   12=0 6..2=0xA 1..0=3
+#so.b.dc.7   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14=1 13=0   12=0 6..2=0xA 1..0=3
+#
+#so.b.nc     vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=1 14=1 13=1   12=0 6..2=0xA 1..0=3
+#so.b.c      vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14=1 13=1   12=0 6..2=0xA 1..0=3
 
-so.b.dc.1   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14=0 13=0   12=0 6..2=0xA 1..0=3
-so.b.dc.2   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14=0 13=1   12=0 6..2=0xA 1..0=3
-so.b.dc.3   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14=1 13=0   12=0 6..2=0xA 1..0=3
-so.b.dc.4   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14=1 13=1   12=0 6..2=0xA 1..0=3
-so.b.dc.5   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14=0 13=0   12=0 6..2=0xA 1..0=3
-so.b.dc.6   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14=0 13=1   12=0 6..2=0xA 1..0=3
-so.b.dc.7   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14=1 13=0   12=0 6..2=0xA 1..0=3
+#new
+# bits 14..12 => Level Configuration
+so.b.ndc.1  vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14..12=0 6..2=0xA 1..0=3
+so.b.ndc.2  vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14..12=1 6..2=0xA 1..0=3
+so.b.ndc.3  vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14..12=2 6..2=0xA 1..0=3
+so.b.ndc.4  vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14..12=3 6..2=0xA 1..0=3
+so.b.ndc.5  vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14..12=4 6..2=0xA 1..0=3
+so.b.ndc.6  vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14..12=5 6..2=0xA 1..0=3
+so.b.ndc.7  vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14..12=6 6..2=0xA 1..0=3
 
-so.b.nc     vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=1 14=1 13=1   12=0 6..2=0xA 1..0=3
-so.b.c      vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=1 14=1 13=1   12=0 6..2=0xA 1..0=3
+so.b.dc.1   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14..12=0 6..2=0xA 1..0=3
+so.b.dc.2   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14..12=1 6..2=0xA 1..0=3
+so.b.dc.3   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14..12=2 6..2=0xA 1..0=3
+so.b.dc.4   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14..12=3 6..2=0xA 1..0=3
+so.b.dc.5   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14..12=4 6..2=0xA 1..0=3
+so.b.dc.6   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14..12=5 6..2=0xA 1..0=3
+so.b.dc.7   vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14..12=6 6..2=0xA 1..0=3
+
+so.b.nc     vs1 imm12aHi imm12aLo 31..29=0x7   21=1 20=1 14..12=7 6..2=0xA 1..0=3
+so.b.c      vs1 imm12aHi imm12aLo 31..29=0x7   21=0 20=0 14..12=7 6..2=0xA 1..0=3
