@@ -11,8 +11,8 @@ so.p.mvt.<pmz_k>      pd ps1 ps3     31..28=8 24=<pmz_v> 23..20=0 19=0 14..13=1 
 so.p.cv.<width_k>.<width_k>.<pmz_k>   pd ps1     31..28=8 27..25=0 24=<pmz_v> 23..22=<width_v> 21..20=<width_v> 19=0 14..13=1 12..11=2 6..2=0xA 1..0=3
 
 
-so.p.egt.<fps_k>.<pmz_k>  pd vs1 vs2 ps3 31..28=8 14=1 13..12=<fps_v> 11=<pmz_v> 6..2=0xA 1..0=3
-#so.p.egts.<fps_k> pd vs1 rs2 ps3 31..28=8 14=1 13..12=<fps_v> 11=0 6..2=0xA 1..0=3
+so.p.ge.<fps_k>.<pmz_k>  pd vs1 vs2 ps3 31..28=8 14=1 13..12=<fps_v> 11=<pmz_v> 6..2=0xA 1..0=3
+#so.p.ges.<fps_k> pd vs1 rs2 ps3 31..28=8 14=1 13..12=<fps_v> 11=0 6..2=0xA 1..0=3
 
 so.p.eq.<fps_k>.<pmz_k>   pd vs1 vs2 ps3 31..28=9 14=0 13..12=<fps_v> 11=<pmz_v> 6..2=0xA 1..0=3
 #so.p.eqs.<fps_k>  pd vs1 rs2 ps3 31..28=9 14=0 13..12=<fps_v> 11=0 6..2=0xA 1..0=3

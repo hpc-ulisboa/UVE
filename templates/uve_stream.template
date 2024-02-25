@@ -66,10 +66,11 @@ ss.app.ind.<tget_k>.<bind_k>.l  vd vs1  31..28=7 27=0 26..25=1 24..22=<bind_v> 2
 
 #new
 ss.app.ind.ofs.sg.<bind_k>  vd vs1  31..28=0 27=1 26..25=1 24..22=<bind_v> 21..20=2 14=1 13=1 12=0 6..2=0x2 1..0=3
+ss.end.ind.ofs.sg.<bind_k>  vd vs1  31..28=0 27=1 26..25=2 24..22=<bind_v> 21..20=2 14=1 13=1 12=0 6..2=0x2 1..0=3
 
 #End
 #ss.end vd rs1 rs2 rs3  26..25=1 14=0 13..12=0 6..2=0x2 1..0=3
-ss.end vd rs1 rs2 rs3  26..25=3 14=0 13..12=0 6..2=0x2 1..0=3
+ss.end vd rs1 rs2 rs3  26..25=2 14=0 13..12=0 6..2=0x2 1..0=3
 
 #ss.end.mod.<tget_k>.<bmod_k> vd rs1 rs3 26..25=1 24..22=<bmod_v> 21..20=<tget_v> 14=1 13=0 12=0 6..2=0x2 1..0=3
 #ss.end.modl.<tget_k>.<bmod_k> vd rs3    26..25=1 24..22=<bmod_v> 21..20=<tget_v> 19..15=0  14=1 13=0 12=1 6..2=0x2 1..0=3
