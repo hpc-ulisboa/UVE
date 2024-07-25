@@ -16,10 +16,10 @@ The toolchain installation path defaults to ../install/uve_tc
 
 ## Workflow
 After changing the template files, run:
-`./rebuild.sh` and answer y after verifying that everything went ok.
+`./rebuild_gas.sh` and answer y after verifying that everything went ok.
 This will build the new changes and updates GNU as (assembler) build.
 
-You can force a make clean of GNU as, by executing: `./rebuild.sh 1`
+You can force a make clean of GNU as, by executing: `./rebuild_gas.sh 1`
 
 ## Documentation
 The complete process of injecting UVE instructions in GCC is as follows:
