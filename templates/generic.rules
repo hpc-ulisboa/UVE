@@ -14,6 +14,26 @@ width:
     - w : 2
     - d : 3
 
+widthb:
+    - h : 1
+    - w : 2
+    - d : 3
+
+widthh:
+    - b : 0
+    - w : 2
+    - d : 3
+
+widthw:
+    - b : 0
+    - h : 1
+    - d : 3
+
+widthd:
+    - b : 0
+    - h : 1
+    - w : 2
+
 s:
     - "" : 0
     - s : 1
